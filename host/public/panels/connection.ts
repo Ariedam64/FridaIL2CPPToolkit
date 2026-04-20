@@ -5,6 +5,7 @@ import { onWsEvent } from "../lib/ws.js";
 interface Proc { pid: number; name: string; }
 
 let currentPid: number | null = null;
+let mountWsUnsub: (() => void) | null = null;
 
 /** Subscribe to attach/detach events and update the status pill + buttons.
  *  Call once at boot from main.ts. */
@@ -92,8 +93,10 @@ export function mountConnection(container: HTMLElement): void {
     q.addEventListener("input", renderList);
     refresh.addEventListener("click", () => void refreshProcs());
 
-    // Re-render list when attach state changes (to highlight current process)
-    onWsEvent((ev) => {
+    // Re-render list when attach state changes (to highlight current process).
+    // Clear previous mount subscription first — tab cycling re-mounts this panel.
+    if (mountWsUnsub) mountWsUnsub();
+    mountWsUnsub = onWsEvent((ev) => {
         if (ev.type === "attached" || ev.type === "detached" || ev.type === "hello") {
             renderList();
         }

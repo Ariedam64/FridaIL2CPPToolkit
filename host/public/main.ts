@@ -49,27 +49,35 @@ btnReload.addEventListener("click", () => { void reload(); });
 // ── Logs panel (right column, always mounted)
 mountLogs($("#log"));
 
+// Each tab switch creates a fresh wrapper div. When we remove the wrapper,
+// all DOM listeners attached to it (by the panel's render function) die with it.
+// This prevents the "click fires the RPC twice" class of bugs after tab cycling.
+function freshWrapper(container: HTMLElement): HTMLElement {
+    container.replaceChildren();
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "display:flex; flex-direction:column; min-height:0; height:100%; overflow:auto";
+    container.appendChild(wrap);
+    return wrap;
+}
+
 // ── Sidebar tab rendering
 const sidebarContent = $("#sidebar-content");
 
 function renderSidebarTab(name: string): void {
-    if (name === "processes") {
-        mountConnection(sidebarContent);
-    } else if (name === "explorer") {
-        sidebarContent.innerHTML = "";
-        renderExplorer(sidebarContent);
-    }
+    const wrap = freshWrapper(sidebarContent);
+    if (name === "processes")      mountConnection(wrap);
+    else if (name === "explorer")  renderExplorer(wrap);
 }
 
 // ── Main panel tab rendering
 const mainContent = $("#main-content");
 
 function renderMainTab(name: string): void {
-    mainContent.innerHTML = "";
-    if (name === "search")         renderSearch(mainContent);
-    else if (name === "instance")  renderInstance(mainContent);
-    else if (name === "hookpatch") renderHookPatch(mainContent);
-    else if (name === "socket")    renderSocket(mainContent);
+    const wrap = freshWrapper(mainContent);
+    if (name === "search")         renderSearch(wrap);
+    else if (name === "instance")  renderInstance(wrap);
+    else if (name === "hookpatch") renderHookPatch(wrap);
+    else if (name === "socket")    renderSocket(wrap);
 }
 
 // ── Listen for tab-change events (fired by wireTabs above)

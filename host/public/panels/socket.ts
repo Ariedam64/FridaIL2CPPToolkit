@@ -10,6 +10,8 @@ const socketAliases: Record<string, string> = (() => {
 })();
 function saveAliases(): void { localStorage.setItem("socketAliases", JSON.stringify(socketAliases)); }
 
+let mountWsUnsub: (() => void) | null = null;
+
 interface SocketPayload {
     direction?: string;
     cls?: string;
@@ -183,8 +185,10 @@ export function renderSocket(container: HTMLElement): void {
         if (autoscrollCb.checked) socketLogEl.scrollTop = socketLogEl.scrollHeight;
     }
 
-    // Subscribe to socket events via WS
-    onWsEvent((ev) => {
+    // Subscribe to socket events via WS. Clear previous mount's sub first
+    // (tab cycling re-mounts this panel).
+    if (mountWsUnsub) mountWsUnsub();
+    mountWsUnsub = onWsEvent((ev) => {
         if (ev.type !== "message") return;
         const m = ev.message;
         if (m.type !== "send") return;
