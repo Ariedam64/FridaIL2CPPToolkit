@@ -61,6 +61,18 @@ mountWatchlist($("#watchlist"));
 // ── Session tracker: clear on detach
 onWsEvent((ev) => { if (ev.type === "detached") clearSession(); });
 
+// ── Disconnected state banner
+const banner = document.getElementById("disconnected-banner") as HTMLElement;
+onWsEvent((ev) => {
+    if (ev.type === "detached") {
+        banner.querySelector(".text")!.textContent = `DETACHED${(ev as any).reason ? ` · ${(ev as any).reason}` : ""} — pick a process to reattach`;
+        banner.style.display = "";
+    } else if (ev.type === "attached" || ev.type === "hello") {
+        if (ev.type === "hello" && !(ev as any).attached) return;
+        banner.style.display = "none";
+    }
+});
+
 // ── Auto-offer matching bookmark toast (module-level subscription, once)
 initBookmarkAutoOffer();
 
