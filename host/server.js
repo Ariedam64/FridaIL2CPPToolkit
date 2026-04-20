@@ -78,6 +78,10 @@ const routes = {
             const result = await bridge.callRpc(method, args || []);
             sendJson(res, 200, { result });
         },
+        "/api/dumps": async (req, res) => {
+            const body = JSON.parse(await readBody(req));
+            sendJson(res, 200, persistence.saveDump(body.content || "", body.meta || {}));
+        },
     },
     POST_param: {
         "/api/bookmarks": async (req, res, _q, slug) => {

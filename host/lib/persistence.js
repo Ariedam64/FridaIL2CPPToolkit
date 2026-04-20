@@ -53,6 +53,14 @@ function deleteBookmark(slug) {
     return true;
 }
 
-function saveDump(_payload, _meta) { throw new Error("saveDump: implemented in M5"); }
+function saveDump(content, meta = {}) {
+    ensureDir(path.join(DATA_DIR, "dumps"));
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const name = (meta.name || "dump").replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 60);
+    const ext = (meta.ext || "md").replace(/[^a-z]/gi, "") || "md";
+    const file = path.join(DATA_DIR, "dumps", `${ts}-${name}.${ext}`);
+    fs.writeFileSync(file, content, "utf8");
+    return { path: file, size: Buffer.byteLength(content, "utf8"), name };
+}
 
 module.exports = { listBookmarks, getBookmark, saveBookmark, deleteBookmark, saveDump, slugify };
