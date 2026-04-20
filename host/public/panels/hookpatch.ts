@@ -1,6 +1,7 @@
 // Hook & patch panel — hook methods, replace with noop, force-return, patch statics, call static.
 import { rpcCall } from "../lib/rpc.js";
 import { logRpcLine, logRpcResult } from "./logs.js";
+import { recordHook, recordPatch } from "../lib/session.js";
 
 function parseVal(v: string): unknown {
     if (v === "" || v == null) return undefined;
@@ -19,6 +20,14 @@ async function runAction(action: string, args: unknown[]): Promise<void> {
     try {
         const result = await rpcCall(action, args);
         logRpcResult(action, result);
+        // Record to session tracker on success
+        if (action === "hook" || action === "replaceNoop") {
+            recordHook({ className: String(args[0] ?? ""), methodName: String(args[1] ?? ""), mode: action as "hook" | "replaceNoop" });
+        } else if (action === "forceReturn") {
+            recordHook({ className: String(args[0] ?? ""), methodName: String(args[1] ?? ""), mode: "forceReturn", value: args[2] });
+        } else if (action === "patchStatic") {
+            recordPatch({ kind: "static", className: String(args[0] ?? ""), field: String(args[1] ?? ""), value: args[2] });
+        }
     } catch (err) {
         logRpcLine(`[rpc] ${action} failed: ${String(err)}`);
     }

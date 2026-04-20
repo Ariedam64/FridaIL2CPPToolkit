@@ -1,5 +1,5 @@
 // Entry point — boots WS, mounts all panels, wires tab switching.
-import { connect as wsConnect } from "./lib/ws.js";
+import { connect as wsConnect, onWsEvent } from "./lib/ws.js";
 import { detach, reload } from "./lib/rpc.js";
 import { wireSplitters } from "./lib/splitter.js";
 import { mountConnection, wireStatusAndButtons } from "./panels/connection.js";
@@ -10,6 +10,8 @@ import { renderHookPatch } from "./panels/hookpatch.js";
 import { renderSocket } from "./panels/socket.js";
 import { renderExplorer } from "./panels/explorer.js";
 import { mountWatchlist } from "./panels/watchlist.js";
+import { clearSession } from "./lib/session.js";
+import { renderBookmarks, initBookmarkAutoOffer } from "./panels/bookmarks.js";
 
 function $(sel: string, root: ParentNode = document): HTMLElement {
     const el = root.querySelector(sel);
@@ -53,6 +55,12 @@ mountLogs($("#log"));
 // ── Watchlist panel (right column, always mounted)
 mountWatchlist($("#watchlist"));
 
+// ── Session tracker: clear on detach
+onWsEvent((ev) => { if (ev.type === "detached") clearSession(); });
+
+// ── Auto-offer matching bookmark toast (module-level subscription, once)
+initBookmarkAutoOffer();
+
 // Each tab switch creates a fresh wrapper div. When we remove the wrapper,
 // all DOM listeners attached to it (by the panel's render function) die with it.
 // This prevents the "click fires the RPC twice" class of bugs after tab cycling.
@@ -71,6 +79,7 @@ function renderSidebarTab(name: string): void {
     const wrap = freshWrapper(sidebarContent);
     if (name === "processes")      mountConnection(wrap);
     else if (name === "explorer")  renderExplorer(wrap);
+    else if (name === "bookmarks") renderBookmarks(wrap);
 }
 
 // ── Main panel tab rendering
