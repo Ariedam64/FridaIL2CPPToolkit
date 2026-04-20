@@ -81,9 +81,28 @@ export function scanByValue(target: string, scanType: ScanType, assemblyName: st
                 if (done) { resolve(out); return; }
 
                 // Pass 2: managed heap sweep in the chosen assembly.
+                // HARD LIMIT: large assemblies (Dofus "Core" has 8919 classes) would freeze
+                // the target process if we gc.choose each one. Cap at MAX_CLASSES_SCAN and
+                // abort after SCAN_BUDGET_MS total time.
+                const MAX_CLASSES_SCAN = 800;
+                const SCAN_BUDGET_MS = 12_000;
+                const startMs = Date.now();
                 const assembly = Il2Cpp.domain.assemblies.find(a => a.name === asm);
                 if (!assembly) { reject(new Error(`assembly ${asm} not found`)); return; }
+                const classesCount = assembly.image.classes.length;
+                if (classesCount > MAX_CLASSES_SCAN) {
+                    console.log(`[scanner] assembly ${asm} has ${classesCount} classes — skipping heap sweep (too big). Returning only captured-instance matches (${out.length}). Capture target classes first and re-scan.`);
+                    resolve(out);
+                    return;
+                }
+                let scanned = 0;
                 for (const klass of assembly.image.classes) {
+                    if (Date.now() - startMs > SCAN_BUDGET_MS) {
+                        console.log(`[scanner] budget ${SCAN_BUDGET_MS}ms exceeded at ${scanned}/${classesCount} classes; returning partial results.`);
+                        resolve(out);
+                        return;
+                    }
+                    scanned++;
                     if (klass.isEnum || klass.isInterface) continue;
                     const matchingFields = klass.fields.filter(f => !f.isStatic && matchType(f.type.name, scanType));
                     if (matchingFields.length === 0) continue;
@@ -93,7 +112,7 @@ export function scanByValue(target: string, scanType: ScanType, assemblyName: st
                         if (checkInstance(inst)) { resolve(out); return; }
                     }
                 }
-                console.log(`[scanner] scan complete: ${out.length} candidates (captured + ${asm})`);
+                console.log(`[scanner] scan complete: ${out.length} candidates (captured + ${asm}, ${scanned} classes)`);
                 resolve(out);
             } catch (e) { reject(e); }
         });
