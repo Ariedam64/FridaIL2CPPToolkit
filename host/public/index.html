@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Frida IL2CPP Toolkit</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Frida IL2CPP Toolkit</h1>
+    <div id="status" class="status off">not attached</div>
+    <div class="spacer"></div>
+    <button id="btn-detach" disabled>detach</button>
+    <button id="btn-reload" disabled title="re-read build/rpc-agent.js and reload in-process">reload agent</button>
+  </header>
+
+  <main>
+    <section id="picker" class="panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="processes">processes</button>
+        <button class="tab" data-tab="explorer">explorer</button>
+      </div>
+
+      <div id="tab-processes" class="tab-content active">
+        <div class="row">
+          <input id="q" placeholder="filter by name…">
+          <button id="btn-refresh" title="refresh">↻</button>
+        </div>
+        <div id="proclist" class="proclist">loading…</div>
+      </div>
+
+      <div id="tab-explorer" class="tab-content">
+        <div class="row">
+          <select id="explorer-mode">
+            <option value="assembly">by assembly</option>
+            <option value="inheritance">by inheritance</option>
+          </select>
+          <button id="btn-tree-reload" title="reload">↻</button>
+        </div>
+        <div class="row" id="inheritance-root-row" style="display:none">
+          <input id="inheritance-root" value="UnityEngine.MonoBehaviour" placeholder="root class">
+          <button id="btn-inherit-go">go</button>
+        </div>
+        <div class="row">
+          <input id="tree-filter" placeholder="filter visible…">
+        </div>
+        <div id="tree" class="tree">(attach a process first)</div>
+      </div>
+    </section>
+
+    <div id="splitter" title="drag to resize · double-click to reset"></div>
+
+    <section class="panel actions-panel">
+      <div class="tabs">
+        <button class="tab active" data-tab="search" title="discover what exists in the process">🔍 search</button>
+        <button class="tab" data-tab="instance" title="read &amp; manipulate live objects">📦 instance</button>
+        <button class="tab" data-tab="hookpatch" title="intercept &amp; modify behavior">⚡ hook &amp; patch</button>
+        <button class="tab" data-tab="socket" title="live network traffic monitor">🔌 socket</button>
+      </div>
+
+      <!-- ========== SEARCH ========== -->
+      <div id="tab-search" class="tab-content active">
+        <div class="section-hint">Trouve des classes, méthodes ou strings. Démarre toujours par là.</div>
+
+        <div class="action">
+          <span class="label">full analyze</span>
+          <div class="spacer"></div>
+          <button data-action="analyze" title="list all assemblies + classes + MonoBehaviours">run</button>
+        </div>
+
+        <div class="action">
+          <span class="label">by name</span>
+          <input data-arg="pattern" placeholder="pattern · string ou /regex/flags">
+          <button data-action="find">find classes</button>
+        </div>
+
+        <div class="action">
+          <span class="label">by field</span>
+          <input data-arg="typePattern" placeholder="type regex (Int32, Vector3…)">
+          <input data-arg="namePattern" placeholder="name regex (health, gold…)">
+          <button data-action="findByField" title="contre l'obfuscation : trouve par signature">find</button>
+        </div>
+
+        <div class="action">
+          <span class="label">by method</span>
+          <input data-arg="returnType" placeholder="return (Boolean…)">
+          <input data-arg="paramType"  placeholder="param (Vector3…)">
+          <input data-arg="name"       placeholder="name (Damage…)">
+          <button data-action="findByMethod">find</button>
+        </div>
+
+        <div class="action">
+          <span class="label">string in mem</span>
+          <input data-arg="text" placeholder='literal (e.g. "Game Over")'>
+          <button data-action="findStringInMemory" title="scans UTF-8 + UTF-16 LE">scan</button>
+        </div>
+
+        <div class="action">
+          <span class="label">dump class</span>
+          <input data-arg="name" placeholder="exact class name">
+          <button data-action="dumpClass">full</button>
+          <button data-action="dumpStatics">statics only</button>
+        </div>
+      </div>
+
+      <!-- ========== INSTANCE ========== -->
+      <div id="tab-instance" class="tab-content">
+        <div class="section-hint">
+          Pour lire/modifier l'état d'un objet vivant, il faut d'abord le <b>capturer</b>.
+          Deux méthodes : via le GC (classes managées ordinaires) ou via hook (MonoBehaviours Unity).
+        </div>
+
+        <div class="action">
+          <span class="label">① capture · GC</span>
+          <input data-arg="className" placeholder="class (e.g. Core.UILogic.Inventory.Inventory)">
+          <input data-arg="index" placeholder="index" value="0" style="max-width:60px">
+          <button data-action="listInstances" title="list living instances via managed GC">list</button>
+          <button data-action="captureViaGC" title="grab the Nth living instance">capture</button>
+        </div>
+
+        <div class="action">
+          <span class="label">① capture · hook</span>
+          <input data-arg="className" placeholder="class (MonoBehaviour)">
+          <input data-arg="tickMethod" placeholder="tick method (Tick, Update…)">
+          <button data-action="capture" title="hook once, grab this, auto-revert">capture</button>
+        </div>
+
+        <div class="divider"><span>↓ once captured, use class name below ↓</span></div>
+
+        <div class="action">
+          <span class="label">② inspect</span>
+          <input data-arg="className" placeholder="class">
+          <button data-action="listCaptured" title="list all captured instances">list all</button>
+          <button data-action="dumpInstance" title="dump every field with current value">dump fields</button>
+        </div>
+
+        <div class="action">
+          <span class="label">③ read / write field</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="fieldName" placeholder="field">
+          <input data-arg="value" placeholder="value (blank = read)">
+          <button data-action="readField">read</button>
+          <button data-action="writeField">write</button>
+        </div>
+
+        <div class="action">
+          <span class="label">③ call method</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="methodName" placeholder="method">
+          <input data-arg="args" placeholder='args (JSON array)' value="[]">
+          <button data-action="callInstance">call</button>
+        </div>
+
+        <div class="action">
+          <span class="label">③ read list</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="fieldName" placeholder="List&lt;T&gt; field name">
+          <input data-arg="limit" placeholder="limit" value="50" style="max-width:70px">
+          <button data-action="readList" title="enumerate the List<T>'s elements">read</button>
+        </div>
+
+        <div class="action">
+          <span class="label">③ enum + call</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="fieldName" placeholder="List&lt;T&gt; field">
+          <input data-arg="methods" placeholder="methods (comma-sep, e.g. get_price,get_quantity)">
+          <input data-arg="limit" placeholder="limit" value="50" style="max-width:70px">
+          <button data-action="enumerateList" title="iterate list + call methods on each element">run</button>
+        </div>
+
+        <div class="action">
+          <span class="label">③ capture [i]</span>
+          <input data-arg="listClassName" placeholder="list owner class (captured)">
+          <input data-arg="listFieldName" placeholder="List&lt;T&gt; field">
+          <input data-arg="index" placeholder="i" value="0" style="max-width:50px">
+          <input data-arg="asKey" placeholder="store as (any key name)">
+          <button data-action="captureListElement" title="capture the Nth element of a list into the registry">capture</button>
+        </div>
+      </div>
+
+      <!-- ========== SOCKET (network traffic) ========== -->
+      <div id="tab-socket" class="tab-content">
+        <div class="section-hint">
+          Capture <b>live</b> des messages réseau. Hook sur la couche d'envoi du jeu
+          (pour Dofus Unity : <code>ecu.xbe(IMessage)</code>). Chaque send affiche le type du
+          message + un preview du payload (via IMessage.ToString()). La RX est <i>TODO</i>
+          — besoin de localiser le dispatcher d'entrée.
+        </div>
+
+        <div class="action">
+          <span class="label">hook send</span>
+          <input data-arg="sendClass"  placeholder="class (ecu)"  value="ecu">
+          <input data-arg="sendMethod" placeholder="method (xbe)" value="xbe">
+          <button data-action="startNetworkCapture" title="hook outgoing send path">start</button>
+          <button data-action="stopNetworkCapture"  title="revert">stop</button>
+        </div>
+
+        <div class="row">
+          <input id="socket-filter" placeholder="filter (regex on class name)">
+          <label><input type="checkbox" id="socket-autoscroll" checked> auto-scroll</label>
+          <button id="socket-clear">clear</button>
+        </div>
+        <div id="socket-log" class="socket-log"></div>
+      </div>
+
+      <!-- ========== HOOK / PATCH ========== -->
+      <div id="tab-hookpatch" class="tab-content">
+        <div class="section-hint">
+          Modifier le runtime : logger des appels, forcer des retours, patcher des statics,
+          invoquer directement des méthodes statiques. Évite <b>Update</b> ou <b>FixedUpdate</b> (spam 60 Hz).
+        </div>
+
+        <div class="action">
+          <span class="label">hook method</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="methodName" placeholder="method">
+          <button data-action="hook" title="log args + retval sur chaque call via WS">log hook</button>
+          <button data-action="replaceNoop" title="replace body with no-op (god-mode pattern)">no-op</button>
+        </div>
+
+        <div class="action">
+          <span class="label">force return</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="method" placeholder="method">
+          <input data-arg="value" placeholder="return value (blank = undefined)">
+          <button data-action="forceReturn">apply</button>
+        </div>
+
+        <div class="action">
+          <span class="label">patch static</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="field" placeholder="field">
+          <input data-arg="value" placeholder="value">
+          <button data-action="patchStatic">apply</button>
+        </div>
+
+        <div class="action">
+          <span class="label">call static</span>
+          <input data-arg="className" placeholder="class">
+          <input data-arg="method" placeholder="method">
+          <input data-arg="args" placeholder='args (JSON array)' value="[]">
+          <button data-action="callStatic">call</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel log-panel">
+      <div class="row">
+        <h2>live events</h2>
+        <div class="spacer"></div>
+        <label><input type="checkbox" id="autoscroll" checked> auto-scroll</label>
+        <label><input type="checkbox" id="show-log" checked> log</label>
+        <label><input type="checkbox" id="show-hook" checked> hook</label>
+        <label><input type="checkbox" id="show-rpc" checked> rpc</label>
+        <button id="btn-clear">clear</button>
+      </div>
+      <div id="log"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
