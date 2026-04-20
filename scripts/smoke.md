@@ -129,3 +129,27 @@ Setup: attach to FridaCobaye.exe, capture Player via GC or hook.
 - [ ] EXPORT downloads a JSON with the single bookmark
 - [ ] IMPORT with the same JSON (rename test) creates a new entry
 - [ ] Detach → session hooks/patches cleared; next SAVE CURRENT produces empty lists (still saves, just empty bookmark)
+
+## M4 — Scanner + Inspector + Diff
+
+Attach to FridaCobaye.exe, capture Player via hook (`Update`).
+
+### Scanner
+- [ ] In Scanner tab: type=int, value=5000 (or current health), assembly=Assembly-CSharp → SCAN
+- [ ] Results list contains `Player.health = 5000` (and possibly other matches with same value)
+- [ ] Change health in-game; click NEXT SCAN with new value → list narrows to Player.health only
+- [ ] Click 📌 pin on `Player.health` candidate → appears in watchlist live
+- [ ] CLEAR → results empty
+
+### Inspector
+- [ ] Switch to Inspector tab, key = `Player` → tree renders with all primitive fields visible
+- [ ] Click 📌 on `health` primitive → added to watchlist
+- [ ] Click ✎ on `gold`, set 12345 → value changes in-game and tree reflects
+- [ ] If Player has a reference field (e.g. `_inventory`), click ▸ inspect → child tree appears below with auto-generated key
+- [ ] If a List field exists, click ▸ expand → up to 50 elements listed
+
+### Diff
+- [ ] In Diff tab, key = `Player`, click TAKE T0 → T0 slot filled with timestamp
+- [ ] In-game: change health (take damage / cheat) → click TAKE T1
+- [ ] Diff table shows `health` with T0=100 T1=80 Δ=−20 highlighted amber
+- [ ] Click "📋 Copy diff for Claude" → clipboard contains markdown table of changed rows only
