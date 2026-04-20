@@ -122,4 +122,28 @@ document.addEventListener("tab-change", (e) => {
 renderSidebarTab("processes");
 renderMainTab("search");
 
+// ── Keybinds
+document.addEventListener("keydown", (e) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+    // Ctrl+K — clear log
+    if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        document.getElementById("log")!.innerHTML = "";
+        return;
+    }
+    // Ctrl+Shift+C — copy session (trigger existing button)
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        const btn = [...document.querySelectorAll("button")].find(b => b.textContent?.includes("Copy session")) as HTMLButtonElement | undefined;
+        btn?.click();
+        return;
+    }
+    // Escape — dismiss toast (bookmark auto-offer)
+    if (e.key === "Escape") {
+        const toast = document.querySelector(".bookmark-toast");
+        if (toast) toast.remove();
+    }
+});
+
 console.log("[main] bootstrapped");
