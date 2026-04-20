@@ -14,6 +14,7 @@ const path = require("path");
 const bridge                      = require("./lib/frida-bridge");
 const wsModule                    = require("./lib/ws");
 const { makeHandler, sendJson, readBody } = require("./lib/router");
+const persistence                 = require("./lib/persistence");
 const { broadcast }               = wsModule;
 
 const PORT       = parseInt(process.env.PORT || "3000", 10);
@@ -50,8 +51,16 @@ async function serveStatic(req, res, pathname) {
 // -------- route table -------------------------------------------------------
 const routes = {
     GET: {
-        "/api/processes": async (req, res, q) => sendJson(res, 200, await bridge.listProcesses(q.q)),
-        "/api/status":    (req, res)           => sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() }),
+        "/api/processes":  async (req, res, q) => sendJson(res, 200, await bridge.listProcesses(q.q)),
+        "/api/status":     (req, res)           => sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() }),
+        "/api/bookmarks":  (_req, res)          => sendJson(res, 200, persistence.listBookmarks()),
+    },
+    GET_param: {
+        "/api/bookmarks": (_req, res, _q, slug) => {
+            const bm = persistence.getBookmark(slug);
+            if (!bm) { res.writeHead(404); res.end(); return; }
+            sendJson(res, 200, bm);
+        },
     },
     POST: {
         "/api/attach": async (req, res) => {
@@ -68,6 +77,17 @@ const routes = {
             const { method, args } = JSON.parse(await readBody(req));
             const result = await bridge.callRpc(method, args || []);
             sendJson(res, 200, { result });
+        },
+    },
+    POST_param: {
+        "/api/bookmarks": async (req, res, _q, slug) => {
+            const body = JSON.parse(await readBody(req));
+            sendJson(res, 200, persistence.saveBookmark(body.name || slug, body));
+        },
+    },
+    DELETE_param: {
+        "/api/bookmarks": (_req, res, _q, slug) => {
+            sendJson(res, 200, { deleted: persistence.deleteBookmark(slug) });
         },
     },
 };
