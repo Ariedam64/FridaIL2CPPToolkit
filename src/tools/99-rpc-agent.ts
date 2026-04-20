@@ -58,54 +58,7 @@ import {
     stringifyValue,
     findStringInMemory,
 } from "../lib";
-
-// Registry of captured live instances, keyed by class name.
-// Populated by `capture(className, tickMethod)` via a one-shot hook.
-const captured = new Map<string, Il2Cpp.Object>();
-
-function getCaptured(className: string): Il2Cpp.Object {
-    const inst = captured.get(className);
-    if (!inst) throw new Error(`no captured instance for ${className}. Call capture(${className}, <tickMethod>) first.`);
-    return inst;
-}
-
-/** Coerce a JSON-sent value to the IL2CPP type expected by `typeName`. */
-function coerce(value: any, typeName: string): any {
-    if (value === undefined || value === null) return value;
-    if (typeName === "System.String" && typeof value === "string") return Il2Cpp.string(value);
-
-    // List<T> from a JS array — tolerate several type-name shapes
-    //   System.Collections.Generic.List`1<System.UInt32>
-    //   System.Collections.Generic.List<System.UInt32>
-    //   List`1<System.UInt32>
-    if (Array.isArray(value)) {
-        const listMatch = typeName.match(/List`?\d*<(.+)>$/);
-        if (listMatch) {
-            console.log(`[coerce] building List<${listMatch[1]}> from [${value.join(", ")}]`);
-            return buildList(listMatch[1].trim(), value);
-        }
-        console.log(`[coerce] got array but typeName "${typeName}" is not List<T> — passing raw`);
-    }
-    return value;
-}
-
-/** Build a C# List<T> from a JS array. Works for primitives and ref types. */
-function buildList(elemTypeName: string, values: any[]): Il2Cpp.Object {
-    let elemClass: Il2Cpp.Class | null = null;
-    try { elemClass = Il2Cpp.corlib.class(elemTypeName); } catch {}
-    if (!elemClass) elemClass = findClass(elemTypeName);
-    if (!elemClass) throw new Error(`cannot resolve element type ${elemTypeName}`);
-
-    const listGen = Il2Cpp.corlib.class("System.Collections.Generic.List`1");
-    const listInflated = listGen.inflate(elemClass);
-    const list = listInflated.new();
-    list.method(".ctor").invoke();
-    const addMethod = list.method("Add");
-    for (const v of values) {
-        addMethod.invoke(coerce(v, elemTypeName));
-    }
-    return list;
-}
+import { setCaptured, getCaptured, getCapturedRaw, forEachCaptured, coerce } from "../rpc-agent/registry";
 
 // Wrapper: Il2Cpp.perform is async (returns Promise). Frida RPC exports can
 // return promises — the host will await them automatically. So we just return
@@ -293,7 +246,7 @@ rpc.exports = {
                 if (!done) {
                     done = true;
                     clearTimeout(timer);
-                    captured.set(className, self);
+                    setCaptured(className, self);
                     const summary = `${self.class.name}@${self.handle}`;
                     console.log(`[capture] stored ${className} → ${summary}`);
                     try { method.revert(); } catch {}
@@ -308,7 +261,7 @@ rpc.exports = {
     listCaptured(): Promise<string[]> {
         return inVm(() => {
             const out: string[] = [];
-            captured.forEach((inst, name) => out.push(`${name} → ${inst.class.name}@${inst.handle}`));
+            forEachCaptured((inst, name) => out.push(`${name} → ${inst.class.name}@${inst.handle}`));
             return out;
         });
     },
@@ -353,7 +306,7 @@ rpc.exports = {
             const owner = getCaptured(ownerKey);
             const value = owner.field(fieldName).value as Il2Cpp.Object;
             if (!value || (value.handle as any)?.isNull?.()) throw new Error(`${fieldName} is null`);
-            captured.set(asKey, value);
+            setCaptured(asKey, value);
             const summary = `${value.class.name}@${value.handle}`;
             console.log(`[capture] ${ownerKey}.${fieldName} stored as "${asKey}" → ${summary}`);
             return summary;
@@ -375,7 +328,7 @@ rpc.exports = {
             const result = method.invoke(...coerced) as Il2Cpp.Object;
             if (!result || (result.handle as any)?.isNull?.()) throw new Error(`return of ${methodName}() is null`);
             const key = asKey || `${ownerKey}.${methodName}`;
-            captured.set(key, result);
+            setCaptured(key, result);
             const summary = `${result.class.name}@${result.handle}`;
             console.log(`[capture] ${ownerKey}.${methodName}() stored as "${key}" → ${summary}`);
             return summary;
@@ -401,7 +354,7 @@ rpc.exports = {
             } catch (e) { throw new Error(`fetch [${index}] failed: ${e}`); }
 
             if (!elem || (elem.handle as any)?.isNull?.()) throw new Error(`element [${index}] is null`);
-            captured.set(asKey, elem);
+            setCaptured(asKey, elem);
             const summary = `${elem.class.name}@${elem.handle}`;
             console.log(`[capture] ${listClassName}.${listFieldName}[${index}] stored as "${asKey}" → ${summary}`);
             return summary;
@@ -417,7 +370,7 @@ rpc.exports = {
             const idx = index | 0;
             if (idx < 0 || idx >= instances.length) throw new Error(`index ${idx} out of range (${instances.length} alive)`);
             const inst = instances[idx];
-            captured.set(className, inst);
+            setCaptured(className, inst);
             const summary = `${inst.class.name}@${inst.handle}`;
             console.log(`[capture] via GC: ${className} [${idx}] → ${summary}`);
             return summary;
@@ -442,7 +395,7 @@ rpc.exports = {
     listMethods(className: string, nameFilter: string = ""): Promise<string[]> {
         return inVm(() => {
             let klass: Il2Cpp.Class | null = null;
-            const cap = captured.get(className);
+            const cap = getCapturedRaw(className);
             if (cap) klass = cap.class;
             else klass = findClass(className);
             if (!klass) throw new Error(`class ${className} not found`);
