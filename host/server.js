@@ -13,21 +13,12 @@ const path = require("path");
 const url  = require("url");
 const { WebSocketServer } = require("ws");
 
-let frida;  // loaded lazily — the npm package is ESM-only
+const bridge = require("./lib/frida-bridge");
 
 const PORT       = parseInt(process.env.PORT || "3000", 10);
-const AGENT_PATH = path.resolve(__dirname, "..", "build", "rpc-agent.js");
 const PUBLIC_DIR = path.join(__dirname, "public");
 
-async function getFrida() {
-    if (!frida) frida = await import("frida");
-    return frida;
-}
-
-let session        = null;
-let script         = null;
-let attachedInfo   = null;   // { pid, name }
-const wsClients    = new Set();
+const wsClients = new Set();
 
 // -------- broadcast ---------------------------------------------------------
 function broadcast(msg) {
@@ -37,66 +28,10 @@ function broadcast(msg) {
     }
 }
 
-// -------- Frida attach / detach / call --------------------------------------
-async function attach(pid) {
-    await detach();
-    if (!fs.existsSync(AGENT_PATH)) {
-        throw new Error(`agent not built: ${AGENT_PATH}. Run: npm run build:rpc`);
-    }
-    const f = await getFrida();
-    const device = await f.getLocalDevice();
-    const procs  = await device.enumerateProcesses();
-    const proc   = procs.find(p => p.pid === pid);
-    if (!proc) throw new Error(`PID ${pid} not found`);
-
-    session = await device.attach(pid);
-    session.detached.connect((reason) => {
-        broadcast({ type: "detached", reason });
-        attachedInfo = null;
-        session = null;
-        script = null;
-    });
-
-    const source = fs.readFileSync(AGENT_PATH, "utf8");
-    script = await session.createScript(source);
-    script.message.connect((message) => {
-        broadcast({ type: "message", message });
-    });
-    // Frida v17 routes console.log output to script.logHandler (it's intercepted
-    // before reaching the `message` signal). Override so logs flow over WS too.
-    script.logHandler = (level, payload) => {
-        broadcast({ type: "message", message: { type: "log", level, payload } });
-    };
-    await script.load();
-
-    attachedInfo = { pid, name: proc.name };
-    broadcast({ type: "attached", ...attachedInfo });
-    return attachedInfo;
-}
-
-async function detach() {
-    if (script) {
-        try { await script.unload(); } catch {}
-        script = null;
-    }
-    if (session) {
-        try { await session.detach(); } catch {}
-        session = null;
-    }
-    if (attachedInfo) {
-        broadcast({ type: "detached" });
-        attachedInfo = null;
-    }
-}
-
-async function callRpc(method, args = []) {
-    if (!script) throw new Error("not attached");
-    const api = script.exports;
-    if (typeof api[method] !== "function") {
-        throw new Error(`unknown RPC method: ${method}`);
-    }
-    return await api[method](...args);
-}
+// -------- wire bridge events ------------------------------------------------
+bridge.on("attached", (info) => broadcast({ type: "attached", ...info }));
+bridge.on("detached", (e) => broadcast({ type: "detached", reason: e.reason }));
+bridge.on("message",  (m) => broadcast({ type: "message", message: m }));
 
 // -------- HTTP --------------------------------------------------------------
 function sendJson(res, code, obj) {
@@ -139,37 +74,31 @@ async function handleRequest(req, res) {
     const parsed = url.parse(req.url, true);
     try {
         if (req.method === "GET" && parsed.pathname === "/api/processes") {
-            const f = await getFrida();
-            const device = await f.getLocalDevice();
-            const procs  = await device.enumerateProcesses();
-            const q      = String(parsed.query.q || "").toLowerCase();
-            const filtered = q ? procs.filter(p => p.name.toLowerCase().includes(q)) : procs;
-            filtered.sort((a, b) => a.name.localeCompare(b.name));
-            return sendJson(res, 200, filtered.map(p => ({ pid: p.pid, name: p.name })));
+            return sendJson(res, 200, await bridge.listProcesses(parsed.query.q));
         }
         if (req.method === "GET" && parsed.pathname === "/api/status") {
-            return sendJson(res, 200, { attached: !!attachedInfo, info: attachedInfo });
+            return sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() });
         }
         if (req.method === "POST" && parsed.pathname === "/api/attach") {
             const body = await readBody(req);
             const { pid } = JSON.parse(body);
-            const info = await attach(pid);
+            const info = await bridge.attach(pid);
             return sendJson(res, 200, info);
         }
         if (req.method === "POST" && parsed.pathname === "/api/detach") {
-            await detach();
+            await bridge.detach();
             return sendJson(res, 200, { ok: true });
         }
         if (req.method === "POST" && parsed.pathname === "/api/reload") {
-            if (!attachedInfo) throw new Error("not attached");
-            const pid = attachedInfo.pid;
-            const info = await attach(pid);
+            if (!bridge.getAttachedInfo()) throw new Error("not attached");
+            const pid = bridge.getAttachedInfo().pid;
+            const info = await bridge.attach(pid);
             return sendJson(res, 200, info);
         }
         if (req.method === "POST" && parsed.pathname === "/api/call") {
             const body = await readBody(req);
             const { method, args } = JSON.parse(body);
-            const result = await callRpc(method, args || []);
+            const result = await bridge.callRpc(method, args || []);
             return sendJson(res, 200, { result });
         }
         return serveStatic(req, res, parsed.pathname);
@@ -185,18 +114,19 @@ const wss    = new WebSocketServer({ server, path: "/ws" });
 
 wss.on("connection", (ws) => {
     wsClients.add(ws);
-    ws.send(JSON.stringify({ type: "hello", attached: attachedInfo }));
+    ws.send(JSON.stringify({ type: "hello", attached: bridge.getAttachedInfo() }));
     ws.on("close", () => wsClients.delete(ws));
 });
 
 server.listen(PORT, () => {
     console.log(`[host] Frida IL2CPP Toolkit UI → http://localhost:${PORT}`);
+    const AGENT_PATH = path.resolve(__dirname, "..", "build", "rpc-agent.js");
     console.log(`[host] agent path: ${AGENT_PATH}`);
 });
 
 async function shutdown() {
     console.log("\n[host] shutting down…");
-    try { await detach(); } catch {}
+    try { await bridge.detach(); } catch {}
     process.exit(0);
 }
 process.on("SIGINT", shutdown);
