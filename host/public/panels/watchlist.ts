@@ -115,10 +115,16 @@ export async function refreshFromServer(): Promise<void> {
     try {
         type PinInfo = { id: string; label?: string; className: string; fieldName: string };
         const serverPins = await rpcCall<PinInfo[]>("listPins");
+        const serverIds = new Set(serverPins.map(p => p.id));
+        // Add missing readouts
         for (const p of serverPins) {
             if (!pins.has(p.id)) {
                 addReadout(p.id, p.label ?? `${p.className}.${p.fieldName}`);
             }
+        }
+        // Remove readouts for pins the server no longer has (clearPins, unpin via API, agent reload)
+        for (const id of [...pins.keys()]) {
+            if (!serverIds.has(id)) removeReadout(id);
         }
     } catch {
         // agent not attached yet; silently ignore
