@@ -278,6 +278,8 @@ export function mountLogs(container: HTMLElement): void {
                 } else if (p["type"] === "socket") {
                     // socket events handled in socket panel; show brief summary here
                     appendLine(`[net] ${p["cls"] ?? "?"} ${p["direction"] === "in" ? "↓" : "↑"}`, "hook");
+                } else if (p["type"] === "watchlist-tick") {
+                    // watchlist ticks are consumed by the watchlist panel; don't spam the log
                 } else {
                     appendLine(JSON.stringify(p), "log");
                 }
