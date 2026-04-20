@@ -68,6 +68,7 @@ function highlightDump(text: string): string {
 // Module-level state so the log element can be accessed from logRpc helper below
 let logEl: HTMLElement | null = null;
 const showFilters = { log: true, hook: true, rpc: true };
+let filterRegex: RegExp | null = null;
 
 // Ring buffer for "Copy session" — capped at 200 entries
 const LOG_RING_MAX = 200;
@@ -93,7 +94,9 @@ function appendLine(text: string, cls = "log"): void {
     div.dataset.cls = cls;
     div.innerHTML = `<span class="ts" style="color:var(--ink-disabled);margin-right:8px">${ts}</span>`;
     div.appendChild(document.createTextNode(text));
-    if (!isVisible(cls)) div.style.display = "none";
+    const classMatches = isVisible(cls);
+    const regexMatches = !filterRegex || filterRegex.test(text);
+    if (!classMatches || !regexMatches) div.style.display = "none";
     logEl.appendChild(div);
     logEl.scrollTop = logEl.scrollHeight;
 }
@@ -229,6 +232,17 @@ function logClassLink(name: string): void {
     logEl.scrollTop = logEl.scrollHeight;
 }
 
+function applyFilter(): void {
+    if (!logEl) return;
+    const lines = logEl.querySelectorAll<HTMLElement>(".line");
+    for (const line of lines) {
+        const txt = line.textContent ?? "";
+        const classMatches = showFilters[line.dataset["cls"] as "log" | "hook" | "rpc"] !== false;
+        const regexMatches = !filterRegex || filterRegex.test(txt);
+        line.style.display = (classMatches && regexMatches) ? "" : "none";
+    }
+}
+
 export function mountLogs(container: HTMLElement): void {
     logEl = container;
 
@@ -243,17 +257,26 @@ export function mountLogs(container: HTMLElement): void {
     });
     container.parentElement?.insertBefore(copyBtn, container);
 
+    // Insert regex filter input above the log container
+    const filterInput = document.createElement("input");
+    filterInput.className = "input";
+    filterInput.placeholder = "regex filter (empty = show all)";
+    filterInput.style.cssText = "margin-bottom:var(--s-2)";
+    filterInput.addEventListener("input", () => {
+        const v = filterInput.value.trim();
+        try { filterRegex = v ? new RegExp(v, "i") : null; filterInput.style.borderColor = ""; }
+        catch { filterRegex = null; filterInput.style.borderColor = "var(--err)"; }
+        applyFilter();
+    });
+    container.parentElement?.insertBefore(filterInput, container);
+
     // Wire filter checkboxes if they exist in the document
     for (const kind of ["log", "hook", "rpc"] as const) {
         const cb = document.getElementById(`show-${kind}`) as HTMLInputElement | null;
         if (cb) {
             cb.addEventListener("change", (ev) => {
                 showFilters[kind] = (ev.target as HTMLInputElement).checked;
-                container.querySelectorAll<HTMLElement>(".line").forEach(line => {
-                    if (line.dataset.cls === kind) {
-                        line.style.display = showFilters[kind] ? "" : "none";
-                    }
-                });
+                applyFilter();
             });
         }
     }
