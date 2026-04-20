@@ -1,6 +1,7 @@
 // Entry point — boots WS, mounts all panels, wires tab switching.
 import { connect as wsConnect } from "./lib/ws.js";
 import { detach, reload } from "./lib/rpc.js";
+import { wireSplitters } from "./lib/splitter.js";
 import { mountConnection, wireStatusAndButtons } from "./panels/connection.js";
 import { mountLogs } from "./panels/logs.js";
 import { renderSearch } from "./panels/search.js";
@@ -30,6 +31,7 @@ function wireTabs(groupName: string, contentEl: HTMLElement): void {
 
 wireTabs("sidebar", $("#sidebar-content"));
 wireTabs("main", $("#main-content"));
+wireSplitters();
 
 // Connect WebSocket (must happen before any panel that calls onWsEvent)
 wsConnect();
