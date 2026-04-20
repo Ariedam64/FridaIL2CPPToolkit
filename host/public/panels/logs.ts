@@ -273,6 +273,29 @@ export function mountLogs(container: HTMLElement): void {
                     const argsStr = ((p["args"] as unknown[]) || []).join(", ");
                     const ret = p["error"] ? `THREW ${p["error"]}` : `→ ${p["retval"]}`;
                     appendLine(`${p["cls"]}.${p["method"]}(${argsStr}) ${ret}  [${p["self"] || "static"}]`, "hook");
+                    const stackFrames = p["stack"] as string[] | undefined;
+                    if (stackFrames && stackFrames.length > 0 && logEl) {
+                        const wrap = document.createElement("div");
+                        wrap.className = "line hook";
+                        wrap.dataset.cls = "hook";
+                        wrap.style.cssText = "padding-left:16px";
+                        const toggle = document.createElement("span");
+                        toggle.style.cssText = "color:var(--ink-muted);cursor:pointer;font-size:11px;user-select:none";
+                        toggle.textContent = `▸ stack (${stackFrames.length} frames)`;
+                        const pre = document.createElement("pre");
+                        pre.style.cssText = "display:none;font-size:10.5px;line-height:1.5;color:var(--ink-muted);padding:4px 0 4px 12px;overflow-x:auto";
+                        pre.textContent = stackFrames.join("\n");
+                        toggle.addEventListener("click", () => {
+                            const collapsed = pre.style.display === "none";
+                            pre.style.display = collapsed ? "" : "none";
+                            toggle.textContent = collapsed ? `▾ stack (${stackFrames.length} frames)` : `▸ stack (${stackFrames.length} frames)`;
+                        });
+                        wrap.appendChild(toggle);
+                        wrap.appendChild(pre);
+                        if (!isVisible("hook")) wrap.style.display = "none";
+                        logEl.appendChild(wrap);
+                        logEl.scrollTop = logEl.scrollHeight;
+                    }
                 } else if (p["type"] === "agent-ready") {
                     appendLine(`[agent] ready`, "ok");
                 } else if (p["type"] === "socket") {

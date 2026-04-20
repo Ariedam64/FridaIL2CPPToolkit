@@ -9,8 +9,9 @@ import * as watchlistRpc from "./watchlist";
 import * as scannerRpc from "./scanner";
 import * as inspectorRpc from "./inspector";
 import * as diffRpc from "./diff";
+import * as stacktraceRpc from "./stacktrace";
 
-export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc {
+export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc {
     return {
         ...searchRpc,
         ...explorerRpc,
@@ -21,5 +22,6 @@ export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof 
         ...scannerRpc,
         ...inspectorRpc,
         ...diffRpc,
-    } as typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc;
+        ...stacktraceRpc,
+    } as typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc;
 }

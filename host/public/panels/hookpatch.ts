@@ -21,8 +21,8 @@ async function runAction(action: string, args: unknown[]): Promise<void> {
         const result = await rpcCall(action, args);
         logRpcResult(action, result);
         // Record to session tracker on success
-        if (action === "hook" || action === "replaceNoop") {
-            recordHook({ className: String(args[0] ?? ""), methodName: String(args[1] ?? ""), mode: action as "hook" | "replaceNoop" });
+        if (action === "hook" || action === "hookLogWithStack" || action === "replaceNoop") {
+            recordHook({ className: String(args[0] ?? ""), methodName: String(args[1] ?? ""), mode: (action === "hookLogWithStack" ? "hook" : action) as "hook" | "replaceNoop" });
         } else if (action === "forceReturn") {
             recordHook({ className: String(args[0] ?? ""), methodName: String(args[1] ?? ""), mode: "forceReturn", value: args[2] });
         } else if (action === "patchStatic") {
@@ -38,9 +38,12 @@ export function renderHookPatch(container: HTMLElement): void {
       <div style="display:flex; flex-direction:column; gap:var(--s-4); padding:var(--s-3)">
 
         <div class="section-header">log hook</div>
-        <div class="action-row" style="display:flex; gap:var(--s-2)">
+        <div class="action-row" style="display:flex; gap:var(--s-2); align-items:center">
           <input class="input" data-arg="className"  placeholder="class name"  style="flex:1">
           <input class="input" data-arg="methodName" placeholder="method name" style="flex:1">
+          <label style="display:flex;align-items:center;gap:4px;color:var(--ink-muted);font-size:11.5px;white-space:nowrap;cursor:pointer">
+            <input type="checkbox" id="hook-capture-stack" style="cursor:pointer"> capture stack
+          </label>
           <button class="btn primary" data-action="hook">hook</button>
         </div>
 
@@ -87,20 +90,28 @@ export function renderHookPatch(container: HTMLElement): void {
         const vals: Record<string, string> = {};
         inputs.forEach(i => { vals[i.dataset.arg!] = i.value.trim(); });
 
+        // If "hook" is clicked and "capture stack" checkbox is checked, use hookLogWithStack instead
+        let effectiveAction = action;
+        if (action === "hook") {
+            const captureStack = (container.querySelector("#hook-capture-stack") as HTMLInputElement | null)?.checked;
+            if (captureStack) effectiveAction = "hookLogWithStack";
+        }
+
         let args: unknown[];
         try {
-            args = buildArgs(action, vals);
+            args = buildArgs(effectiveAction, vals);
         } catch (err) {
-            logRpcLine(`[rpc] ${action} arg error: ${String(err)}`);
+            logRpcLine(`[rpc] ${effectiveAction} arg error: ${String(err)}`);
             return;
         }
-        void runAction(action, args);
+        void runAction(effectiveAction, args);
     });
 }
 
 function buildArgs(action: string, v: Record<string, string>): unknown[] {
     switch (action) {
         case "hook":
+        case "hookLogWithStack":
         case "replaceNoop":
             return [v["className"], v["methodName"]];
         case "forceReturn":
