@@ -43,16 +43,12 @@ import "frida-il2cpp-bridge";
 import {
     findClass,
     dumpFields,
-    hookLog,
-    hookNoop,
-    setStatic,
-    forceReturn,
-    callStatic,
     stringifyValue,
 } from "../lib";
-import { setCaptured, getCaptured, getCapturedRaw, forEachCaptured, coerce } from "../rpc-agent/registry";
+import { setCaptured, getCaptured, forEachCaptured, coerce } from "../rpc-agent/registry";
 import * as searchRpc from "../rpc-agent/search";
 import * as explorerRpc from "../rpc-agent/explorer";
+import * as hooksRpc from "../rpc-agent/hooks";
 
 // Wrapper: Il2Cpp.perform is async (returns Promise). Frida RPC exports can
 // return promises — the host will await them automatically. So we just return
@@ -64,42 +60,7 @@ function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
 rpc.exports = {
     ...searchRpc,
     ...explorerRpc,
-
-    // ========== hooks & patch ==========
-
-    hook(className: string, methodName: string): Promise<void> {
-        return inVm(() => hookLog(className, methodName));
-    },
-    replaceNoop(className: string, methodName: string): Promise<void> {
-        return inVm(() => hookNoop(className, methodName));
-    },
-    patchStatic(className: string, field: string, value: any): Promise<void> {
-        return inVm(() => setStatic(className, field, value));
-    },
-    forceReturn(className: string, method: string, value: any): Promise<void> {
-        return inVm(() => forceReturn(className, method, value));
-    },
-    callStatic(className: string, method: string, args: any[] = []): Promise<string> {
-        return inVm(() => {
-            const res = callStatic(className, method, ...args);
-            return String(res);
-        });
-    },
-
-    /**
-     * Call a static method with explicit parameter-type overload resolution.
-     * Ex: callStaticOverload("Core.Localization.LocalizedStringUtilities", "GetLocalized", ["System.Int32"], [1167735])
-     */
-    callStaticOverload(className: string, methodName: string, paramTypes: string[], args: any[] = []): Promise<string> {
-        return inVm(() => {
-            const klass = findClass(className);
-            if (!klass) throw new Error(`class ${className} not found`);
-            const method = klass.method(methodName).overload(...paramTypes);
-            const coerced = args.map((v, i) => coerce(v, paramTypes[i]));
-            const res = method.invoke(...coerced);
-            return stringifyValue(res);
-        });
-    },
+    ...hooksRpc,
 
     // ========== live instances ==========
 
