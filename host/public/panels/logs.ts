@@ -1,5 +1,6 @@
 // Logs panel — live event stream in the right column #log container.
 import { onWsEvent } from "../lib/ws.js";
+import { copyMarkdown, formatLogSession } from "../lib/clipboard.js";
 
 // Helpers ported from app.js
 function escapeHtml(s: string): string {
@@ -68,6 +69,11 @@ function highlightDump(text: string): string {
 let logEl: HTMLElement | null = null;
 const showFilters = { log: true, hook: true, rpc: true };
 
+// Ring buffer for "Copy session" — capped at 200 entries
+const LOG_RING_MAX = 200;
+type LogEntry = { ts: string; cls: string; text: string };
+const logRing: LogEntry[] = [];
+
 function isVisible(cls: string): boolean {
     if (cls === "log")  return showFilters.log;
     if (cls === "hook") return showFilters.hook;
@@ -76,11 +82,15 @@ function isVisible(cls: string): boolean {
 }
 
 function appendLine(text: string, cls = "log"): void {
+    const ts = new Date().toLocaleTimeString();
+    // Push to ring buffer (always, even if logEl not yet mounted)
+    logRing.push({ ts, cls, text });
+    if (logRing.length > LOG_RING_MAX) logRing.shift();
+
     if (!logEl) return;
     const div = document.createElement("div");
     div.className = `line ${cls}`;
     div.dataset.cls = cls;
-    const ts = new Date().toLocaleTimeString();
     div.innerHTML = `<span class="ts" style="color:var(--ink-disabled);margin-right:8px">${ts}</span>`;
     div.appendChild(document.createTextNode(text));
     if (!isVisible(cls)) div.style.display = "none";
@@ -221,6 +231,17 @@ function logClassLink(name: string): void {
 
 export function mountLogs(container: HTMLElement): void {
     logEl = container;
+
+    // Insert "Copy session" button above the log container in its parent
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "btn";
+    copyBtn.title = "copy recent log entries as markdown for Claude";
+    copyBtn.textContent = "📋 Copy session";
+    copyBtn.style.cssText = "margin-bottom:var(--s-2);align-self:flex-start";
+    copyBtn.addEventListener("click", () => {
+        void copyMarkdown(formatLogSession([...logRing]), copyBtn);
+    });
+    container.parentElement?.insertBefore(copyBtn, container);
 
     // Wire filter checkboxes if they exist in the document
     for (const kind of ["log", "hook", "rpc"] as const) {
