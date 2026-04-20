@@ -1,7 +1,10 @@
 // src/rpc-agent/scanner.ts
 // IL2CPP-aware value scanner. Walks alive managed instances and compares field values.
+// Two sources: (1) captured instances (catches MonoBehaviours that gc.choose misses),
+// (2) Il2Cpp.gc.choose over classes of the chosen assembly.
 import "frida-il2cpp-bridge";
 import { stringifyValue } from "../lib";
+import { forEachCaptured } from "./registry";
 
 export type ScanType = "int" | "float" | "string" | "bool";
 
@@ -51,30 +54,46 @@ export function scanByValue(target: string, scanType: ScanType, assemblyName: st
             try {
                 lastCandidates.clear();
                 nextId = 1;
+                const out: Candidate[] = [];
+                const seen = new Set<string>(); // dedupe by handle+fieldName
+
+                function checkInstance(inst: Il2Cpp.Object): boolean {
+                    const matchingFields = inst.class.fields.filter(f => !f.isStatic && matchType(f.type.name, scanType));
+                    for (const f of matchingFields) {
+                        try {
+                            const v = inst.field(f.name).value;
+                            if (!valueMatches(v, target, scanType)) continue;
+                            const dedupKey = `${inst.handle}:${f.name}`;
+                            if (seen.has(dedupKey)) continue;
+                            seen.add(dedupKey);
+                            const id = `c${nextId++}`;
+                            lastCandidates.set(id, { obj: inst, fieldName: f.name });
+                            out.push({ id, className: inst.class.name, fieldName: f.name, handle: String(inst.handle), currentValue: stringifyValue(v) });
+                            if (out.length >= maxResults) return true;
+                        } catch { /* field read failed */ }
+                    }
+                    return false;
+                }
+
+                // Pass 1: captured instances (catches MonoBehaviours).
+                let done = false;
+                forEachCaptured((inst) => { if (!done && checkInstance(inst)) done = true; });
+                if (done) { resolve(out); return; }
+
+                // Pass 2: managed heap sweep in the chosen assembly.
                 const assembly = Il2Cpp.domain.assemblies.find(a => a.name === asm);
                 if (!assembly) { reject(new Error(`assembly ${asm} not found`)); return; }
-                const out: Candidate[] = [];
                 for (const klass of assembly.image.classes) {
                     if (klass.isEnum || klass.isInterface) continue;
-                    // Skip classes without a matching field type (cheap prefilter).
                     const matchingFields = klass.fields.filter(f => !f.isStatic && matchType(f.type.name, scanType));
                     if (matchingFields.length === 0) continue;
                     let instances: Il2Cpp.Object[];
                     try { instances = Il2Cpp.gc.choose(klass); } catch { continue; }
                     for (const inst of instances) {
-                        for (const f of matchingFields) {
-                            try {
-                                const v = inst.field(f.name).value;
-                                if (!valueMatches(v, target, scanType)) continue;
-                                const id = `c${nextId++}`;
-                                lastCandidates.set(id, { obj: inst, fieldName: f.name });
-                                out.push({ id, className: klass.name, fieldName: f.name, handle: String(inst.handle), currentValue: stringifyValue(v) });
-                                if (out.length >= maxResults) { resolve(out); return; }
-                            } catch { /* field read failed */ }
-                        }
+                        if (checkInstance(inst)) { resolve(out); return; }
                     }
                 }
-                console.log(`[scanner] scan complete: ${out.length} candidates in ${asm}`);
+                console.log(`[scanner] scan complete: ${out.length} candidates (captured + ${asm})`);
                 resolve(out);
             } catch (e) { reject(e); }
         });

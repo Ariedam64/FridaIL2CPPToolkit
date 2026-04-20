@@ -29,6 +29,11 @@ export function inspectInstance(key: string): Promise<{ className: string; handl
                         out.push({ name: f.name, typeName, kind: "null", value: "null" });
                         continue;
                     }
+                    // Strings treated as primitives (stringifyValue handles them correctly).
+                    if (typeName === "System.String") {
+                        out.push({ name: f.name, typeName, kind: "primitive", value: stringifyValue(raw) });
+                        continue;
+                    }
                     // List<T> detection
                     if (/^System\.Collections\.Generic\.List`1/.test(typeName)) {
                         let count = -1;
@@ -40,10 +45,16 @@ export function inspectInstance(key: string): Promise<{ className: string; handl
                         out.push({ name: f.name, typeName, kind: "list", listCount: count, listElemType: elemType });
                         continue;
                     }
-                    // Reference type (object)
+                    // Reference type (object with class + handle). Guard via try/catch since
+                    // some wrapped values (strings, enums) may not expose .class.
                     if (typeof raw === "object" && "handle" in (raw as any)) {
-                        out.push({ name: f.name, typeName, kind: "reference", value: `${(raw as Il2Cpp.Object).class.name}@${(raw as Il2Cpp.Object).handle}` });
-                        continue;
+                        try {
+                            const cls = (raw as Il2Cpp.Object).class;
+                            if (cls && typeof cls.name === "string") {
+                                out.push({ name: f.name, typeName, kind: "reference", value: `${cls.name}@${(raw as Il2Cpp.Object).handle}` });
+                                continue;
+                            }
+                        } catch { /* fall through to primitive */ }
                     }
                     // Primitive
                     out.push({ name: f.name, typeName, kind: "primitive", value: stringifyValue(raw) });
