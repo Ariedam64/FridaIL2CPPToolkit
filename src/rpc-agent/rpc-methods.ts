@@ -5,13 +5,15 @@ import * as explorerRpc from "./explorer";
 import * as hooksRpc from "./hooks";
 import * as instanceOpsRpc from "./instance-ops";
 import * as networkRpc from "./network";
+import * as watchlistRpc from "./watchlist";
 
-export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc {
+export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc {
     return {
         ...searchRpc,
         ...explorerRpc,
         ...hooksRpc,
         ...instanceOpsRpc,
         ...networkRpc,
-    } as typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc;
+        ...watchlistRpc,
+    } as typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc;
 }
