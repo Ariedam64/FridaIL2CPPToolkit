@@ -79,6 +79,27 @@ export function listMethods(className: string, nameFilter: string = ""): Promise
     });
 }
 
+export function dumpClassAsString(name: string): Promise<string> {
+    return new Promise((resolve, reject) => {
+        Il2Cpp.perform(() => {
+            const k = findClass(name);
+            if (!k) { reject(new Error(`class ${name} not found`)); return; }
+            const lines: string[] = [`# ${name}`, ""];
+            lines.push(`**Fields (${k.fields.length})**`, "");
+            for (const f of k.fields) {
+                lines.push(`- ${f.isStatic ? "static " : ""}${f.type.name} ${f.name}`);
+            }
+            lines.push("", `**Methods (${k.methods.length})**`, "");
+            for (const m of k.methods) {
+                const kind = m.isStatic ? "static " : "";
+                const params = m.parameters.map(p => `${p.type.name} ${p.name}`).join(", ");
+                lines.push(`- ${kind}${m.returnType.name} ${m.name}(${params})`);
+            }
+            resolve(lines.join("\n"));
+        });
+    });
+}
+
 export function probeNoArgGetters(className: string, returnType: string = "System.String", includeEmpty = false, includeErrors = false): Promise<string[]> {
     return inVm(() => {
         const inst = getCaptured(className);

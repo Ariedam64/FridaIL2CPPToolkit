@@ -168,6 +168,24 @@ export function dumpInstance(className: string): Promise<void> {
     return inVm(() => dumpFields(getCaptured(className)));
 }
 
+export function dumpInstanceAsString(className: string): Promise<string> {
+    return inVm(() => {
+        const inst = getCaptured(className);
+        const lines: string[] = [`# ${inst.class.name} (instance)`, ""];
+        lines.push(`**Fields (instance)**`, "");
+        for (const f of inst.class.fields) {
+            if (f.isStatic) continue;
+            try {
+                const v = stringifyValue(inst.field(f.name).value);
+                lines.push(`- ${f.type.name} ${f.name} = ${v}`);
+            } catch (e) {
+                lines.push(`- ${f.type.name} ${f.name} = <err: ${e}>`);
+            }
+        }
+        return lines.join("\n");
+    });
+}
+
 export function readField(className: string, fieldName: string): Promise<string> {
     return inVm(() => stringifyValue(getCaptured(className).field(fieldName).value));
 }
