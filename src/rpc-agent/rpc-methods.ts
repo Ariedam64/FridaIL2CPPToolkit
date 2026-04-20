@@ -6,8 +6,11 @@ import * as hooksRpc from "./hooks";
 import * as instanceOpsRpc from "./instance-ops";
 import * as networkRpc from "./network";
 import * as watchlistRpc from "./watchlist";
+import * as scannerRpc from "./scanner";
+import * as inspectorRpc from "./inspector";
+import * as diffRpc from "./diff";
 
-export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc {
+export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc {
     return {
         ...searchRpc,
         ...explorerRpc,
@@ -15,5 +18,8 @@ export function getRpcMethods(): typeof searchRpc & typeof explorerRpc & typeof 
         ...instanceOpsRpc,
         ...networkRpc,
         ...watchlistRpc,
-    } as typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc;
+        ...scannerRpc,
+        ...inspectorRpc,
+        ...diffRpc,
+    } as typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc;
 }
