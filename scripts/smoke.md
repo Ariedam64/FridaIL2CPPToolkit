@@ -103,3 +103,17 @@ git log --oneline m1-foundation..HEAD   # should be empty
 ```
 
 Then, open a session with Claude to start on the M2 plan (Watchlist + Copy-for-Claude).
+
+## M2 — Watchlist + Copy-for-Claude
+
+Setup: attach to FridaCobaye.exe, capture Player via GC or hook.
+
+- [ ] Pin a numeric field (e.g. `Player.hp`) — watchlist shows a new readout that pulses
+- [ ] Value updates every ~500ms
+- [ ] Δ shows "+N" or "−N" when the in-game value changes
+- [ ] Click × to unpin — readout disappears; tick stops when last pin removed
+- [ ] Pin 5 fields — all update in sync, one timer (Frida CPU impact minimal)
+- [ ] "Copy session" on logs — clipboard gets markdown log tail
+- [ ] "Copy state" on watchlist — clipboard gets markdown table
+- [ ] Reload page → watchlist empty (pin persistence is M3, not M2)
+- [ ] Detach then re-attach → existing pins silently become `<not captured>` readouts (graceful)
