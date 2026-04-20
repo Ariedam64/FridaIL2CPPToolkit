@@ -11,22 +11,13 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 const url  = require("url");
-const { WebSocketServer } = require("ws");
 
-const bridge = require("./lib/frida-bridge");
+const bridge    = require("./lib/frida-bridge");
+const wsModule  = require("./lib/ws");
+const { broadcast } = wsModule;
 
 const PORT       = parseInt(process.env.PORT || "3000", 10);
 const PUBLIC_DIR = path.join(__dirname, "public");
-
-const wsClients = new Set();
-
-// -------- broadcast ---------------------------------------------------------
-function broadcast(msg) {
-    const data = JSON.stringify(msg);
-    for (const ws of wsClients) {
-        if (ws.readyState === 1) ws.send(data);
-    }
-}
 
 // -------- wire bridge events ------------------------------------------------
 bridge.on("attached", (info) => broadcast({ type: "attached", ...info }));
@@ -110,13 +101,7 @@ async function handleRequest(req, res) {
 
 // -------- server boot -------------------------------------------------------
 const server = http.createServer(handleRequest);
-const wss    = new WebSocketServer({ server, path: "/ws" });
-
-wss.on("connection", (ws) => {
-    wsClients.add(ws);
-    ws.send(JSON.stringify({ type: "hello", attached: bridge.getAttachedInfo() }));
-    ws.on("close", () => wsClients.delete(ws));
-});
+wsModule.attach(server, () => ({ type: "hello", attached: bridge.getAttachedInfo() }));
 
 server.listen(PORT, () => {
     console.log(`[host] Frida IL2CPP Toolkit UI → http://localhost:${PORT}`);
