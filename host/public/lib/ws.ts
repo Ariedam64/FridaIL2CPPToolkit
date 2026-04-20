@@ -1,9 +1,15 @@
 // WebSocket connection + typed event bus.
+
+export interface WatchlistTickPayload {
+    type: "watchlist-tick";
+    values: Record<string, string>;
+}
+
 export type WsEvent =
     | { type: "hello"; attached: { pid: number; name: string } | null }
     | { type: "attached"; pid: number; name: string }
     | { type: "detached"; reason?: string }
-    | { type: "message"; message: { type: string; [k: string]: unknown } };
+    | { type: "message"; message: WatchlistTickPayload | { type: string; [k: string]: unknown } };
 
 type Handler = (ev: WsEvent) => void;
 
