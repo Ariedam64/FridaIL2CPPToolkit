@@ -41,14 +41,8 @@
 
 import "frida-il2cpp-bridge";
 import {
-    fullAnalyze,
-    findAllClasses,
-    findByField,
-    findByMethod,
     findClass,
     fullClassName,
-    dumpClass,
-    dumpStatics,
     dumpFields,
     hookLog,
     hookNoop,
@@ -56,9 +50,9 @@ import {
     forceReturn,
     callStatic,
     stringifyValue,
-    findStringInMemory,
 } from "../lib";
 import { setCaptured, getCaptured, getCapturedRaw, forEachCaptured, coerce } from "../rpc-agent/registry";
+import * as searchRpc from "../rpc-agent/search";
 
 // Wrapper: Il2Cpp.perform is async (returns Promise). Frida RPC exports can
 // return promises — the host will await them automatically. So we just return
@@ -91,27 +85,7 @@ function ensureInheritanceCache(): void {
 }
 
 rpc.exports = {
-    analyze(): Promise<void> {
-        return inVm(() => fullAnalyze());
-    },
-    find(pattern: string, limit = 50): Promise<string[]> {
-        return inVm(() => findAllClasses(pattern, limit).map(fullClassName));
-    },
-    findByField(typePattern: string | null, namePattern: string | null, limit = 50): Promise<string[]> {
-        return inVm(() =>
-            findByField(typePattern || null, namePattern || null, limit)
-                .map(m => `${fullClassName(m.class)}  ::  ${m.type} ${m.field}`)
-        );
-    },
-    findByMethod(opts: { returnType?: string; paramType?: string; name?: string }, limit = 50): Promise<string[]> {
-        return inVm(() =>
-            findByMethod(opts || {}, limit)
-                .map(m => `${fullClassName(m.class)}  ::  ${m.signature}`)
-        );
-    },
-    findStringInMemory(text: string, maxHits = 10): Promise<string[]> {
-        return inVm(() => findStringInMemory(text, maxHits));
-    },
+    ...searchRpc,
 
     // ========== explorer (tree view) ==========
 
@@ -170,20 +144,6 @@ rpc.exports = {
         });
     },
 
-    dumpClass(name: string): Promise<void> {
-        return inVm(() => {
-            const k = findClass(name);
-            if (k) dumpClass(k);
-            else console.log(`[rpc] class ${name} not found`);
-        });
-    },
-    dumpStatics(name: string): Promise<void> {
-        return inVm(() => {
-            const k = findClass(name);
-            if (k) dumpStatics(k);
-            else console.log(`[rpc] class ${name} not found`);
-        });
-    },
     hook(className: string, methodName: string): Promise<void> {
         return inVm(() => hookLog(className, methodName));
     },
@@ -383,62 +343,6 @@ rpc.exports = {
 
     readField(className: string, fieldName: string): Promise<string> {
         return inVm(() => stringifyValue(getCaptured(className).field(fieldName).value));
-    },
-
-    /** Dump all non-static fields of a captured instance, returning them as an array of strings. */
-    /**
-     * Call every no-arg method with the given return type on a captured instance.
-     * Useful against obfuscation when you know "somewhere there's a get_name() returning String"
-     * but the name is mangled. Returns method-name=stringifiedResult for non-null, non-empty outputs.
-     */
-    /** List all methods of a captured instance's class (or a named class). Returns signatures. */
-    listMethods(className: string, nameFilter: string = ""): Promise<string[]> {
-        return inVm(() => {
-            let klass: Il2Cpp.Class | null = null;
-            const cap = getCapturedRaw(className);
-            if (cap) klass = cap.class;
-            else klass = findClass(className);
-            if (!klass) throw new Error(`class ${className} not found`);
-            const re = nameFilter ? new RegExp(nameFilter, "i") : null;
-            const out: string[] = [`class: ${fullClassName(klass)}  methods:`];
-            for (const m of klass.methods) {
-                if (re && !re.test(m.name)) continue;
-                const kind = m.isStatic ? "static " : "       ";
-                const params = m.parameters.map(p => `${p.type.name} ${p.name}`).join(", ");
-                out.push(`  ${kind}${m.returnType.name.padEnd(20)} ${m.name}(${params})`);
-            }
-            return out;
-        });
-    },
-
-    probeNoArgGetters(className: string, returnType: string = "System.String", includeEmpty = false, includeErrors = false): Promise<string[]> {
-        return inVm(() => {
-            const inst = getCaptured(className);
-            const out: string[] = [];
-            let tested = 0, ok = 0, failed = 0;
-            out.push(`class: ${inst.class.name}  probing for no-arg methods returning ${returnType}`);
-            for (const m of inst.class.methods) {
-                if (m.isStatic) continue;
-                if (m.parameters.length !== 0) continue;
-                if (m.returnType.name !== returnType) continue;
-                tested++;
-                try {
-                    const bound = inst.method(m.name);
-                    const r = bound.invoke();
-                    const s = stringifyValue(r);
-                    const isEmpty = s === "null" || s === "\"\"" || s === "undefined" || s === "0";
-                    if (includeEmpty || !isEmpty) {
-                        out.push(`  ${m.name}() = ${s}`);
-                        if (!isEmpty) ok++;
-                    }
-                } catch (e) {
-                    failed++;
-                    if (includeErrors) out.push(`  ${m.name}() = <err: ${String(e).slice(0, 80)}>`);
-                }
-            }
-            out.push(`(tested ${tested}, non-empty ${ok}, failed ${failed})`);
-            return out;
-        });
     },
 
     readAllFields(className: string): Promise<string[]> {
