@@ -153,3 +153,14 @@ Attach to FridaCobaye.exe, capture Player via hook (`Update`).
 - [ ] In-game: change health (take damage / cheat) → click TAKE T1
 - [ ] Diff table shows `health` with T0=100 T1=80 Δ=−20 highlighted amber
 - [ ] Click "📋 Copy diff for Claude" → clipboard contains markdown table of changed rows only
+
+## M5 — Polish
+
+- [ ] Hook with "capture stack" checkbox → next fire shows a collapsible stack trace below the hook line
+- [ ] Regex filter `Player` in event log → only lines matching `Player` remain visible; clearing shows all again
+- [ ] Invalid regex → filter input border turns red, filter ignored
+- [ ] Click DUMP TO FILE on a known class (e.g. Player) → `.toolkit-data/dumps/<ts>-Player.md` written with field/method listing
+- [ ] Detach → red disconnected banner appears; reattach → banner hides
+- [ ] Ctrl+K while focused on the page → log cleared
+- [ ] Ctrl+Shift+C → "Copy session" triggered, clipboard has markdown
+- [ ] Escape while a bookmark-offer toast is visible → toast dismissed
