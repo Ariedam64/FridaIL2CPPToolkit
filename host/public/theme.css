@@ -1,0 +1,66 @@
+/* Operator Console design system — tokens, reset, base styles */
+@import url('./fonts/fonts.css');
+
+:root {
+  --surface-0: #0c0d0f;
+  --surface-1: #14161a;
+  --surface-2: #1b1e23;
+  --surface-3: #232731;
+  --surface-inset: #0a0b0d;
+
+  --border-soft:   rgba(232, 184, 124, 0.06);
+  --border:        rgba(232, 184, 124, 0.12);
+  --border-strong: rgba(232, 184, 124, 0.22);
+  --border-focus:  rgba(255, 122, 45, 0.60);
+
+  --ink-primary:   #ffd89c;
+  --ink-body:      #e9cfa3;
+  --ink-muted:     #a58a6a;
+  --ink-disabled:  #564939;
+
+  --accent:        #ff7a2d;
+  --accent-glow:   rgba(255, 122, 45, 0.35);
+  --live:          #ff7a2d;
+  --ok:            #7ed957;
+  --warn:          #f5c518;
+  --err:           #ff5a4a;
+
+  --font-ui:   'Inter', -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;  --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px;  --s-10: 40px;
+
+  --r-sm: 2px; --r-md: 4px; --r-lg: 6px;
+
+  --ease:  cubic-bezier(.2,.7,.2,1);
+  --fast:  120ms;
+  --pulse: 1.6s;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--surface-0);
+  color: var(--ink-body);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(232, 184, 124, 0.015) 0,
+    rgba(232, 184, 124, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--surface-0); }
+::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: var(--r-sm); }
+::-webkit-scrollbar-thumb:hover { background: var(--surface-3); }
