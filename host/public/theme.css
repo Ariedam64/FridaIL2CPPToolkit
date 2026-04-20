@@ -89,7 +89,7 @@ body {
 /* ─── readout (signature component) ─── */
 .readout {
   display: grid;
-  grid-template-columns: 14px 1fr auto auto;
+  grid-template-columns: 14px 1fr auto auto auto;
   gap: var(--s-3);
   align-items: center;
   padding: var(--s-3) var(--s-4);
@@ -105,11 +105,19 @@ body {
   animation: readout-pulse var(--pulse) infinite;
 }
 .readout.idle .dot { animation: none; opacity: 0.3; background: var(--ink-disabled); box-shadow: none; }
-.readout .k { font-size: 11.5px; color: var(--ink-muted); letter-spacing: 0.02em; }
+.readout .k { font-size: 11.5px; color: var(--ink-muted); letter-spacing: 0.02em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .readout .v { font-size: 16px; font-weight: 700; color: var(--ink-primary); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
-.readout .d { font-size: 10.5px; font-weight: 600; padding: 2px 6px; border-radius: var(--r-sm); border: 1px solid; }
+.readout .d { font-size: 10.5px; font-weight: 600; padding: 2px 6px; border-radius: var(--r-sm); border: 1px solid transparent; min-width: 0; }
+.readout .d:empty { padding: 0; border: none; }
 .readout .d.up { color: var(--ok); border-color: rgba(126, 217, 87, 0.4); }
 .readout .d.dn { color: var(--accent); border-color: rgba(255, 122, 45, 0.4); }
+.readout .unpin-btn {
+  font-family: var(--font-mono); font-size: 14px; font-weight: 400; line-height: 1;
+  padding: 2px 6px; min-width: 20px;
+  color: var(--ink-muted); background: transparent;
+  text-transform: none; letter-spacing: 0;
+}
+.readout .unpin-btn:hover { color: var(--err); border-color: rgba(255, 90, 74, 0.4); background: transparent; }
 @keyframes readout-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 
 /* ─── action-btn ─── */

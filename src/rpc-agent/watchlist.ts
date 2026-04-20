@@ -19,8 +19,10 @@ let nextId = 1;
 
 function tick(): void {
     if (pins.size === 0) return;
-    const values: Record<string, string> = {};
+    // Il2Cpp.perform is async — send must run inside the callback, after the
+    // values map is populated, not after perform() returns.
     Il2Cpp.perform(() => {
+        const values: Record<string, string> = {};
         for (const pin of pins.values()) {
             try {
                 if (pin.kind === "instance") {
@@ -36,8 +38,8 @@ function tick(): void {
                 values[pin.id] = `<err: ${String(e).slice(0, 60)}>`;
             }
         }
+        send({ type: "watchlist-tick", values });
     });
-    send({ type: "watchlist-tick", values });
 }
 
 function ensureTimer(): void {

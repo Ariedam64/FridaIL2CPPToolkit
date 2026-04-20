@@ -7,11 +7,21 @@ type PinMeta = {
     label: string;
     lastValue: string;
     el: HTMLElement;
+    deltaTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const pins = new Map<string, PinMeta>();
 let containerEl: HTMLElement | null = null;
 let emptyEl: HTMLElement | null = null;
+let pendingRefresh: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRefresh(): void {
+    if (pendingRefresh) return;
+    pendingRefresh = setTimeout(() => {
+        pendingRefresh = null;
+        void refreshFromServer();
+    }, 100);
+}
 
 function makeEmptyState(): HTMLElement {
     const el = document.createElement("div");
@@ -58,21 +68,23 @@ function addReadout(id: string, label: string, initialValue = ""): void {
         <button class="btn unpin-btn" title="unpin" data-unpin-id="${id}">×</button>
     `;
     containerEl.appendChild(el);
-    pins.set(id, { label, lastValue: initialValue, el });
+    pins.set(id, { label, lastValue: initialValue, el, deltaTimer: null });
 }
 
 function removeReadout(id: string): void {
     const meta = pins.get(id);
     if (!meta) return;
+    if (meta.deltaTimer) clearTimeout(meta.deltaTimer);
     meta.el.remove();
     pins.delete(id);
     if (pins.size === 0) showEmpty();
 }
 
 function handleTick(payload: WatchlistTickPayload): void {
+    let hasUnknown = false;
     for (const [id, value] of Object.entries(payload.values)) {
         const meta = pins.get(id);
-        if (!meta) continue;
+        if (!meta) { hasUnknown = true; continue; }
         const vEl = meta.el.querySelector(".v");
         const dEl = meta.el.querySelector(".d");
         if (!vEl || !dEl) continue;
@@ -81,12 +93,22 @@ function handleTick(payload: WatchlistTickPayload): void {
         if (delta) {
             dEl.textContent = delta.text;
             dEl.className = delta.cls;
+            // Keep delta visible 2.5s after the last change (instead of until next tick).
+            if (meta.deltaTimer) clearTimeout(meta.deltaTimer);
+            meta.deltaTimer = setTimeout(() => {
+                dEl.textContent = "";
+                dEl.className = "d";
+                meta.deltaTimer = null;
+            }, 2500);
+            meta.lastValue = value;
         } else {
-            dEl.textContent = "";
-            dEl.className = "d";
+            // No change — leave the current delta alone (its fade timer handles cleanup).
+            meta.lastValue = value;
         }
-        meta.lastValue = value;
     }
+    // Pin was added out-of-band (API, Claude, page reload w/ server state).
+    // Resync so the next tick finds the readout already present.
+    if (hasUnknown) scheduleRefresh();
 }
 
 export async function refreshFromServer(): Promise<void> {
@@ -126,13 +148,16 @@ export function mountWatchlist(container: HTMLElement): void {
 
     showEmpty();
 
-    // Subscribe to tick events
+    // Subscribe to tick events. Frida send() payloads arrive wrapped as
+    // {type:"message", message:{type:"send", payload:{type:"watchlist-tick", values:{...}}}}.
     onWsEvent((ev) => {
         if (ev.type !== "message") return;
         const m = ev.message;
-        if (m.type === "watchlist-tick") {
-            handleTick(m as WatchlistTickPayload);
-        }
+        if (m.type !== "send") return;
+        const p = m["payload"] as WatchlistTickPayload | null | undefined;
+        if (!p || typeof p !== "object") return;
+        if (p.type !== "watchlist-tick") return;
+        handleTick(p);
     });
 
     // Unpin button delegation
