@@ -12,6 +12,9 @@ import { renderExplorer } from "./panels/explorer.js";
 import { mountWatchlist } from "./panels/watchlist.js";
 import { clearSession } from "./lib/session.js";
 import { renderBookmarks, initBookmarkAutoOffer } from "./panels/bookmarks.js";
+import { renderScanner } from "./panels/scanner.js";
+import { renderInspector } from "./panels/inspector.js";
+import { renderDiff } from "./panels/diff.js";
 
 function $(sel: string, root: ParentNode = document): HTMLElement {
     const el = root.querySelector(sel);
@@ -89,7 +92,10 @@ function renderMainTab(name: string): void {
     const wrap = freshWrapper(mainContent);
     if (name === "search")         renderSearch(wrap);
     else if (name === "instance")  renderInstance(wrap);
+    else if (name === "scanner")   renderScanner(wrap);
+    else if (name === "inspector") renderInspector(wrap);
     else if (name === "hookpatch") renderHookPatch(wrap);
+    else if (name === "diff")      renderDiff(wrap);
     else if (name === "socket")    renderSocket(wrap);
 }
 
