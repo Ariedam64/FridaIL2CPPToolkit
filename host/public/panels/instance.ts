@@ -2,6 +2,7 @@
 import { rpcCall } from "../lib/rpc.js";
 import { logRpcLine, logRpcResult } from "./logs.js";
 import { addWatchlistPin } from "./watchlist.js";
+import { saveDumpToFile } from "../lib/dump-client.js";
 
 function parseVal(v: string): unknown {
     if (v === "" || v == null) return undefined;
@@ -58,7 +59,7 @@ export function renderInstance(container: HTMLElement): void {
         ${row(btn("listCaptured", "list captured", true))}
 
         ${section("dump instance")}
-        ${row(inp("className", "class name") + btn("dumpInstance", "dump"))}
+        ${row(inp("className", "class name") + btn("dumpInstance", "dump") + btn("dumpInstanceToFile", "dump to file"))}
 
         ${section("read field")}
         ${row(inp("className", "class name") + inp("fieldName", "field name") + btn("readField", "read") + btn("pinField", "📌 pin instance"))}
@@ -98,6 +99,22 @@ export function renderInstance(container: HTMLElement): void {
         // Pin actions handled specially — they update the watchlist panel on success
         if (action === "pinField" || action === "pinStaticField") {
             void runPinAction(action, vals);
+            return;
+        }
+
+        // Dump instance to file
+        if (action === "dumpInstanceToFile") {
+            const className = vals["className"];
+            if (!className) { logRpcLine(`[dump] class name required`); return; }
+            void (async () => {
+                logRpcLine(`[dump] dumpInstanceAsString("${className}")`);
+                try {
+                    const md = await rpcCall<string>("dumpInstanceAsString", [className]);
+                    await saveDumpToFile(md, { name: className, ext: "md" });
+                } catch (err) {
+                    logRpcLine(`[dump] failed: ${String(err)}`);
+                }
+            })();
             return;
         }
 

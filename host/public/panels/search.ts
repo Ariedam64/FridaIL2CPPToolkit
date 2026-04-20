@@ -1,6 +1,7 @@
 // Search panel — find classes, find by field/method, dump class.
 import { rpcCall } from "../lib/rpc.js";
 import { logRpcLine, logRpcResult } from "./logs.js";
+import { saveDumpToFile } from "../lib/dump-client.js";
 
 function parsePattern(v: string): string | RegExp {
     const m = v.match(/^\/(.+)\/([a-z]*)$/);
@@ -61,6 +62,7 @@ export function renderSearch(container: HTMLElement): void {
           <input class="input" data-arg="name" placeholder="exact class name" style="flex:1">
           <button class="btn" data-action="dumpClass">full</button>
           <button class="btn" data-action="dumpStatics">statics</button>
+          <button class="btn" data-action="dumpClassToFile">dump to file</button>
         </div>
 
       </div>
@@ -106,6 +108,20 @@ export function renderSearch(container: HTMLElement): void {
             case "dumpStatics":
                 args = [vals["name"]];
                 break;
+            case "dumpClassToFile": {
+                const className = vals["name"];
+                if (!className) { logRpcLine(`[dump] class name required`); return; }
+                void (async () => {
+                    logRpcLine(`[dump] dumpClassAsString("${className}")`);
+                    try {
+                        const md = await rpcCall<string>("dumpClassAsString", [className]);
+                        await saveDumpToFile(md, { name: className, ext: "md" });
+                    } catch (err) {
+                        logRpcLine(`[dump] failed: ${String(err)}`);
+                    }
+                })();
+                return;
+            }
             default:
                 args = Object.values(vals);
         }
