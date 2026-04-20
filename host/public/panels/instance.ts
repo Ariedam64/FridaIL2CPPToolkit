@@ -1,6 +1,7 @@
 // Instance panel — capture, read/write fields, call methods, list operations.
 import { rpcCall } from "../lib/rpc.js";
 import { logRpcLine, logRpcResult } from "./logs.js";
+import { addWatchlistPin } from "./watchlist.js";
 
 function parseVal(v: string): unknown {
     if (v === "" || v == null) return undefined;
@@ -60,7 +61,10 @@ export function renderInstance(container: HTMLElement): void {
         ${row(inp("className", "class name") + btn("dumpInstance", "dump"))}
 
         ${section("read field")}
-        ${row(inp("className", "class name") + inp("fieldName", "field name") + btn("readField", "read"))}
+        ${row(inp("className", "class name") + inp("fieldName", "field name") + btn("readField", "read") + btn("pinField", "📌 pin instance"))}
+
+        ${section("pin static field")}
+        ${row(inp("className", "class name") + inp("fieldName", "field name") + btn("pinStaticField", "📌 pin static"))}
 
         ${section("write field")}
         ${row(inp("className", "class name") + inp("fieldName", "field name") + inp("value", "value") + btn("writeField", "write"))}
@@ -91,6 +95,12 @@ export function renderInstance(container: HTMLElement): void {
         const vals: Record<string, string> = {};
         inputs.forEach(i => { vals[i.dataset.arg!] = i.value.trim(); });
 
+        // Pin actions handled specially — they update the watchlist panel on success
+        if (action === "pinField" || action === "pinStaticField") {
+            void runPinAction(action, vals);
+            return;
+        }
+
         let args: unknown[];
         try {
             args = buildArgs(action, vals);
@@ -100,6 +110,24 @@ export function renderInstance(container: HTMLElement): void {
         }
         void runAction(action, args);
     });
+}
+
+async function runPinAction(action: string, v: Record<string, string>): Promise<void> {
+    const kind = action === "pinStaticField" ? "static" : "instance";
+    const className = v["className"] ?? "";
+    const fieldName = v["fieldName"] ?? "";
+    if (!className || !fieldName) {
+        logRpcLine(`[rpc] ${action}: class name and field name are required`);
+        return;
+    }
+    logRpcLine(`[rpc] pinField("${kind}", "${className}", "${fieldName}")`);
+    try {
+        const result = await rpcCall<{ id: string; label: string }>("pinField", [kind, className, fieldName]);
+        logRpcLine(`[rpc] pinned → ${result.id} (${result.label})`);
+        addWatchlistPin(result.id, result.label);
+    } catch (err) {
+        logRpcLine(`[rpc] pinField failed: ${String(err)}`);
+    }
 }
 
 function buildArgs(action: string, v: Record<string, string>): unknown[] {
