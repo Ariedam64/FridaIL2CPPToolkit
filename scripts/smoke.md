@@ -117,3 +117,15 @@ Setup: attach to FridaCobaye.exe, capture Player via GC or hook.
 - [ ] "Copy state" on watchlist — clipboard gets markdown table
 - [ ] Reload page → watchlist empty (pin persistence is M3, not M2)
 - [ ] Detach then re-attach → existing pins silently become `<not captured>` readouts (graceful)
+
+## M3 — Bookmarks / Presets
+
+- [ ] Attach FridaCobaye.exe, capture Player, pin `health`, install a hook on `TakeDamage`, patch `totalPlayersAlive=999`
+- [ ] Open Bookmarks tab, click SAVE CURRENT, name "fc-basic"
+- [ ] `.toolkit-data/bookmarks/fc-basic.json` exists with pins + hooks + patches
+- [ ] Click DELETE on the row — file removed, row disappears
+- [ ] Re-save, detach, reattach → toast appears at top of main area
+- [ ] Click LOAD in toast → hook re-installed, patch reapplied, pin recreated
+- [ ] EXPORT downloads a JSON with the single bookmark
+- [ ] IMPORT with the same JSON (rename test) creates a new entry
+- [ ] Detach → session hooks/patches cleared; next SAVE CURRENT produces empty lists (still saves, just empty bookmark)
