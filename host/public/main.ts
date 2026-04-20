@@ -9,6 +9,7 @@ import { renderInstance } from "./panels/instance.js";
 import { renderHookPatch } from "./panels/hookpatch.js";
 import { renderSocket } from "./panels/socket.js";
 import { renderExplorer } from "./panels/explorer.js";
+import { mountWatchlist } from "./panels/watchlist.js";
 
 function $(sel: string, root: ParentNode = document): HTMLElement {
     const el = root.querySelector(sel);
@@ -48,6 +49,9 @@ btnReload.addEventListener("click", () => { void reload(); });
 
 // ── Logs panel (right column, always mounted)
 mountLogs($("#log"));
+
+// ── Watchlist panel (right column, always mounted)
+mountWatchlist($("#watchlist"));
 
 // Each tab switch creates a fresh wrapper div. When we remove the wrapper,
 // all DOM listeners attached to it (by the panel's render function) die with it.
