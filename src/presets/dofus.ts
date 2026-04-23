@@ -23,6 +23,35 @@ export const DOFUS = {
     protocolAssembly: "Ankama.Dofus.Protocol.Game",  // 4892 classes, messages réseau
 
     // -------------------------------------------------------------------------
+    // Mapping des messages protocole obfusqués → noms lisibles
+    //   Ces noms changent à chaque build Ankama (obfuscation renommée).
+    //   Structure : class (3 lettres) → { readable, fields: { obf → readable } }
+    //   Re-valider après chaque maj du jeu en utilisant `dumpClass(obfuscated)` et
+    //   en comparant la signature avec ces schémas.
+    // -------------------------------------------------------------------------
+    protocolMap: {
+        // ↑ Outgoing (client → server)
+        iri: {
+            readable: "GameMapMovementRequestMessage",
+            direction: "out",
+            fields: {
+                bztd: "sprint",      // Bool — is running / sprint mode
+                bztf: "timestamp",   // Int64 — client-side timestamp
+                bzth: "mapId",       // Int64 — current map id (e.g. 191106052)
+                bztj: "cellPath",    // RepeatedField<Int32> — the path cells in order
+            },
+        },
+        isu: {
+            readable: "GameMapMovementConfirmMessage",
+            direction: "out",
+            fields: {},              // no fields — empty marker sent on arrival
+        },
+        // ↓ Incoming (server → client) — TBD as we decode more
+        irl: { readable: "?_server_heartbeat_or_movementAck", direction: "in", fields: {} },
+        jnc: { readable: "?_frequent_server_event", direction: "in", fields: {} },
+    },
+
+    // -------------------------------------------------------------------------
     // Inventaire du joueur
     // -------------------------------------------------------------------------
     inventory: {

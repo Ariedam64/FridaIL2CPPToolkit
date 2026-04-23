@@ -150,3 +150,186 @@ export function clearScan(): Promise<number> {
         resolve(n);
     });
 }
+
+// -----------------------------------------------------------------------------
+// Static-value scanner: finds a concrete value (e.g. a mapId) held either
+// directly in a static field, or one hop away via a static singleton reference
+// (`ClassX.Instance.fieldY == target` — the common Dofus idiom).
+//
+// Why this matters: the instance-heap sweep above is bounded (skips huge
+// assemblies like Dofus "Core"). But mapIds / currentActorIds / session
+// tokens are usually reachable from a static root. Reading statics is cheap:
+// no gc.choose, no initialize, just iterate classes and read fields.
+// -----------------------------------------------------------------------------
+
+interface StaticCandidate {
+    id: string;
+    path: string;           // "Class.field" or "Class.staticField → InnerCls.instField"
+    assembly: string;
+    typeName: string;
+    currentValue: string;
+}
+
+// Classes/namespaces whose statics are known to crash the target when read
+// cold (native-backed pointers, lazy platform init, generic instantiations, …).
+const CLASS_NAME_SKIP = /^(<|__StaticArrayInit|PrivateImplementationDetails|RuntimeType|IntPtr|RuntimeMethodHandle|RuntimeFieldHandle|SafeHandle)/;
+
+function isScannableClass(klass: Il2Cpp.Class): boolean {
+    if (klass.isEnum || klass.isInterface) return false;
+    const n = klass.name;
+    // Generic definitions (Foo`1 or Foo<T>) crash on static access.
+    if (n.includes("`") || n.includes("<")) return false;
+    if (CLASS_NAME_SKIP.test(n)) return false;
+    return true;
+}
+
+/**
+ * Extract the short class name ("Foo") from a type name that may be prefixed
+ * with a namespace ("Some.Ns.Foo"), an array suffix ("Foo[]"), or a generic
+ * instantiation ("List`1<Foo>"). Returns null if we can't confidently reduce.
+ */
+function shortTypeName(tname: string): string | null {
+    if (!tname) return null;
+    let s = tname;
+    // Strip array suffixes and pointer suffixes.
+    s = s.replace(/\[\]|\*|&/g, "");
+    // Strip generic args — "Foo`1<Bar>" or "List<Bar>".
+    const lt = s.indexOf("<"), bt = s.indexOf("`");
+    if (lt >= 0) s = s.slice(0, lt);
+    if (bt >= 0) s = s.slice(0, bt);
+    // Take last segment.
+    const last = s.split(".").pop();
+    return last && last.length > 0 ? last : null;
+}
+
+export function scanStaticValue(
+    target: string,
+    scanType: ScanType,
+    dive: boolean = false,
+    assemblyName: string = "Assembly-CSharp",
+    limit: number = 200,
+): Promise<StaticCandidate[]> {
+    const maxResults = limit || 200;
+    return new Promise((resolve, reject) => {
+        Il2Cpp.perform(() => {
+            try {
+                const assembly = Il2Cpp.domain.assemblies.find(a => a.name === assemblyName);
+                if (!assembly) { reject(new Error(`assembly ${assemblyName} not found`)); return; }
+
+                const out: StaticCandidate[] = [];
+                let sid = 1;
+                const startMs = Date.now();
+                const BUDGET_MS = 15_000;
+                let scannedClasses = 0, skippedClasses = 0, readErrors = 0, divesAttempted = 0;
+
+                let classes: Il2Cpp.Class[] = [];
+                try { classes = assembly.image.classes as unknown as Il2Cpp.Class[]; } catch (e) { reject(e); return; }
+
+                // Build an in-assembly class-name set. The dive phase only follows object
+                // references whose declared type is a class from this same assembly — that
+                // filters out framework/native types whose static pointers crash on cold read.
+                const inAssembly = new Set<string>();
+                for (const k of classes) {
+                    try { if (isScannableClass(k)) inAssembly.add(k.name); } catch {}
+                }
+
+                for (const klass of classes) {
+                    if (Date.now() - startMs > BUDGET_MS) {
+                        console.log(`[scanner] static budget ${BUDGET_MS}ms hit at ${scannedClasses}/${classes.length} classes; partial.`);
+                        break;
+                    }
+                    if (!isScannableClass(klass)) { skippedClasses++; continue; }
+                    scannedClasses++;
+
+                    let fields: Il2Cpp.Field[] = [];
+                    try { fields = klass.fields; } catch { skippedClasses++; continue; }
+
+                    for (const f of fields) {
+                        if (!f.isStatic) continue;
+                        const tname = f.type.name;
+
+                        // Phase 1: scalar static matching scanType.
+                        if (matchType(tname, scanType)) {
+                            try {
+                                const v = f.value;
+                                if (valueMatches(v, target, scanType)) {
+                                    out.push({
+                                        id: `s${sid++}`,
+                                        path: `${klass.name}.${f.name}`,
+                                        assembly: assembly.name,
+                                        typeName: tname,
+                                        currentValue: stringifyValue(v),
+                                    });
+                                    if (out.length >= maxResults) { resolve(out); return; }
+                                }
+                            } catch { readErrors++; }
+                            continue;
+                        }
+
+                        // Phase 2 (dive, opt-in): static reference to an in-assembly class → scan its instance scalars.
+                        // Skipping anything non-in-assembly is the safety net: UnityEngine / System /
+                        // mscorlib statics have a long history of crashing on cold `.value` reads.
+                        if (!dive) continue;
+                        const short = shortTypeName(tname);
+                        if (!short || !inAssembly.has(short)) continue;
+
+                        divesAttempted++;
+                        let obj: any;
+                        try { obj = f.value; } catch { readErrors++; continue; }
+                        if (!obj) continue;
+                        try {
+                            if (!obj.class) continue;
+                            if (obj.handle?.isNull?.() || String(obj.handle) === "0x0") continue;
+                            // Only descend if the runtime class is itself an in-assembly scannable class.
+                            if (!inAssembly.has(obj.class.name)) continue;
+                        } catch { continue; }
+
+                        let innerFields: Il2Cpp.Field[] = [];
+                        try { innerFields = obj.class.fields; } catch { continue; }
+                        // Safety: some aggregate classes have hundreds of fields — iterating them all
+                        // is both slow and more likely to hit a landmine. Cap.
+                        if (innerFields.length > 150) continue;
+
+                        for (const inner of innerFields) {
+                            if (inner.isStatic) continue;
+                            if (!matchType(inner.type.name, scanType)) continue;
+                            try {
+                                const iv = obj.field(inner.name).value;
+                                if (!valueMatches(iv, target, scanType)) continue;
+                                out.push({
+                                    id: `s${sid++}`,
+                                    path: `${klass.name}.${f.name} → ${obj.class.name}.${inner.name}`,
+                                    assembly: assembly.name,
+                                    typeName: inner.type.name,
+                                    currentValue: stringifyValue(iv),
+                                });
+                                if (out.length >= maxResults) { resolve(out); return; }
+                            } catch { readErrors++; }
+                        }
+                    }
+                }
+
+                console.log(`[scanner] static scan on ${assembly.name}: ${out.length} hits, ${scannedClasses} scanned, ${skippedClasses} skipped, ${divesAttempted} dives, ${readErrors} read-errs in ${Date.now() - startMs}ms (dive=${dive})`);
+                resolve(out);
+            } catch (e) { reject(e); }
+        });
+    });
+}
+
+/**
+ * List assembly names present in the current Il2Cpp domain. Useful when the
+ * user doesn't know what to type in the scanner's assembly field (e.g. Dofus
+ * uses `Core` rather than the default `Assembly-CSharp`).
+ */
+export function listAssemblies(): Promise<string[]> {
+    return new Promise((resolve) => {
+        Il2Cpp.perform(() => {
+            const out: string[] = [];
+            for (const a of Il2Cpp.domain.assemblies) {
+                try { out.push(a.name); } catch {}
+            }
+            out.sort();
+            resolve(out);
+        });
+    });
+}

@@ -2,8 +2,10 @@
 const fs   = require("fs");
 const path = require("path");
 
-const DATA_DIR = path.resolve(__dirname, "..", "..", ".toolkit-data");
-const BOOK_DIR = path.join(DATA_DIR, "bookmarks");
+const DATA_DIR   = path.resolve(__dirname, "..", "..", ".toolkit-data");
+const BOOK_DIR   = path.join(DATA_DIR, "bookmarks");
+const PRESET_DIR = path.join(DATA_DIR, "presets");
+const CAPTURE_DIR = path.join(DATA_DIR, "captures");
 
 function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
 
@@ -63,4 +65,67 @@ function saveDump(content, meta = {}) {
     return { path: file, size: Buffer.byteLength(content, "utf8"), name };
 }
 
-module.exports = { listBookmarks, getBookmark, saveBookmark, deleteBookmark, saveDump, slugify };
+// -------- Presets (game-specific protocol maps, socket aliases, etc.) --------
+// Each preset is JSON at .toolkit-data/presets/<slug>.json with at least:
+//   { processName: "Dofus.exe", protocolMap: { clsName: { readable, direction, fields } } }
+
+function listPresets() {
+    ensureDir(PRESET_DIR);
+    return fs.readdirSync(PRESET_DIR)
+        .filter(f => f.endsWith(".json"))
+        .map(f => {
+            try {
+                const data = JSON.parse(fs.readFileSync(path.join(PRESET_DIR, f), "utf8"));
+                return {
+                    slug: f.replace(/\.json$/, ""),
+                    processName: data.processName ?? "",
+                    protocolMapSize: Object.keys(data.protocolMap ?? {}).length,
+                };
+            } catch { return null; }
+        })
+        .filter(Boolean);
+}
+
+function getPreset(slug) {
+    const file = path.join(PRESET_DIR, `${slug}.json`);
+    if (!fs.existsSync(file)) return null;
+    return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+/**
+ * Find the preset whose processName matches the attached process (exact match).
+ * Returns the preset object or null.
+ */
+function getPresetForProcess(processName) {
+    if (!processName) return null;
+    for (const { slug } of listPresets()) {
+        const preset = getPreset(slug);
+        if (preset && preset.processName === processName) return preset;
+    }
+    return null;
+}
+
+function savePreset(slug, data) {
+    ensureDir(PRESET_DIR);
+    const cleanSlug = slugify(slug);
+    const file = path.join(PRESET_DIR, `${cleanSlug}.json`);
+    const body = { ...data, slug: cleanSlug, updatedAt: new Date().toISOString() };
+    fs.writeFileSync(file, JSON.stringify(body, null, 2), "utf8");
+    return body;
+}
+
+function saveCapture(cls, payload) {
+    ensureDir(CAPTURE_DIR);
+    // One file per capture, timestamped. Keeps history so we can diff across builds.
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const file = path.join(CAPTURE_DIR, `${slugify(cls)}-${ts}.json`);
+    fs.writeFileSync(file, JSON.stringify(payload, null, 2), "utf8");
+    return { file: path.relative(DATA_DIR, file), bytes: fs.statSync(file).size };
+}
+
+module.exports = {
+    listBookmarks, getBookmark, saveBookmark, deleteBookmark,
+    saveDump, slugify,
+    listPresets, getPreset, getPresetForProcess, savePreset,
+    saveCapture,
+};

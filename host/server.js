@@ -23,7 +23,19 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 // -------- wire bridge events ------------------------------------------------
 bridge.on("attached", (info) => broadcast({ type: "attached", ...info }));
 bridge.on("detached", (e) => broadcast({ type: "detached", reason: e.reason }));
-bridge.on("message",  (m) => broadcast({ type: "message", message: m }));
+bridge.on("message",  (m) => {
+    // Agent `send()` payloads come in as { type: "send", payload: {...} }.
+    // Intercept `full-capture` payloads and persist them to disk for offline
+    // parser iteration — we still broadcast so the UI can react if needed.
+    try {
+        const p = m && m.payload;
+        if (p && p.type === "full-capture" && p.cls && p.tree) {
+            const saved = persistence.saveCapture(p.cls, { cls: p.cls, ts: p.ts, tree: p.tree });
+            console.log(`[server] persisted full-capture for ${p.cls} → ${saved.file} (${saved.bytes} bytes)`);
+        }
+    } catch (e) { console.error("[server] saveCapture failed:", e); }
+    broadcast({ type: "message", message: m });
+});
 
 // -------- static file serving -----------------------------------------------
 const MIME = {
@@ -54,12 +66,23 @@ const routes = {
         "/api/processes":  async (req, res, q) => sendJson(res, 200, await bridge.listProcesses(q.q)),
         "/api/status":     (req, res)           => sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() }),
         "/api/bookmarks":  (_req, res)          => sendJson(res, 200, persistence.listBookmarks()),
+        "/api/presets":    (_req, res)          => sendJson(res, 200, persistence.listPresets()),
+        "/api/presets/auto": (_req, res, _q) => {
+            const info = bridge.getAttachedInfo();
+            if (!info) { sendJson(res, 200, null); return; }
+            sendJson(res, 200, persistence.getPresetForProcess(info.name));
+        },
     },
     GET_param: {
         "/api/bookmarks": (_req, res, _q, slug) => {
             const bm = persistence.getBookmark(slug);
             if (!bm) { res.writeHead(404); res.end(); return; }
             sendJson(res, 200, bm);
+        },
+        "/api/presets": (_req, res, _q, slug) => {
+            const p = persistence.getPreset(slug);
+            if (!p) { res.writeHead(404); res.end(); return; }
+            sendJson(res, 200, p);
         },
     },
     POST: {
@@ -87,6 +110,10 @@ const routes = {
         "/api/bookmarks": async (req, res, _q, slug) => {
             const body = JSON.parse(await readBody(req));
             sendJson(res, 200, persistence.saveBookmark(body.name || slug, body));
+        },
+        "/api/presets": async (req, res, _q, slug) => {
+            const body = JSON.parse(await readBody(req));
+            sendJson(res, 200, persistence.savePreset(slug, body));
         },
     },
     DELETE_param: {
