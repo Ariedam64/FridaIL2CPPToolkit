@@ -9,6 +9,7 @@ const CARTO_DIR   = path.join(DATA_DIR, "cartography");
 const CAPTURE_DIR = path.join(DATA_DIR, "captures");
 const CATALOG_DIR = path.join(DATA_DIR, "catalog");
 const WMNAMES_DIR = path.join(DATA_DIR, "wm-tile-names");
+const ICONS_DIR   = path.join(DATA_DIR, "icons");
 const COVERAGE_PLAN   = path.join(DATA_DIR, "coverage-plan.json");
 const GFX_REGISTRY    = path.join(DATA_DIR, "gfx-to-type.json");
 const TILE_MAPPING    = path.join(DATA_DIR, "tile-mapping.json");
@@ -163,6 +164,13 @@ function readAddressables() {
     try { return JSON.parse(fs.readFileSync(ADDRESSABLES, "utf8")); } catch { return null; }
 }
 
+// -------- Picto icons (items, monsters, spells) ---------------------------
+
+function iconPath(category, id) {
+    return path.join(ICONS_DIR, category, `${id}.png`);
+}
+
+
 module.exports = {
     DATA_DIR, MAPS_DIR, CARTO_DIR,
     saveMapData, readMapData, listCachedMaps,
@@ -173,4 +181,5 @@ module.exports = {
     saveWmTileNames, listWmTileNames,
     readBundleManifest, bundleTilePath, readTileMapping,
     saveAddressables, readAddressables,
+    iconPath,
 };

@@ -7,6 +7,7 @@ import { mountConnection, wireStatusAndButtons } from "./panels/connection.js";
 import { mountLogs } from "./panels/logs.js";
 import { renderWorld } from "./panels/world.js";
 import { renderMap } from "./panels/map.js";
+import { renderItems } from "./panels/items.js";
 
 function $(sel: string, root: ParentNode = document): HTMLElement {
     const el = root.querySelector(sel);
@@ -70,8 +71,9 @@ function renderSidebarTab(name: string): void {
 const mainContent = $("#main-content");
 function renderMainTab(name: string): void {
     const wrap = freshWrapper(mainContent);
-    if (name === "world")    void renderWorld(wrap);
-    else if (name === "map") renderMap(wrap);
+    if (name === "world")      void renderWorld(wrap);
+    else if (name === "map")   renderMap(wrap);
+    else if (name === "items") void renderItems(wrap);
 }
 
 document.addEventListener("tab-change", (e) => {

@@ -205,8 +205,9 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
           <div id="wm-cell-legend" style="display:none; font-size:10px; color:var(--c-label); line-height:1.6"></div>
           <div id="wm-detail" style="font-family:var(--font-mono); font-size:11px; white-space:pre-wrap; color:var(--c-label)">click a tile to inspect</div>
         </div>
-        <div id="wm-canvas-wrap" style="flex:1; overflow:auto; background:#0a0a0a; position:relative">
-          <canvas id="wm-canvas" style="display:block; image-rendering:pixelated"></canvas>
+        <div id="wm-canvas-wrap" style="flex:1; overflow:hidden; background:#0a0a0a; position:relative; user-select:none">
+          <canvas id="wm-canvas" style="display:block; position:absolute; top:0; left:0; transform-origin:0 0"></canvas>
+          <div id="wm-hint" style="position:absolute; right:8px; bottom:8px; font-size:10px; color:var(--c-label); background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:3px; pointer-events:none">scroll = zoom · space + drag = pan</div>
         </div>
       </div>
     `;
@@ -495,6 +496,11 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         selected = null;
         renderDetail();
         render();
+        // Fit-to-view after the render has set canvas.width/height.
+        // renderAtlas is async (loads tiles); schedule a second fit when it
+        // resolves so we see the full map even if zoom stabilises late.
+        resetView();
+        setTimeout(resetView, 200);
     }
 
     async function refresh(): Promise<void> {
@@ -533,8 +539,91 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         render();
     });
 
+    // ── Zoom + pan state ----------------------------------------------------
+    // Canvas stays at its rendered resolution; CSS transform handles the
+    // interactive view. Click-to-select inverts the transform to get the
+    // real pixel coord within the canvas.
+    const canvasWrap = container.querySelector<HTMLDivElement>("#wm-canvas-wrap")!;
+    let viewZoom = 1, viewX = 0, viewY = 0;
+    const applyTransform = () => {
+        canvas.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewZoom})`;
+    };
+    const resetView = () => {
+        const vw = canvasWrap.clientWidth || 1, vh = canvasWrap.clientHeight || 1;
+        const cw = canvas.width || 1, ch = canvas.height || 1;
+        viewZoom = Math.min(vw / cw, vh / ch, 1);
+        viewX = (vw - cw * viewZoom) / 2;
+        viewY = (vh - ch * viewZoom) / 2;
+        applyTransform();
+    };
+
+    // Wheel = zoom centered on cursor.
+    canvasWrap.addEventListener("wheel", (ev) => {
+        ev.preventDefault();
+        const rect = canvasWrap.getBoundingClientRect();
+        const mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+        const factor = ev.deltaY < 0 ? 1.15 : 1 / 1.15;
+        const nextZoom = Math.max(0.05, Math.min(20, viewZoom * factor));
+        // Keep the cursor over the same world point across zoom.
+        viewX = mx - (mx - viewX) * (nextZoom / viewZoom);
+        viewY = my - (my - viewY) * (nextZoom / viewZoom);
+        viewZoom = nextZoom;
+        applyTransform();
+    }, { passive: false });
+
+    // Space + drag = pan.
+    let spaceDown = false, panning = false, panStartX = 0, panStartY = 0, panOrigX = 0, panOrigY = 0;
+    const kd = (ev: KeyboardEvent) => {
+        if (ev.code === "Space" && !spaceDown) {
+            const t = ev.target as HTMLElement;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+            spaceDown = true;
+            canvasWrap.style.cursor = "grab";
+            ev.preventDefault();
+        }
+    };
+    const ku = (ev: KeyboardEvent) => {
+        if (ev.code === "Space") {
+            spaceDown = false;
+            canvasWrap.style.cursor = "";
+        }
+    };
+    document.addEventListener("keydown", kd);
+    document.addEventListener("keyup", ku);
+    // Clean up listeners when the panel is torn down.
+    const mo = new MutationObserver(() => {
+        if (!container.contains(canvasWrap)) {
+            document.removeEventListener("keydown", kd);
+            document.removeEventListener("keyup", ku);
+            mo.disconnect();
+        }
+    });
+    mo.observe(container.parentElement || container, { childList: true, subtree: true });
+
+    canvasWrap.addEventListener("mousedown", (ev) => {
+        if (!spaceDown || ev.button !== 0) return;
+        panning = true;
+        panStartX = ev.clientX; panStartY = ev.clientY;
+        panOrigX = viewX; panOrigY = viewY;
+        canvasWrap.style.cursor = "grabbing";
+        ev.preventDefault();
+    });
+    document.addEventListener("mousemove", (ev) => {
+        if (!panning) return;
+        viewX = panOrigX + (ev.clientX - panStartX);
+        viewY = panOrigY + (ev.clientY - panStartY);
+        applyTransform();
+    });
+    document.addEventListener("mouseup", () => {
+        if (panning) {
+            panning = false;
+            canvasWrap.style.cursor = spaceDown ? "grab" : "";
+        }
+    });
+
+    // Click-to-select — only when NOT panning.
     canvas.addEventListener("click", (ev) => {
-        if (!catalogs) return;
+        if (!catalogs || spaceDown) return;
         const rect = canvas.getBoundingClientRect();
         const px = (ev.clientX - rect.left) * (canvas.width / rect.width);
         const py = (ev.clientY - rect.top) * (canvas.height / rect.height);
@@ -542,9 +631,8 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         let wx: number, wy: number;
         if (wm) {
             const scale = Math.min(1, ATLAS_MAX_W / wm.totalWidth);
-            const atlasX = px / scale, atlasY = py / scale;
-            wx = Math.floor((atlasX - wm.origineX) / wm.mapWidth);
-            wy = Math.floor((atlasY - wm.origineY) / wm.mapHeight);
+            wx = Math.floor((px / scale - wm.origineX) / wm.mapWidth);
+            wy = Math.floor((py / scale - wm.origineY) / wm.mapHeight);
         } else {
             wx = Math.floor(px / cellSize) + bounds.minX;
             wy = Math.floor(py / cellSize) + bounds.minY;

@@ -169,6 +169,7 @@ export function extractSkillNamesCatalog(): Promise<{ count: number; items: Arra
 
 export interface MonsterCatalogEntry {
     id: number;
+    iconId: number;  // monsters store the picto sprite id in `gfxId`
     nameId: number;
     name: string;
     raceId?: number;
@@ -186,6 +187,7 @@ export function extractMonstersCatalog(): Promise<{ count: number; items: Monste
             try {
                 const entry: MonsterCatalogEntry = {
                     id: readIntField(inst, "id"),
+                    iconId: readIntField(inst, "gfxId"),
                     nameId: readIntField(inst, "nameId"),
                     name: readStringGetter(inst, "get_name"),
                 };
@@ -274,6 +276,7 @@ export function extractAreasCatalog(): Promise<{ count: number; items: AreaCatal
 
 export interface ItemCatalogEntry {
     id: number;
+    iconId: number;
     nameId: number;
     name: string;
     typeId: number;
@@ -289,6 +292,7 @@ export function extractItemsCatalog(): Promise<{ count: number; items: ItemCatal
             try {
                 const entry: ItemCatalogEntry = {
                     id: readIntField(inst, "id"),
+                    iconId: readIntField(inst, "iconId"),
                     nameId: readIntField(inst, "nameId"),
                     name: readStringGetter(inst, "get_name"),
                     typeId: readIntField(inst, "typeId"),

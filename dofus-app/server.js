@@ -80,6 +80,11 @@ async function serveStatic(req, res, pathname) {
     if (tile) {
         return serveFile(res, persistence.bundleTilePath(tile[1]));
     }
+    // /icons/<category>/<id>.png → extracted Picto sprite (items, monsters, spells)
+    const icon = pathname.match(/^\/icons\/([a-z]+)\/(\d+)\.png$/i);
+    if (icon) {
+        return serveFile(res, persistence.iconPath(icon[1], icon[2]));
+    }
 
     const rel = pathname === "/" ? "/index.html" : pathname;
     // Try dofus-app/public first, fall back to toolkit public for shared
