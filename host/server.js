@@ -77,6 +77,18 @@ const routes = {
         "/api/presets":    (_req, res)          => sendJson(res, 200, persistence.listPresets()),
         "/api/catalog":    (_req, res)          => sendJson(res, 200, persistence.listCatalogs()),
         "/api/maps":       (_req, res)          => sendJson(res, 200, persistence.listCachedMaps()),
+        "/api/coverage-plan": (_req, res) => {
+            const p = path.resolve(__dirname, "..", ".toolkit-data", "coverage-plan.json");
+            if (!fs.existsSync(p)) { res.writeHead(404); res.end(); return; }
+            try { sendJson(res, 200, JSON.parse(fs.readFileSync(p, "utf8"))); }
+            catch (e) { res.writeHead(500); res.end(String(e)); }
+        },
+        "/api/gfx-to-type": (_req, res) => {
+            const p = path.resolve(__dirname, "..", ".toolkit-data", "catalog", "gfx-to-type.json");
+            if (!fs.existsSync(p)) { sendJson(res, 200, {}); return; }
+            try { sendJson(res, 200, JSON.parse(fs.readFileSync(p, "utf8"))); }
+            catch (e) { res.writeHead(500); res.end(String(e)); }
+        },
         "/api/presets/auto": (_req, res, _q) => {
             const info = bridge.getAttachedInfo();
             if (!info) { sendJson(res, 200, null); return; }

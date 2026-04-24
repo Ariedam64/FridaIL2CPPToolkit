@@ -63,12 +63,35 @@ function findClass(name: string): Il2Cpp.Class | null {
     return null;
 }
 
+// Cached MapRenderer singleton — `Il2Cpp.gc.choose` is an expensive heap walk
+// and the MapRenderer is a persistent Unity singleton, so caching eliminates
+// the freeze on repeated polls (e.g. plan-mode arrival detection).
+let cachedRenderer: Il2Cpp.Object | null = null;
+function getRenderer(): Il2Cpp.Object | null {
+    if (cachedRenderer) {
+        try { void cachedRenderer.field("cywa").value; return cachedRenderer; }
+        catch { cachedRenderer = null; }
+    }
+    const k = findClass("MapRenderer");
+    if (!k) return null;
+    const r = firstInstance(k);
+    if (r) cachedRenderer = r;
+    return r;
+}
+
+/** Fast current-map id read. <1ms after first call. Used by plan arrival polling. */
+export function getCurrentMapId(): Promise<number | null> {
+    return inVm(() => {
+        const r = getRenderer();
+        if (!r) return null;
+        try { return Number(r.field("cywa").value); } catch { return null; }
+    });
+}
+
 /** Read the full current-map state in one round-trip. 10-50ms. */
 export function getMapState(): Promise<MapState | null> {
     return inVm(() => {
-        const rendererKlass = findClass("MapRenderer");
-        if (!rendererKlass) return null;
-        const renderer = firstInstance(rendererKlass);
+        const renderer = getRenderer();
         if (!renderer) return null;
 
         let mapInfo: any = null, mapMeta: any = null;

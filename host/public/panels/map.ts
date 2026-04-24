@@ -12,6 +12,7 @@ async function ensureHook(): Promise<void> {
     try {
         await rpcCall<any>("installOutgoingHook", [[]]);
         rpcCall<any>("primeMapCoordIndex", []).catch(() => null);
+        rpcCall<any>("hookAutopilotDone", []).catch(() => null);
         hookInstalled = true;
     } catch { /* ignore */ }
 }

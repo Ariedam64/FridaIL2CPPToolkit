@@ -161,7 +161,11 @@ function listCatalogs() {
 function saveMapData(mapId, data) {
     ensureDir(MAPS_DIR);
     const file = path.join(MAPS_DIR, `${mapId}.json`);
-    const body = { mapId, updatedAt: new Date().toISOString(), ...data };
+    // Merge with existing static fields (cells/neighbors/arrows/ie from bundle
+    // extraction) so a runtime CAPTURE HERE only overlays `interactives` + `updatedAt`.
+    let existing = {};
+    try { if (fs.existsSync(file)) existing = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+    const body = { ...existing, mapId, updatedAt: new Date().toISOString(), ...data };
     fs.writeFileSync(file, JSON.stringify(body), "utf8");
     return { file: path.relative(DATA_DIR, file), bytes: fs.statSync(file).size };
 }

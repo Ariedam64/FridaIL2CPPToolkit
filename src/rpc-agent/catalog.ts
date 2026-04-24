@@ -645,3 +645,4 @@ export function extractAllCatalogs(): Promise<{ counts: Record<string, number> }
         return { counts };
     });
 }
+

@@ -1,5 +1,6 @@
 node_modules/
 build/
+__pycache__/
 .toolkit-data/
 !.toolkit-data/.gitkeep
 host/public/dist/

@@ -245,6 +245,59 @@ export function installOutgoingHook(traceClsList: string[] = []): Promise<{ ok: 
     });
 }
 
+// Hook dtt.tkl(bool, bool) — fires ONLY at the final destination of an autopilot
+// travel (not at intermediate map transitions). Broadcast an event so the plan
+// orchestrator knows dtt has fully cleaned up and is ready for the next tkc.
+let autopilotDoneHooked = false;
+export function hookAutopilotDone(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => {
+        if (autopilotDoneHooked) return { ok: true, reason: "already hooked" };
+        const dttKlass = getClass("dtt");
+        if (!dttKlass) return { ok: false, reason: "dtt not found" };
+        let tklMethod: any = null;
+        try { tklMethod = dttKlass.method("tkl"); } catch {}
+        if (!tklMethod) return { ok: false, reason: "dtt.tkl not found" };
+        try {
+            (Interceptor as any).attach(tklMethod.virtualAddress, {
+                onEnter(this: any, _args: any) {
+                    try { send({ type: "autopilot-done", ts: Date.now() }); } catch {}
+                },
+            });
+            autopilotDoneHooked = true;
+            console.log(`[autopilot-done] attached to dtt.tkl@${tklMethod.virtualAddress}`);
+            return { ok: true };
+        } catch (e) { return { ok: false, reason: String(e).slice(0, 120) }; }
+    });
+}
+
+// Snapshot all fields of the live dtt instance — used to diagnose the state
+// drift that eventually breaks long-range autopilot.
+export function snapshotDttState(): Promise<{ ok: boolean; fields?: Record<string, string>; reason?: string }> {
+    return inVm(() => {
+        const dtt = resolveOrSynthesizeDtt();
+        if (!dtt) return { ok: false, reason: "dtt unavailable" };
+        const out: Record<string, string> = {};
+        for (const f of dtt.class.fields) {
+            if (f.isStatic) continue;
+            try {
+                const v = dtt.field(f.name).value as any;
+                if (v === null || v === undefined) { out[f.name] = "null"; continue; }
+                if (typeof v === "object" && v.class) {
+                    const cn = v.class.name;
+                    // For collections, include count
+                    if (/^(List|Dictionary|HashSet|Queue|Stack)/.test(cn)) {
+                        try {
+                            const n = Number(v.method("get_Count").invoke());
+                            out[f.name] = `${cn}[${n}]`;
+                        } catch { out[f.name] = cn; }
+                    } else out[f.name] = cn;
+                } else out[f.name] = String(v).slice(0, 40);
+            } catch (e) { out[f.name] = `<err:${String(e).slice(0, 30)}>`; }
+        }
+        return { ok: true, fields: out };
+    });
+}
+
 export function getOutgoingLog(): Promise<Array<{ ts: number; cls: string }>> {
     return inVm(() => [...outgoingLog]);
 }
@@ -287,7 +340,10 @@ function ensureMainThreadDispatcher(): boolean {
     if (!tjz) return false;
     try {
         mainThreadDispatcher = (Interceptor as any).attach(tjz.virtualAddress, {
-            onEnter(this: any, _args: any) {
+            // onLeave runs AFTER tjz finishes — calling dtt methods like bbd during
+            // onEnter is re-entrant into dtt (bad: "system error" after a few calls).
+            // onLeave lets tjz fully unwind first, so our bbd call has a clean dtt frame.
+            onLeave(this: any, _retval: any) {
                 if (!pendingMainWork) return;
                 const work = pendingMainWork;
                 pendingMainWork = null;
@@ -349,33 +405,49 @@ function resolveOrSynthesizeDtt(): Il2Cpp.Object | null {
     return dtt;
 }
 
+// Fire dtt.bbd(dch{mapId, true}) on the Unity main thread and propagate the
+// IL2CPP call result back so the panel knows whether the autopilot actually
+// started or threw. We use bbd (not tkc) because bbd is the high-level entry
+// the UI uses — it registers the arrival callback chain that resets dtt's
+// state machine when the player arrives.
+//
+// Frida-side limitation: after ~10-30 successive bbd invocations, IL2CPP
+// throws "system error" until the agent is reloaded. The world panel's plan
+// orchestrator handles this by auto-reloading the agent after 3 consecutive
+// failures (see panels/world.ts).
 export function autoTravelInstant(mapId: number | string): Promise<{ ok: boolean; reason?: string; targetMapId?: number }> {
-    return inVm(() => {
+    return inVm(() => new Promise((resolve) => {
         const mid = typeof mapId === "string" ? parseInt(mapId, 10) : mapId;
-        if (!Number.isFinite(mid) || mid <= 0) return { ok: false, reason: `invalid mapId ${mapId}` };
-
+        if (!Number.isFinite(mid) || mid <= 0) { resolve({ ok: false, reason: `invalid mapId ${mapId}` }); return; }
         const dtt = resolveOrSynthesizeDtt();
-        if (!dtt) return { ok: false, reason: "dtt unavailable" };
+        if (!dtt) { resolve({ ok: false, reason: "dtt unavailable" }); return; }
         const dchKlass = getClass("dch");
-        if (!dchKlass) return { ok: false, reason: "dch class not found" };
-        if (!ensureMainThreadDispatcher()) return { ok: false, reason: "main-thread dispatcher attach failed" };
+        if (!dchKlass) { resolve({ ok: false, reason: "dch class not found" }); return; }
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "main-thread dispatcher attach failed" }); return; }
 
-        const dttKind = cachedLiveDtt === dtt ? "live" : "synth";
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
         pendingMainWork = () => {
             try {
                 const dch = (dchKlass as any).new();
                 dch.field("dbkk").value = mid;
                 dch.field("dbkl").value = true;
                 try {
-                    dtt.method("tkc").invoke(dch);
-                    console.log(`[autopilot] tkc(${mid}) on ${dttKind} dtt — ok`);
+                    dtt.method("bbd").invoke(dch);
+                    console.log(`[autopilot] bbd(${mid}) ok`);
+                    settle({ ok: true, targetMapId: mid });
                 } catch (e) {
-                    console.log(`[autopilot] tkc(${mid}) on ${dttKind} dtt threw: ${String(e).slice(0, 150)}`);
+                    const err = String(e).slice(0, 150);
+                    console.log(`[autopilot] bbd(${mid}) threw: ${err}`);
+                    settle({ ok: false, reason: err, targetMapId: mid });
                 }
-            } catch (e) { console.log(`[autopilot] dch build throw: ${String(e).slice(0, 120)}`); }
+            } catch (e) {
+                settle({ ok: false, reason: `dch build: ${String(e).slice(0, 120)}`, targetMapId: mid });
+            }
         };
-        return { ok: true, targetMapId: mid };
-    });
+        // Bail if the main-thread dispatcher never picks up the work.
+        setTimeout(() => settle({ ok: false, reason: "main-thread dispatch timeout" }), 3000);
+    }));
 }
 
 // -----------------------------------------------------------------------------
