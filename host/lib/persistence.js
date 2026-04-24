@@ -8,6 +8,7 @@ const PRESET_DIR = path.join(DATA_DIR, "presets");
 const CAPTURE_DIR = path.join(DATA_DIR, "captures");
 const CATALOG_DIR = path.join(DATA_DIR, "catalog");
 const MAPS_DIR    = path.join(DATA_DIR, "maps");
+const CARTO_DIR   = path.join(DATA_DIR, "cartography");
 
 function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
 
@@ -179,6 +180,29 @@ function listCachedMaps() {
         .filter(Number.isFinite);
 }
 
+// -------- Cartography tile PNGs (binary) --------
+
+function saveCartographyTile(worldMapId, tileIndex, buffer, ext = "jpg") {
+    const dir = path.join(CARTO_DIR, `wm${worldMapId}`);
+    ensureDir(dir);
+    const file = path.join(dir, `tile_${String(tileIndex).padStart(3, "0")}.${ext}`);
+    fs.writeFileSync(file, buffer);
+    return { file: path.relative(DATA_DIR, file), bytes: buffer.length };
+}
+
+function listCartographyWorldmaps() {
+    if (!fs.existsSync(CARTO_DIR)) return [];
+    return fs.readdirSync(CARTO_DIR)
+        .filter(d => d.startsWith("wm"))
+        .map(d => {
+            const id = parseInt(d.slice(2), 10);
+            if (!Number.isFinite(id)) return null;
+            const dir = path.join(CARTO_DIR, d);
+            const tiles = fs.readdirSync(dir).filter(f => f.endsWith(".png")).length;
+            return { worldMapId: id, tileCount: tiles };
+        }).filter(Boolean);
+}
+
 module.exports = {
     listBookmarks, getBookmark, saveBookmark, deleteBookmark,
     saveDump, slugify,
@@ -186,4 +210,5 @@ module.exports = {
     saveCapture,
     saveCatalog, readCatalog, listCatalogs,
     saveMapData, readMapData, listCachedMaps,
+    saveCartographyTile, listCartographyWorldmaps,
 };

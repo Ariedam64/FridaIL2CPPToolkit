@@ -16,7 +16,7 @@ let attachedInfo = null;
 const listeners = { attached: [], detached: [], message: [] };
 
 function on(event, cb) { listeners[event].push(cb); }
-function emit(event, payload) { for (const cb of listeners[event]) cb(payload); }
+function emit(event, ...args) { for (const cb of listeners[event]) cb(...args); }
 
 async function attach(pid) {
     await detach();
@@ -37,7 +37,7 @@ async function attach(pid) {
 
     const source = fs.readFileSync(AGENT_PATH, "utf8");
     script = await session.createScript(source);
-    script.message.connect((message) => emit("message", message));
+    script.message.connect((message, data) => emit("message", message, data));
     script.logHandler = (level, payload) => emit("message", { type: "log", level, payload });
     await script.load();
 

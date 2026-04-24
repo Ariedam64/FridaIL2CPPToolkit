@@ -6,6 +6,7 @@
 // These catalogs are session-stable — once extracted they don't change
 // until a game update. The panel runs them once per new build.
 import "frida-il2cpp-bridge";
+import { scheduleMainThread } from "./sender";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
@@ -333,6 +334,197 @@ export function extractSkillsCatalog(): Promise<{ count: number; items: SkillCat
 // -----------------------------------------------------------------------------
 // The UI calls this once to dump everything via broadcast `send()` events.
 // Server-side handler persists each to `.toolkit-data/catalog/<name>.json`.
+
+// Enumerate tile names for each worldmap in eat.dggm — each Texture2D in
+// the cache carries its bundle-side name (e.g. "tile_01", "12"), which is
+// what offline bundle extraction uses to name its files. Returning the
+// name→(wmId, index) mapping lets the extraction script group tiles by
+// worldmap deterministically.
+export function listCartographyTileNames(): Promise<any> {
+    return inVm(() => {
+        const eat = findClass("eat");
+        if (!eat) return { ok: false, reason: "eat not found" };
+        try { (eat as any).initialize?.(); } catch {}
+        const dggm = (eat.field("dggm") as any).value;
+        if (!dggm) return { ok: true, worldmaps: [] };
+        const out: Array<{ worldMapId: number; tiles: Array<{ index: number; name: string; width: number; height: number }> }> = [];
+        try {
+            const entries = dggm.field("_entries").value as any;
+            const count = Number(dggm.field("_count").value);
+            for (let i = 0; i < count; i++) {
+                try {
+                    const e = entries.get(i);
+                    if (Number(e.field("hashCode").value) < 0) continue;
+                    const wmId = Number(e.field("key").value);
+                    const list = e.field("value").value as any;
+                    if (!list) continue;
+                    const n = Number(list.method("get_Count").invoke());
+                    const tiles: Array<{ index: number; name: string; width: number; height: number }> = [];
+                    for (let j = 0; j < n; j++) {
+                        try {
+                            const tex = list.method("get_Item").invoke(j) as any;
+                            tiles.push({
+                                index: j,
+                                name: String(tex.method("get_name").invoke()).replace(/^"|"$/g, ""),
+                                width: Number(tex.method("get_width").invoke()),
+                                height: Number(tex.method("get_height").invoke()),
+                            });
+                        } catch {}
+                    }
+                    out.push({ worldMapId: wmId, tiles });
+                } catch {}
+            }
+        } catch (e) { return { ok: false, reason: String(e).slice(0, 200) }; }
+        return { ok: true, worldmaps: out };
+    });
+}
+
+// Inspect the Ankama cartography texture cache (eat.dggm) — a static
+// Dictionary<Int32, List<Texture2D>> mapping worldMapId → rendered map
+// images. Populated when the player opens the in-game world map UI.
+export function listCartographyTextures(): Promise<any> {
+    return inVm(() => {
+        const eat = findClass("eat");
+        if (!eat) return { ok: false, reason: "eat class not found" };
+        try { (eat as any).initialize?.(); } catch {}
+        let dggm: any = null;
+        try { dggm = (eat.field("dggm") as any).value; } catch (e) { return { ok: false, reason: `field read: ${String(e).slice(0, 120)}` }; }
+        if (!dggm) return { ok: true, worldmaps: [], reason: "dggm null — open cartography once in game" };
+        const out: Array<{ worldMapId: number; count: number; sizes: Array<{ width: number; height: number }> }> = [];
+        try {
+            const entries = dggm.field("_entries").value as any;
+            const count = Number(dggm.field("_count").value);
+            for (let i = 0; i < count; i++) {
+                try {
+                    const e = entries.get(i);
+                    if (Number(e.field("hashCode").value) < 0) continue;
+                    const wmId = Number(e.field("key").value);
+                    const list = e.field("value").value as any;
+                    if (!list) continue;
+                    const n = Number(list.method("get_Count").invoke());
+                    const sizes: Array<{ width: number; height: number }> = [];
+                    for (let j = 0; j < Math.min(n, 5); j++) {
+                        try {
+                            const tex = list.method("get_Item").invoke(j) as any;
+                            sizes.push({
+                                width: Number(tex.method("get_width").invoke()),
+                                height: Number(tex.method("get_height").invoke()),
+                            });
+                        } catch {}
+                    }
+                    out.push({ worldMapId: wmId, count: n, sizes });
+                } catch {}
+            }
+        } catch (e) { return { ok: false, reason: String(e).slice(0, 200) }; }
+        return { ok: true, worldmaps: out };
+    });
+}
+
+// Extract every Texture2D from a worldmap's tile list as a PNG, streamed
+// over the Frida IPC channel as binary send() payloads. Server-side
+// handler persists to .toolkit-data/cartography/wm<id>/tile_<n>.png.
+// Uses UnityEngine.ImageConversion.EncodeToPNG which handles the GPU
+// readback + encoding for us.
+export function exportCartographyTextures(worldMapId: number): Promise<{
+    ok: boolean; reason?: string; worldMapId?: number; exported?: number; tiles?: number; firstErr?: string;
+}> {
+    return inVm(() => new Promise((resolve) => {
+        const eat = findClass("eat");
+        if (!eat) { resolve({ ok: false, reason: "eat class not found" }); return; }
+        try { (eat as any).initialize?.(); } catch {}
+        const dggm = (eat.field("dggm") as any).value;
+        if (!dggm) { resolve({ ok: false, reason: "cartography cache empty — open world map in game once" }); return; }
+
+        let list: any = null;
+        try {
+            const entries = dggm.field("_entries").value as any;
+            const count = Number(dggm.field("_count").value);
+            for (let i = 0; i < count; i++) {
+                const e = entries.get(i);
+                if (Number(e.field("hashCode").value) < 0) continue;
+                if (Number(e.field("key").value) === worldMapId) { list = e.field("value").value; break; }
+            }
+        } catch (e) { resolve({ ok: false, reason: `dict walk: ${String(e).slice(0, 120)}` }); return; }
+        if (!list) { resolve({ ok: false, reason: `worldMapId ${worldMapId} not in cache` }); return; }
+
+        const icv = findClass("ImageConversion");
+        if (!icv) { resolve({ ok: false, reason: "UnityEngine.ImageConversion not found" }); return; }
+        const encodeToJPG = icv.methods.find(m =>
+            m.isStatic && m.name === "EncodeToJPG" && m.parameters.length === 2
+            && m.parameters[0].type.name === "UnityEngine.Texture2D"
+        );
+        if (!encodeToJPG) { resolve({ ok: false, reason: "EncodeToJPG(Texture2D,int) not found" }); return; }
+
+        const n = Number(list.method("get_Count").invoke());
+
+        // EncodeToJPG requires Unity main thread — dispatch the whole loop
+        // via sender's shared dtt.tjz interceptor.
+        // GPU-only textures (readable=false). We need a round-trip through
+        // RenderTexture + ReadPixels to get CPU bytes, then EncodeToJPG.
+        const rtKlass = findClass("RenderTexture");
+        const gKlass = findClass("Graphics");
+        const texKlass = findClass("Texture2D");
+        const rectKlass = findClass("Rect");
+        if (!rtKlass || !gKlass || !texKlass || !rectKlass) { resolve({ ok: false, reason: "RenderTexture/Graphics/Texture2D/Rect not found" }); return; }
+        const getTemp = rtKlass.methods.find(m => m.isStatic && m.name === "GetTemporary" && m.parameters.length === 3);
+        const releaseTemp = rtKlass.methods.find(m => m.isStatic && m.name === "ReleaseTemporary");
+        const getActive = rtKlass.methods.find(m => m.isStatic && m.name === "get_active");
+        const setActive = rtKlass.methods.find(m => m.isStatic && m.name === "set_active");
+        const blit = gKlass.methods.find(m => m.isStatic && m.name === "Blit" && m.parameters.length === 2);
+        if (!getTemp || !releaseTemp || !getActive || !setActive || !blit) { resolve({ ok: false, reason: "GPU readback API incomplete" }); return; }
+
+        const scheduled = scheduleMainThread(() => {
+            let exported = 0, firstErr = "";
+            try {
+                const tex0 = list.method("get_Item").invoke(0) as any;
+                const readable = Boolean(tex0.method("get_isReadable").invoke());
+                console.log(`[cartography] readable=${readable} — ${readable ? "direct" : "GPU readback"} path`);
+            } catch {}
+
+            const prevActive = getActive.invoke() as any;
+            for (let i = 0; i < n; i++) {
+                let rt: any = null, readable: any = null;
+                try {
+                    const tex = list.method("get_Item").invoke(i) as any;
+                    if (!tex) { if (!firstErr) firstErr = `tile ${i}: null tex`; continue; }
+                    const width = Number(tex.method("get_width").invoke());
+                    const height = Number(tex.method("get_height").invoke());
+
+                    // 1. temp RT same size
+                    rt = getTemp.invoke(width, height, 0) as any;
+                    // 2. blit GPU texture onto RT
+                    blit.invoke(tex, rt);
+                    // 3. bind RT as active render target
+                    setActive.invoke(rt);
+                    // 4. allocate readable Texture2D
+                    readable = (texKlass as any).new(width, height);
+                    // 5. ReadPixels(rect, 0, 0)
+                    const rect = (rectKlass as any).new();
+                    rect.method(".ctor").invoke(0, 0, width, height);
+                    readable.method("ReadPixels").invoke(rect, 0, 0, false);
+                    readable.method("Apply").invoke();
+
+                    // 6. encode the now-readable copy
+                    const bytes = encodeToJPG.invoke(readable, 90) as Il2Cpp.Array<number>;
+                    if (!bytes) { if (!firstErr) firstErr = `tile ${i}: encode null`; continue; }
+                    const len = Number(bytes.length);
+                    const buf = Memory.alloc(len);
+                    for (let k = 0; k < len; k++) buf.add(k).writeU8(Number(bytes.get(k)));
+                    const ab = buf.readByteArray(len);
+                    send({ type: "cartography-tile", worldMapId, tileIndex: i, width, height, len, format: "jpg", ts: Date.now() }, ab as any);
+                    exported++;
+                } catch (e) { if (!firstErr) firstErr = `tile ${i}: ${String(e).slice(0, 150)}`; }
+                finally {
+                    try { if (rt) releaseTemp.invoke(rt); } catch {}
+                }
+            }
+            try { setActive.invoke(prevActive); } catch {}
+            console.log(`[cartography] wm=${worldMapId} exported ${exported}/${n}${firstErr ? " · " + firstErr : ""}`);
+            resolve({ ok: true, worldMapId, exported, tiles: n, firstErr });
+        });
+        if (!scheduled) resolve({ ok: false, reason: "main-thread dispatcher unavailable" });
+    }));
+}
 
 // Walk a MapMetadata ScriptableObject and extract the static interactive
 // element IDs. Each `ClientInteractiveElement` has only `get_interactionId()

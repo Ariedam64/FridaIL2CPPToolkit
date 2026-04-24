@@ -23,7 +23,7 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 // -------- wire bridge events ------------------------------------------------
 bridge.on("attached", (info) => broadcast({ type: "attached", ...info }));
 bridge.on("detached", (e) => broadcast({ type: "detached", reason: e.reason }));
-bridge.on("message",  (m) => {
+bridge.on("message",  (m, data) => {
     try {
         const p = m && m.payload;
         if (p && p.type === "full-capture" && p.cls && p.tree) {
@@ -35,6 +35,11 @@ bridge.on("message",  (m) => {
         } else if (p && p.type === "map-cache" && p.mapId && p.data) {
             const saved = persistence.saveMapData(p.mapId, p.data);
             console.log(`[server] cached map ${p.mapId} → ${saved.file} (${saved.bytes} bytes)`);
+        } else if (p && p.type === "cartography-tile" && typeof p.worldMapId === "number" && data) {
+            const saved = persistence.saveCartographyTile(p.worldMapId, p.tileIndex, Buffer.from(data), p.format || "jpg");
+            if (p.tileIndex === 0 || p.tileIndex % 20 === 0) {
+                console.log(`[server] cartography wm=${p.worldMapId} tile ${p.tileIndex} → ${saved.file} (${saved.bytes} bytes)`);
+            }
         }
     } catch (e) { console.error("[server] persistence failed:", e); }
     broadcast({ type: "message", message: m });

@@ -269,6 +269,16 @@ export function clearOutgoingStacks(): Promise<number> {
 let mainThreadDispatcher: any = null;
 let pendingMainWork: (() => void) | null = null;
 
+// Exposed for other modules that need to run IL2CPP work on the Unity
+// main thread (e.g. catalog.ts texture export). Chains onto the same
+// dtt.tjz interceptor so we don't install multiple.
+export function scheduleMainThread(work: () => void): boolean {
+    if (!ensureMainThreadDispatcher()) return false;
+    const prev = pendingMainWork;
+    pendingMainWork = prev ? () => { try { prev(); } catch {} work(); } : work;
+    return true;
+}
+
 function ensureMainThreadDispatcher(): boolean {
     if (mainThreadDispatcher) return true;
     const dtt = getClass("dtt");
