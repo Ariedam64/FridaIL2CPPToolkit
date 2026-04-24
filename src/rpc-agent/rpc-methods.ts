@@ -12,8 +12,9 @@ import * as diffRpc from "./diff";
 import * as stacktraceRpc from "./stacktrace";
 import * as mapstateRpc from "./mapstate";
 import * as senderRpc from "./sender";
+import * as catalogRpc from "./catalog";
 
-type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc;
+type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc;
 
 export function getRpcMethods(): AllRpc {
     return {
@@ -29,5 +30,6 @@ export function getRpcMethods(): AllRpc {
         ...stacktraceRpc,
         ...mapstateRpc,
         ...senderRpc,
+        ...catalogRpc,
     } as AllRpc;
 }

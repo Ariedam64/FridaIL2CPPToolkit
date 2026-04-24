@@ -24,16 +24,19 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 bridge.on("attached", (info) => broadcast({ type: "attached", ...info }));
 bridge.on("detached", (e) => broadcast({ type: "detached", reason: e.reason }));
 bridge.on("message",  (m) => {
-    // Agent `send()` payloads come in as { type: "send", payload: {...} }.
-    // Intercept `full-capture` payloads and persist them to disk for offline
-    // parser iteration — we still broadcast so the UI can react if needed.
     try {
         const p = m && m.payload;
         if (p && p.type === "full-capture" && p.cls && p.tree) {
             const saved = persistence.saveCapture(p.cls, { cls: p.cls, ts: p.ts, tree: p.tree });
             console.log(`[server] persisted full-capture for ${p.cls} → ${saved.file} (${saved.bytes} bytes)`);
+        } else if (p && p.type === "catalog-dump" && p.name && Array.isArray(p.items)) {
+            const saved = persistence.saveCatalog(p.name, p.items);
+            console.log(`[server] persisted catalog '${p.name}' (${saved.count} entries, ${saved.bytes} bytes)`);
+        } else if (p && p.type === "map-cache" && p.mapId && p.data) {
+            const saved = persistence.saveMapData(p.mapId, p.data);
+            console.log(`[server] cached map ${p.mapId} → ${saved.file} (${saved.bytes} bytes)`);
         }
-    } catch (e) { console.error("[server] saveCapture failed:", e); }
+    } catch (e) { console.error("[server] persistence failed:", e); }
     broadcast({ type: "message", message: m });
 });
 
@@ -67,6 +70,8 @@ const routes = {
         "/api/status":     (req, res)           => sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() }),
         "/api/bookmarks":  (_req, res)          => sendJson(res, 200, persistence.listBookmarks()),
         "/api/presets":    (_req, res)          => sendJson(res, 200, persistence.listPresets()),
+        "/api/catalog":    (_req, res)          => sendJson(res, 200, persistence.listCatalogs()),
+        "/api/maps":       (_req, res)          => sendJson(res, 200, persistence.listCachedMaps()),
         "/api/presets/auto": (_req, res, _q) => {
             const info = bridge.getAttachedInfo();
             if (!info) { sendJson(res, 200, null); return; }
@@ -83,6 +88,16 @@ const routes = {
             const p = persistence.getPreset(slug);
             if (!p) { res.writeHead(404); res.end(); return; }
             sendJson(res, 200, p);
+        },
+        "/api/catalog": (_req, res, _q, slug) => {
+            const c = persistence.readCatalog(slug);
+            if (!c) { res.writeHead(404); res.end(); return; }
+            sendJson(res, 200, c);
+        },
+        "/api/maps": (_req, res, _q, mapId) => {
+            const m = persistence.readMapData(mapId);
+            if (!m) { res.writeHead(404); res.end(); return; }
+            sendJson(res, 200, m);
         },
     },
     POST: {
@@ -114,6 +129,11 @@ const routes = {
         "/api/presets": async (req, res, _q, slug) => {
             const body = JSON.parse(await readBody(req));
             sendJson(res, 200, persistence.savePreset(slug, body));
+        },
+        "/api/maps": async (req, res, _q, mapId) => {
+            const id = parseInt(String(mapId), 10);
+            const body = JSON.parse(await readBody(req));
+            sendJson(res, 200, persistence.saveMapData(id, body));
         },
     },
     DELETE_param: {

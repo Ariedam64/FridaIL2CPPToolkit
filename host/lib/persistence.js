@@ -6,6 +6,8 @@ const DATA_DIR   = path.resolve(__dirname, "..", "..", ".toolkit-data");
 const BOOK_DIR   = path.join(DATA_DIR, "bookmarks");
 const PRESET_DIR = path.join(DATA_DIR, "presets");
 const CAPTURE_DIR = path.join(DATA_DIR, "captures");
+const CATALOG_DIR = path.join(DATA_DIR, "catalog");
+const MAPS_DIR    = path.join(DATA_DIR, "maps");
 
 function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
 
@@ -116,11 +118,65 @@ function savePreset(slug, data) {
 
 function saveCapture(cls, payload) {
     ensureDir(CAPTURE_DIR);
-    // One file per capture, timestamped. Keeps history so we can diff across builds.
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const file = path.join(CAPTURE_DIR, `${slugify(cls)}-${ts}.json`);
     fs.writeFileSync(file, JSON.stringify(payload, null, 2), "utf8");
     return { file: path.relative(DATA_DIR, file), bytes: fs.statSync(file).size };
+}
+
+// -------- Catalog (session-stable game data) --------
+// One file per catalog at .toolkit-data/catalog/<name>.json — overwritten
+// on each extraction (single latest source of truth).
+
+function saveCatalog(name, items) {
+    ensureDir(CATALOG_DIR);
+    const slug = slugify(name);
+    const file = path.join(CATALOG_DIR, `${slug}.json`);
+    const body = { name, count: Array.isArray(items) ? items.length : 0, updatedAt: new Date().toISOString(), items };
+    fs.writeFileSync(file, JSON.stringify(body), "utf8");
+    return { file: path.relative(DATA_DIR, file), bytes: fs.statSync(file).size, count: body.count };
+}
+
+function readCatalog(name) {
+    const file = path.join(CATALOG_DIR, `${slugify(name)}.json`);
+    if (!fs.existsSync(file)) return null;
+    try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
+}
+
+function listCatalogs() {
+    if (!fs.existsSync(CATALOG_DIR)) return [];
+    return fs.readdirSync(CATALOG_DIR)
+        .filter(f => f.endsWith(".json"))
+        .map(f => {
+            try {
+                const data = JSON.parse(fs.readFileSync(path.join(CATALOG_DIR, f), "utf8"));
+                return { slug: f.replace(/\.json$/, ""), name: data.name ?? f, count: data.count ?? 0, updatedAt: data.updatedAt ?? null };
+            } catch { return null; }
+        }).filter(Boolean);
+}
+
+// -------- Per-map cache (progressive, grows as player visits maps) --------
+
+function saveMapData(mapId, data) {
+    ensureDir(MAPS_DIR);
+    const file = path.join(MAPS_DIR, `${mapId}.json`);
+    const body = { mapId, updatedAt: new Date().toISOString(), ...data };
+    fs.writeFileSync(file, JSON.stringify(body), "utf8");
+    return { file: path.relative(DATA_DIR, file), bytes: fs.statSync(file).size };
+}
+
+function readMapData(mapId) {
+    const file = path.join(MAPS_DIR, `${mapId}.json`);
+    if (!fs.existsSync(file)) return null;
+    try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; }
+}
+
+function listCachedMaps() {
+    if (!fs.existsSync(MAPS_DIR)) return [];
+    return fs.readdirSync(MAPS_DIR)
+        .filter(f => f.endsWith(".json"))
+        .map(f => parseInt(f.replace(/\.json$/, ""), 10))
+        .filter(Number.isFinite);
 }
 
 module.exports = {
@@ -128,4 +184,6 @@ module.exports = {
     saveDump, slugify,
     listPresets, getPreset, getPresetForProcess, savePreset,
     saveCapture,
+    saveCatalog, readCatalog, listCatalogs,
+    saveMapData, readMapData, listCachedMaps,
 };
