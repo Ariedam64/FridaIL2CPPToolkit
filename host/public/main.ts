@@ -15,8 +15,6 @@ import { renderBookmarks, initBookmarkAutoOffer } from "./panels/bookmarks.js";
 import { renderScanner } from "./panels/scanner.js";
 import { renderInspector } from "./panels/inspector.js";
 import { renderDiff } from "./panels/diff.js";
-import { renderMap } from "./panels/map.js";
-import { renderWorld } from "./panels/world.js";
 
 function $(sel: string, root: ParentNode = document): HTMLElement {
     const el = root.querySelector(sel);
@@ -111,8 +109,6 @@ function renderMainTab(name: string): void {
     else if (name === "hookpatch") renderHookPatch(wrap);
     else if (name === "diff")      renderDiff(wrap);
     else if (name === "socket")    renderSocket(wrap);
-    else if (name === "map")       renderMap(wrap);
-    else if (name === "world")     renderWorld(wrap);
 }
 
 // ── Listen for tab-change events (fired by wireTabs above)

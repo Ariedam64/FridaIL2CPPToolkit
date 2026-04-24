@@ -2,15 +2,15 @@
 registry, so the panel can label interactives across ALL 17k maps from the
 runtime info collected on a few hundred captured maps.
 
-Output: .toolkit-data/catalog/gfx-to-type.json
+Output: dofus-app/data/gfx-to-type.json
 """
 import json
 from pathlib import Path
 from collections import Counter
 
-REPO = Path(__file__).resolve().parent.parent
-MAPS = REPO / ".toolkit-data" / "maps"
-OUT = REPO / ".toolkit-data" / "catalog" / "gfx-to-type.json"
+APP = Path(__file__).resolve().parent.parent  # dofus-app/
+MAPS = APP / "data" / "maps"
+OUT = APP / "data" / "gfx-to-type.json"
 
 # Multi-vote: a gfxId could be associated with different typeIds across captures
 # (rare but possible if visual variants reuse). Pick the most-frequently-seen.

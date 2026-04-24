@@ -10,11 +10,18 @@ import { logRpcLine } from "./logs.js";
 interface MapEntry { id: number; posX: number; posY: number; subAreaId: number; worldMap: number; nameId: number; name: string; }
 interface SubArea { id: number; areaId: number; name: string; level?: number; }
 interface Area { id: number; name: string; }
+interface WorldMapDims {
+    id: number; name: string;
+    origineX: number; origineY: number;
+    mapWidth: number; mapHeight: number;
+    totalWidth: number; totalHeight: number;
+}
 interface Catalogs {
     maps: MapEntry[];
     subareas: Map<number, SubArea>;
     areas: Map<number, Area>;
     interactives: Map<number, string>;   // typeId → name
+    worldmaps: Map<number, WorldMapDims>;
 }
 
 // Two formats coexist under .toolkit-data/maps/<mapId>.json:
@@ -100,11 +107,12 @@ async function loadCatalog(slug: string): Promise<any> {
 }
 
 async function loadAllCatalogs(): Promise<Catalogs | null> {
-    const [maps, subareas, areas, interactives] = await Promise.all([
+    const [maps, subareas, areas, interactives, worldmaps] = await Promise.all([
         loadCatalog("maps"),
         loadCatalog("subareas"),
         loadCatalog("areas"),
         loadCatalog("interactives"),
+        loadCatalog("worldmaps"),
     ]);
     if (!maps || !subareas || !areas) return null;
     const saMap = new Map<number, SubArea>();
@@ -113,7 +121,32 @@ async function loadAllCatalogs(): Promise<Catalogs | null> {
     for (const a of areas.items) aMap.set(a.id, a);
     const iMap = new Map<number, string>();
     if (interactives) for (const i of interactives.items) iMap.set(i.id, i.name);
-    return { maps: maps.items, subareas: saMap, areas: aMap, interactives: iMap };
+    const wmMap = new Map<number, WorldMapDims>();
+    if (worldmaps) for (const w of worldmaps.items) wmMap.set(w.id, w);
+    return { maps: maps.items, subareas: saMap, areas: aMap, interactives: iMap, worldmaps: wmMap };
+}
+
+interface MappedTile { index: number; name: string; scale?: string; address?: string; guid?: string; width: number; height: number; tile: string | null; ambiguous: boolean; }
+
+async function loadTileMapping(): Promise<Record<string, MappedTile[]> | null> {
+    try {
+        const r = await fetch(`/api/tile-mapping`);
+        if (!r.ok) return null;
+        return r.json();
+    } catch { return null; }
+}
+
+// Cache <Image> per URL so re-renders don't re-decode JPEGs.
+const tileImageCache = new Map<string, HTMLImageElement>();
+function loadTileImage(url: string): Promise<HTMLImageElement> {
+    const cached = tileImageCache.get(url);
+    if (cached && cached.complete && cached.naturalWidth > 0) return Promise.resolve(cached);
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => { tileImageCache.set(url, img); resolve(img); };
+        img.onerror = (e) => reject(e);
+        img.src = url;
+    });
 }
 
 async function loadGfxRegistry(): Promise<Map<number, { typeId: number; name: string }>> {
@@ -154,6 +187,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
           </div>
           <div style="display:flex; gap:var(--s-2); flex-wrap:wrap">
             <button id="wm-runplan" class="btn">RUN COVERAGE PLAN</button>
+            <button id="wm-dumpnames" class="btn" title="dump tile names for current worldmap (open the in-game cartography on this worldmap first)">DUMP TILE NAMES</button>
           </div>
           <div id="wm-autocap-status" style="font-size:10px; color:var(--c-label)"></div>
           <div id="wm-plan-status" style="font-size:10px; color:var(--c-label); font-family:var(--font-mono)"></div>
@@ -196,6 +230,11 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
     let bounds = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
     let selected: MapEntry | null = null;
     let highlightedSet: Set<number> | null = null;
+    let tileMapping: Record<string, MappedTile[]> | null = null;
+    let wmTiles: MappedTile[] = [];
+    // Render scale when we have a real worldmap atlas — totalWidth can be
+    // 8000+ which would crush the viewport, so we always downscale.
+    const ATLAS_MAX_W = 1600;
 
     function computeBounds(): void {
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -209,27 +248,107 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         bounds = { minX, maxX, minY, maxY };
     }
 
+    // Two render modes:
+    //   atlas — worldmap dimensions known + at least some tiles matched.
+    //           Cells positioned in absolute pixel space; tile background
+    //           drawn underneath.
+    //   grid  — fallback: simple per-coord colored squares.
+    function atlasMode(): WorldMapDims | null {
+        const wm = catalogs?.worldmaps.get(currentWorldMap);
+        if (!wm || !wm.totalWidth || !wm.totalHeight) return null;
+        if (!wmTiles.length) return null;
+        return wm;
+    }
+
+    function worldToAtlasXY(wm: WorldMapDims, posX: number, posY: number): { x: number; y: number; w: number; h: number } {
+        return {
+            x: wm.origineX + posX * wm.mapWidth,
+            y: wm.origineY + posY * wm.mapHeight,
+            w: wm.mapWidth,
+            h: wm.mapHeight,
+        };
+    }
+
     function worldToCanvasXY(posX: number, posY: number): { x: number; y: number } {
         return { x: (posX - bounds.minX) * cellSize, y: (posY - bounds.minY) * cellSize };
     }
 
-    function render(): void {
+    async function renderAtlas(wm: WorldMapDims): Promise<void> {
         if (!catalogs) return;
-        const w = (bounds.maxX - bounds.minX + 1) * cellSize;
-        const h = (bounds.maxY - bounds.minY + 1) * cellSize;
-        canvas.width = w; canvas.height = h;
-        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, 0, w, h);
+        const scale = Math.min(1, ATLAS_MAX_W / wm.totalWidth);
+        canvas.width  = Math.round(wm.totalWidth  * scale);
+        canvas.height = Math.round(wm.totalHeight * scale);
+        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.imageSmoothingEnabled = true;
 
-        // Group maps by (posX, posY) to draw a single cell even if multiple
-        // maps share coords (indoor variants, etc.). Prefer the one whose
-        // subArea matches the filter, else the first.
+        // Tiles are listed in row-major order. Each has known width/height
+        // from the dump; we wrap to a new row when the cumulative width would
+        // exceed wm.totalWidth (the right-edge tile is usually narrower).
+        // Ambiguous (unmatched) tiles draw a "?" placeholder so the user
+        // sees coverage holes rather than empty space.
+        let cursorX = 0, cursorY = 0, rowMaxH = 0;
+        for (const t of wmTiles) {
+            if (cursorX + t.width > wm.totalWidth + 8) {
+                cursorY += rowMaxH; cursorX = 0; rowMaxH = 0;
+            }
+            const dx = cursorX * scale, dy = cursorY * scale;
+            const dw = t.width * scale, dh = t.height * scale;
+            if (t.tile) {
+                try {
+                    const img = await loadTileImage(`/tiles/${t.tile}`);
+                    ctx.drawImage(img, dx, dy, dw, dh);
+                } catch {
+                    ctx.fillStyle = "#332"; ctx.fillRect(dx, dy, dw, dh);
+                }
+            } else {
+                // Ambiguous — paint a hatched placeholder.
+                ctx.fillStyle = "#222"; ctx.fillRect(dx, dy, dw, dh);
+                ctx.fillStyle = "#444"; ctx.font = `${Math.max(10, dh / 4)}px monospace`;
+                ctx.textAlign = "center"; ctx.textBaseline = "middle";
+                ctx.fillText(`?${t.name}`, dx + dw / 2, dy + dh / 2);
+            }
+            cursorX += t.width;
+            if (t.height > rowMaxH) rowMaxH = t.height;
+        }
+
+        // Map overlays — tinted by area, semi-transparent so the tile shows through.
         const byCoord = new Map<string, MapEntry>();
         for (const m of maps) {
             const k = `${m.posX},${m.posY}`;
             if (!byCoord.has(k)) byCoord.set(k, m);
             else if (highlightedSet && highlightedSet.has(m.subAreaId)) byCoord.set(k, m);
         }
+        ctx.globalAlpha = 0.35;
+        for (const [, m] of byCoord) {
+            const sa = catalogs.subareas.get(m.subAreaId);
+            const areaId = sa?.areaId ?? 0;
+            const dim = highlightedSet && !highlightedSet.has(m.subAreaId);
+            ctx.fillStyle = dim ? "#222" : areaColor(areaId);
+            const a = worldToAtlasXY(wm, m.posX, m.posY);
+            ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+        }
+        ctx.globalAlpha = 1;
 
+        if (selected && selected.worldMap === wm.id) {
+            const a = worldToAtlasXY(wm, selected.posX, selected.posY);
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+            ctx.strokeRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+        }
+    }
+
+    function renderGrid(): void {
+        if (!catalogs) return;
+        const w = (bounds.maxX - bounds.minX + 1) * cellSize;
+        const h = (bounds.maxY - bounds.minY + 1) * cellSize;
+        canvas.width = w; canvas.height = h;
+        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, 0, w, h);
+
+        const byCoord = new Map<string, MapEntry>();
+        for (const m of maps) {
+            const k = `${m.posX},${m.posY}`;
+            if (!byCoord.has(k)) byCoord.set(k, m);
+            else if (highlightedSet && highlightedSet.has(m.subAreaId)) byCoord.set(k, m);
+        }
         for (const [, m] of byCoord) {
             const sa = catalogs.subareas.get(m.subAreaId);
             const areaId = sa?.areaId ?? 0;
@@ -238,13 +357,16 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             const { x, y } = worldToCanvasXY(m.posX, m.posY);
             ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
         }
-
-        // Selected outline.
         if (selected) {
             const { x, y } = worldToCanvasXY(selected.posX, selected.posY);
             ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
             ctx.strokeRect(x - 1, y - 1, cellSize + 1, cellSize + 1);
         }
+    }
+
+    function render(): void {
+        const wm = atlasMode();
+        if (wm) { void renderAtlas(wm); } else { renderGrid(); }
     }
 
     function renderDetail(): void {
@@ -354,11 +476,22 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         });
     }
 
-    function updateForWorldMap(): void {
+    async function updateForWorldMap(): Promise<void> {
         if (!catalogs) return;
         maps = catalogs.maps.filter(m => m.worldMap === currentWorldMap);
         computeBounds();
-        statsEl.textContent = `${maps.length} maps on wm=${currentWorldMap}  •  ${cachedMapIds.size} with cell data`;
+        // Pick the highest-detail zoom (scale=1) by default. The mapping
+        // covers all zoom levels; we render just the top one.
+        const allTiles = tileMapping?.[String(currentWorldMap)] ?? [];
+        wmTiles = allTiles
+            .filter(t => (t.scale ?? "1") === "1")
+            .slice()
+            .sort((a, b) => a.index - b.index);
+        const matched = wmTiles.filter(t => t.tile).length;
+        const wm = catalogs.worldmaps.get(currentWorldMap);
+        const dimsTxt = wm ? `${wm.totalWidth}×${wm.totalHeight}` : "no dims";
+        const tilesTxt = wmTiles.length ? `${matched}/${wmTiles.length} tiles` : "no tiles (DUMP TILE NAMES)";
+        statsEl.textContent = `${maps.length} maps on wm=${currentWorldMap}  •  ${cachedMapIds.size} cached  •  ${dimsTxt}  •  ${tilesTxt}`;
         selected = null;
         renderDetail();
         render();
@@ -370,6 +503,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         if (!catalogs) { statsEl.textContent = "missing catalogs — click EXTRACT CATALOGS"; return; }
         gfxRegistry = await loadGfxRegistry();
         cachedMapIds = await loadCachedMapIds();
+        tileMapping = await loadTileMapping();
         // Populate worldmap dropdown.
         const wms = new Map<number, number>(); // wm → count
         for (const m of catalogs.maps) wms.set(m.worldMap, (wms.get(m.worldMap) ?? 0) + 1);
@@ -385,7 +519,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
 
     wmSelect.addEventListener("change", () => {
         currentWorldMap = parseInt(wmSelect.value, 10);
-        updateForWorldMap();
+        void updateForWorldMap();
     });
 
     searchEl.addEventListener("input", () => {
@@ -404,8 +538,17 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         const rect = canvas.getBoundingClientRect();
         const px = (ev.clientX - rect.left) * (canvas.width / rect.width);
         const py = (ev.clientY - rect.top) * (canvas.height / rect.height);
-        const wx = Math.floor(px / cellSize) + bounds.minX;
-        const wy = Math.floor(py / cellSize) + bounds.minY;
+        const wm = atlasMode();
+        let wx: number, wy: number;
+        if (wm) {
+            const scale = Math.min(1, ATLAS_MAX_W / wm.totalWidth);
+            const atlasX = px / scale, atlasY = py / scale;
+            wx = Math.floor((atlasX - wm.origineX) / wm.mapWidth);
+            wy = Math.floor((atlasY - wm.origineY) / wm.mapHeight);
+        } else {
+            wx = Math.floor(px / cellSize) + bounds.minX;
+            wy = Math.floor(py / cellSize) + bounds.minY;
+        }
         const hits = maps.filter(m => m.posX === wx && m.posY === wy);
         if (!hits.length) { selected = null; renderDetail(); render(); return; }
         selected = hits[0];
@@ -414,6 +557,50 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
     });
 
     side.querySelector<HTMLButtonElement>("#wm-reload")!.addEventListener("click", () => refresh());
+
+    side.querySelector<HTMLButtonElement>("#wm-dumpnames")!.addEventListener("click", async () => {
+        try {
+            // 1. Runtime cache — gives us tile dimensions per visited wm.
+            const r = await rpcCall<any>("listCartographyTileNames", []);
+            const wms = r?.worldmaps || [];
+            if (wms.length) {
+                for (const w of wms) {
+                    await fetch(`/api/wm-tile-names/${w.worldMapId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ tiles: w.tiles }),
+                    });
+                }
+                logRpcLine(`[world] saved tile names for wm=${wms.map((w: any) => w.worldMapId).join(",")}`);
+            }
+            // 2. Addressables catalog walk — gives us label → addresses for ALL worldmaps,
+            // not just the visited ones. Static data, one dump covers everything.
+            try {
+                const addr = await rpcCall<any>("dumpWorldmapAddressables", []);
+                if (addr?.ok) {
+                    await fetch(`/api/addressables`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(addr),
+                    });
+                    logRpcLine(`[world] saved addressables: ${addr.worldmaps?.length || 0} wms, ${addr.totalEntries} entries across ${addr.locatorCount} locators`);
+                } else {
+                    logRpcLine(`[world] addressables dump failed: ${addr?.reason}`);
+                }
+            } catch (e) { logRpcLine(`[world] addressables err: ${String(e).slice(0, 120)}`); }
+
+            logRpcLine(`[world] running matcher…`);
+            try {
+                const m = await fetch(`/api/build-tile-mapping`, { method: "POST" });
+                const body = await m.json();
+                const lines = String(body.stdout || body.stderr || "").trim().split("\n");
+                const summary = lines.find(l => l.startsWith("matched")) || lines[0];
+                logRpcLine(`[world] matcher: ${summary || `exit ${body.code}`}`);
+            } catch (e) { logRpcLine(`[world] matcher err: ${String(e).slice(0, 120)}`); }
+            tileMapping = await loadTileMapping();
+            await updateForWorldMap();
+        } catch (err) { logRpcLine(`[world] dump names err: ${String(err).slice(0, 120)}`); }
+    });
 
     side.querySelector<HTMLButtonElement>("#wm-extract")!.addEventListener("click", async () => {
         statsEl.textContent = "extracting catalogs (≈15s)…";

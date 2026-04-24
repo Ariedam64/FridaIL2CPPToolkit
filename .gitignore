@@ -4,6 +4,8 @@ __pycache__/
 .toolkit-data/
 !.toolkit-data/.gitkeep
 host/public/dist/
+dofus-app/public/dist/
+dofus-app/data/
 *.log
 .DS_Store
 Thumbs.db

@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /* Listen to WS autopilot-done events, snapshot dtt state after each,
- * save to .toolkit-data/dtt-snaps/<index>-<mapId>.json for later diff. */
+ * save to dofus-app/data/dtt-snaps/<index>-<mapId>.json for later diff. */
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
 
-const OUT_DIR = path.resolve(__dirname, "..", ".toolkit-data", "dtt-snaps");
+const HOST = process.env.DOFUS_HOST || "localhost";
+const PORT = parseInt(process.env.DOFUS_PORT || "3001", 10);
+const OUT_DIR = path.resolve(__dirname, "..", "data", "dtt-snaps");
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 let idx = 0;
@@ -14,7 +16,7 @@ function rpc(method, args = []) {
     return new Promise((resolve, reject) => {
         const body = JSON.stringify({ method, args });
         const req = http.request({
-            hostname: "localhost", port: 3000, path: "/api/call",
+            hostname: HOST, port: PORT, path: "/api/call",
             method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
         }, res => {
             let chunks = "";
@@ -36,7 +38,7 @@ async function snap(label) {
 }
 
 const WebSocket = require("ws");
-const ws = new WebSocket("ws://localhost:3000/ws");
+const ws = new WebSocket(`ws://${HOST}:${PORT}/ws`);
 
 ws.on("open", () => console.log("[monitor] connected, waiting for autopilot-done events..."));
 ws.on("message", async (raw) => {

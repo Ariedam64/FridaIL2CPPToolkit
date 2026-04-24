@@ -6,7 +6,7 @@ non-trivial — so we dump everything with an absolute bundle-order index
 as the filename prefix. Pairing to a specific worldmap is left to the
 caller (compare against in-game eat.dggm via listCartographyTileNames).
 
-Usage: python scripts/extract-worldmap-bundle.py
+Usage: python dofus-app/scripts/extract-worldmap-bundle.py
 """
 import sys, time, json
 from pathlib import Path
@@ -14,9 +14,9 @@ from pathlib import Path
 import UnityPy, UnityPy.config
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.0f1"
 
-REPO = Path(__file__).resolve().parent.parent
+APP = Path(__file__).resolve().parent.parent  # dofus-app/
 BUNDLE = Path(r"F:\Jeux\Dofus-dofus3\Dofus_Data\StreamingAssets\Content\Picto\Worldmaps\worldmap_assets_.bundle")
-OUT = REPO / ".toolkit-data" / "cartography"
+OUT = APP / "data" / "cartography"
 MANIFEST = OUT / "manifest.json"
 
 
@@ -33,6 +33,26 @@ def main():
 
     tiles_dir = OUT / "tiles"
     tiles_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build m_PathID → GUID map from AssetBundle container. Each GUID appears
+    # twice (Texture2D + Sprite) — we just need the PathIDs that resolve to
+    # textures, so we record both and the manifest matches by PathID either way.
+    guid_by_pathid = {}
+    for obj in env.objects:
+        if obj.type.name != "AssetBundle":
+            try:
+                continue
+            except Exception:
+                continue
+        try:
+            tree = obj.read_typetree()
+            for guid, info in (tree.get("m_Container") or []):
+                pid = int(info.get("asset", {}).get("m_PathID", 0))
+                if pid:
+                    guid_by_pathid[pid] = guid
+        except Exception:
+            pass
+
     manifest = []
     order = 0
     t1 = time.time()
@@ -44,8 +64,6 @@ def main():
             img = data.image
             if img is None:
                 continue
-            # Filename: <6-digit-order>_<name>.jpg — order is absolute bundle
-            # position so the same tile has a stable key across runs.
             name = str(data.m_Name)
             safe = "".join(c if c.isalnum() or c in "_-" else "_" for c in name)[:40] or "unnamed"
             fname = f"{order:06d}_{safe}.jpg"
@@ -57,6 +75,8 @@ def main():
                 "width": int(data.m_Width),
                 "height": int(data.m_Height),
                 "file": fname,
+                "pathId": int(obj.path_id),
+                "guid": guid_by_pathid.get(int(obj.path_id), ""),
             })
             order += 1
         except Exception as e:

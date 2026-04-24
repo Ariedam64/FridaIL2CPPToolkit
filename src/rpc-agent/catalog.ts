@@ -106,6 +106,45 @@ export function extractInteractivesCatalog(): Promise<{ count: number; items: In
 }
 
 // -----------------------------------------------------------------------------
+// World maps — id + dimensions used to stitch cartography tiles into a
+// background image per worldmap.
+// -----------------------------------------------------------------------------
+
+export interface WorldMapCatalogEntry {
+    id: number; nameId: number; name: string;
+    origineX: number; origineY: number;
+    mapWidth: number; mapHeight: number;
+    totalWidth: number; totalHeight: number;
+    visibleOnMap: boolean;
+}
+
+export function extractWorldMapsCatalog(): Promise<{ count: number; items: WorldMapCatalogEntry[] }> {
+    return inVm(() => {
+        const klass = findClass("WorldMapData");
+        if (!klass) return { count: 0, items: [] };
+        const items: WorldMapCatalogEntry[] = [];
+        for (const inst of Il2Cpp.gc.choose(klass)) {
+            try {
+                items.push({
+                    id: readIntField(inst, "id"),
+                    nameId: readIntField(inst, "nameId"),
+                    name: readStringGetter(inst, "get_name"),
+                    origineX: readIntField(inst, "origineX"),
+                    origineY: readIntField(inst, "origineY"),
+                    mapWidth: Number((inst as any).field("mapWidth").value),
+                    mapHeight: Number((inst as any).field("mapHeight").value),
+                    totalWidth: readIntField(inst, "totalWidth"),
+                    totalHeight: readIntField(inst, "totalHeight"),
+                    visibleOnMap: Boolean((inst as any).field("visibleOnMap").value),
+                });
+            } catch {}
+        }
+        console.log(`[catalog] worldmaps: ${items.length}`);
+        return { count: items.length, items };
+    });
+}
+
+// -----------------------------------------------------------------------------
 // Skill names — skillId → name (for resources: "Collecter une Ortie" etc.)
 // -----------------------------------------------------------------------------
 
@@ -622,6 +661,7 @@ export function extractAllCatalogs(): Promise<{ counts: Record<string, number> }
     return inVm(async () => {
         const dumps: Array<[string, () => Promise<{ count: number; items: any[] }>]> = [
             ["maps",          () => extractMapsCatalog()],
+            ["worldmaps",     () => extractWorldMapsCatalog()],
             ["interactives",  () => extractInteractivesCatalog()],
             ["skillNames",    () => extractSkillNamesCatalog()],
             ["subareas",      () => extractSubAreasCatalog()],
@@ -646,3 +686,124 @@ export function extractAllCatalogs(): Promise<{ counts: Record<string, number> }
     });
 }
 
+// -----------------------------------------------------------------------------
+// Worldmap Addressables dump — walk Unity's loaded resource locators to
+// extract the authoritative `worldmaps/<wmId>` label → tile addresses map.
+//
+// The worldmap catalog (StreamingAssets/Content/Picto/Worldmaps/catalog_1.0.bin)
+// is parsed by Unity into a ResourceLocationMap (Dictionary<object,
+// IList<IResourceLocation>>) where a key like "worldmaps/32" maps to every
+// resource tagged with that label. Each IResourceLocation carries the
+// PrimaryKey (e.g. "34/1/5.jpg"). Cross-referencing this with the bundle's
+// extracted tiles gives us a definitive (wmId, address, tile_file) mapping.
+// -----------------------------------------------------------------------------
+
+interface AddressablesDump {
+    ok: boolean;
+    reason?: string;
+    worldmaps?: Array<{ worldMapId: number; entries: Array<{ address: string; internalId: string }> }>;
+    locatorCount?: number;
+    totalEntries?: number;
+}
+
+function walkList(list: any, fn: (item: any, i: number) => void): void {
+    try {
+        const count = Number(list.method("get_Count").invoke());
+        for (let i = 0; i < count; i++) {
+            try { fn(list.method("get_Item").invoke(i) as any, i); } catch {}
+        }
+    } catch {}
+}
+
+function walkDict(dict: any, fn: (key: any, value: any) => void): void {
+    try {
+        const entries = dict.field("_entries").value as any;
+        const count = Number(dict.field("_count").value);
+        for (let i = 0; i < count; i++) {
+            try {
+                const e = entries.get(i);
+                if (Number(e.field("hashCode").value) < 0) continue;
+                fn(e.field("key").value as any, e.field("value").value as any);
+            } catch {}
+        }
+    } catch {}
+}
+
+export function dumpWorldmapAddressables(): Promise<AddressablesDump> {
+    return inVm(() => {
+        // Chain: Addressables.m_AddressablesInstance → m_ResourceLocators
+        // (List<ResourceLocatorInfo>) → unwrap each Info's inner IResourceLocator.
+        // The Worldmaps catalog's locator has its addressable keys in a
+        // Dictionary<Object, UInt32> called `keyData`. Ankama stores labels
+        // and addresses as a single string `worldmaps/<wmId>/<scale>/<n>.jpg`,
+        // so we parse the wmId out directly and call Locate(key) on the
+        // locator to get the InternalId (bundle GUID) per address.
+        const addr = findClass("Addressables");
+        if (!addr) return { ok: false, reason: "Addressables class not found" };
+        const instance = (addr.field("m_AddressablesInstance") as any).value;
+        if (!instance) return { ok: false, reason: "m_AddressablesInstance null" };
+        const locators = instance.field("m_ResourceLocators").value as any;
+        if (!locators) return { ok: false, reason: "m_ResourceLocators not found" };
+
+        const worldmapMap: Map<number, Map<string, string>> = new Map();
+        let totalEntries = 0;
+        let locatorCount = 0;
+
+        walkList(locators, (info) => {
+            // Unwrap ResourceLocatorInfo → inner IResourceLocator.
+            let locator: any = info;
+            try {
+                const u = info.field("<Locator>k__BackingField").value;
+                if (u) locator = u;
+            } catch {}
+
+            let keyData: any;
+            try { keyData = locator.field("keyData").value; } catch { return; }
+            if (!keyData) return;
+
+            const wmKeys: Array<{ wmId: number; suffix: string; raw: string }> = [];
+            walkDict(keyData, (key) => {
+                totalEntries++;
+                const s = String(key).replace(/^"|"$/g, "");
+                const m = s.match(/^worldmaps\/(\d+)\/(.+\.jpg)$/);
+                if (m) wmKeys.push({ wmId: parseInt(m[1], 10), suffix: m[2], raw: s });
+            });
+            if (!wmKeys.length) return;
+            locatorCount++;
+
+            const locate = locator.method("Locate");
+            for (const { wmId, suffix, raw } of wmKeys) {
+                let internalId = "";
+                try {
+                    const outPtr = Memory.alloc(8);
+                    outPtr.writePointer(NULL);
+                    locate.invoke(Il2Cpp.string(raw), NULL, outPtr);
+                    const listPtr = outPtr.readPointer();
+                    if (!listPtr.isNull()) {
+                        const list = new Il2Cpp.Object(listPtr);
+                        if (Number(list.method("get_Count").invoke()) > 0) {
+                            const first = list.method("get_Item").invoke(0) as any;
+                            internalId = String(first.method("get_InternalId").invoke()).replace(/^"|"$/g, "");
+                        }
+                    }
+                } catch {}
+                const entries = worldmapMap.get(wmId) ?? new Map<string, string>();
+                entries.set(suffix, internalId);
+                worldmapMap.set(wmId, entries);
+            }
+        });
+
+        const out = [...worldmapMap.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([wmId, entries]) => ({
+                worldMapId: wmId,
+                entries: [...entries.entries()]
+                    .map(([address, internalId]) => ({ address, internalId }))
+                    .sort((a, b) => a.address.localeCompare(b.address)),
+            }));
+        const resolved = out.reduce((a, w) => a + w.entries.filter(e => e.internalId).length, 0);
+        console.log(`[addr] ${out.length} worldmaps, ${resolved} internalIds resolved (${locatorCount} locators, ${totalEntries} keys)`);
+        if (!out.length) return { ok: false, reason: "no worldmaps/* keys — open the in-game cartography first" };
+        return { ok: true, worldmaps: out, locatorCount, totalEntries };
+    });
+}

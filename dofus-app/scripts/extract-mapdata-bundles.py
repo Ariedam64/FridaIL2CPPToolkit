@@ -2,7 +2,7 @@
 
 Walks all mapdata_assets_world_*.bundle files under StreamingAssets/Content/Map/Data,
 reads each MapMetadata MonoBehaviour via its embedded TypeTree, and emits one
-compact JSON per mapId to .toolkit-data/maps/<mapId>.json.
+compact JSON per mapId to dofus-app/data/maps/<mapId>.json.
 
 Compact format (1 file per map, ~8-10 KB):
   {
@@ -32,7 +32,7 @@ Note: the bundle also exposes `red`/`blue` per-cell flags, but those only
 apply to a tiny subset of arena-preset maps and are not what the in-game
 "combat preview" uses (that's runtime/server-driven) — so we drop them.
 
-Usage: python scripts/extract-mapdata-bundles.py
+Usage: python dofus-app/scripts/extract-mapdata-bundles.py
 """
 import sys, time, json
 from pathlib import Path
@@ -40,10 +40,10 @@ from pathlib import Path
 import UnityPy, UnityPy.config
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.0f1"
 
-REPO = Path(__file__).resolve().parent.parent
+APP = Path(__file__).resolve().parent.parent  # dofus-app/
 SRC_DIR = Path(r"F:\Jeux\Dofus-dofus3\Dofus_Data\StreamingAssets\Content\Map\Data")
-OUT = REPO / ".toolkit-data" / "maps"
-INDEX = REPO / ".toolkit-data" / "maps_index.json"
+OUT = APP / "data" / "maps"
+INDEX = APP / "data" / "maps_index.json"
 
 
 def pack_cell(c):
