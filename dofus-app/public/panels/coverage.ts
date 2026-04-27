@@ -1008,13 +1008,18 @@ export function renderCoverage(container: HTMLElement): void {
     }
 
     function renderPathList(): void {
-        if (!adBuiltPath.length) { adRegionsEl.textContent = ""; return; }
+        if (!adBuiltPath.length) {
+            // Even with no path, show captured/failed history if any.
+            adRegionsEl.replaceChildren(buildHistoryFragment());
+            return;
+        }
         const frag = document.createDocumentFragment();
         const head = document.createElement("div");
         head.style.cssText = "color:#9cf; padding:2px 4px; border-bottom:1px solid #222; margin-bottom:2px";
         head.textContent =
             `path: ${adPathStats.targetCount} targets, ${adPathStats.zaapJumps} zaap jumps, ` +
-            `${adPathDropped.length} dropped (truly unreachable)`;
+            `${adPathDropped.length} dropped (truly unreachable)  |  ` +
+            `captured ${visitedMaps.size}, failed ${failedMaps.size}`;
         frag.appendChild(head);
         // Show 80 surrounding the current step
         const start = Math.max(0, adPathIndex - 5);
@@ -1045,7 +1050,44 @@ export function renderCoverage(container: HTMLElement): void {
             div.textContent = `… +${adBuiltPath.length - end} more steps`;
             frag.appendChild(div);
         }
+        // Append history (captured + failed) below the path steps.
+        frag.appendChild(buildHistoryFragment());
         adRegionsEl.replaceChildren(frag);
+    }
+
+    function buildHistoryFragment(): DocumentFragment {
+        const frag = document.createDocumentFragment();
+        const fmtList = (label: string, color: string, set: Set<number>) => {
+            if (set.size === 0) return;
+            const sec = document.createElement("div");
+            sec.style.cssText = `margin-top:6px; padding-top:4px; border-top:1px dashed #333; color:${color}`;
+            const head = document.createElement("div");
+            head.style.cssText = `padding:1px 4px; font-weight:bold`;
+            head.textContent = `${label} (${set.size})`;
+            sec.appendChild(head);
+            // Most recent first — Set preserves insertion order so reverse
+            const arr = [...set].reverse().slice(0, 30);
+            for (const mid of arr) {
+                const meta = adMapMeta.get(mid);
+                const planMap = mapsArr.find(m => m.mapId === mid);
+                const sa = planMap ? subareas.get(planMap.subAreaId) : undefined;
+                const div = document.createElement("div");
+                div.style.cssText = "padding:0px 4px; color:var(--c-label)";
+                const coord = meta ? `(${meta.posX.toString().padStart(3)},${meta.posY.toString().padStart(3)})` : "";
+                div.textContent = `  ${mid.toString().padStart(10)} ${coord}  ${(sa?.name || "").slice(0, 24)}`;
+                sec.appendChild(div);
+            }
+            if (set.size > 30) {
+                const more = document.createElement("div");
+                more.style.cssText = "padding:0px 4px; color:#666; font-style:italic";
+                more.textContent = `  … +${set.size - 30} more`;
+                sec.appendChild(more);
+            }
+            frag.appendChild(sec);
+        };
+        fmtList("✓ captured this session", "#6c6", visitedMaps);
+        fmtList("✗ failed this session", "#c66", failedMaps);
+        return frag;
     }
 
     async function adRunPath(): Promise<void> {
