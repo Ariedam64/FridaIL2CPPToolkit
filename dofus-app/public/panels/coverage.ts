@@ -1376,18 +1376,19 @@ export function renderCoverage(container: HTMLElement): void {
     });
 
     adHbAutofill.addEventListener("click", async () => {
-        adStatusEl.textContent = "auto-fill: reading current mapId…";
+        // Robust workflow: arm the igd listener BEFORE prompting, so it doesn't
+        // matter whether the user is currently in the HB or outside. They press
+        // H, the entry-igd packet fires with ecxt=havreSacId; we capture, wait
+        // for the map transition to settle, then read getCurrentMapId.
+        // Tested 2026-04-27: pressing H while OUTSIDE the HB sends
+        // igd{ecxt=havreSacId}, then ~500ms later jmw lands on the HB mapId.
+        adStatusEl.textContent =
+            "auto-fill: arming igd listener — press H now to enter your haven-bag " +
+            "(if already inside, leave then re-enter). Waiting up to 60s…";
         try {
-            const mid = await rpcCall<number>("getCurrentMapId", []);
-            if (!mid) { adStatusEl.textContent = "auto-fill failed: no current map"; return; }
-            adHbMidInput.value = String(mid);
-            saveAdCfg();
-            adStatusEl.textContent =
-                `auto-fill: mapId=${mid} captured. Now press H once (or open hb again) ` +
-                `to capture havreSacId via igd packet (waiting up to 30s)…`;
             const captured = await new Promise<number | null>((resolve) => {
                 let done = false;
-                const timer = setTimeout(() => { if (!done) { done = true; unsub(); resolve(null); } }, 30000);
+                const timer = setTimeout(() => { if (!done) { done = true; unsub(); resolve(null); } }, 60000);
                 const unsub = onWsEvent((ev) => {
                     if (ev.type !== "message") return;
                     const m = (ev as any).message;
@@ -1403,13 +1404,17 @@ export function renderCoverage(container: HTMLElement): void {
                     }
                 });
             });
-            if (captured !== null) {
-                adHbIdInput.value = String(captured);
-                saveAdCfg();
-                adStatusEl.textContent = `auto-fill OK: havreSacId=${captured} mapId=${adHbMidInput.value}`;
-            } else {
-                adStatusEl.textContent = `auto-fill timed out — type havreSacId manually`;
+            if (captured === null) {
+                adStatusEl.textContent = "auto-fill timed out — type values manually";
+                return;
             }
+            adHbIdInput.value = String(captured);
+            // Give the server time to push jmw with the HB mapId.
+            await new Promise(r => setTimeout(r, 1500));
+            const mid = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
+            if (mid) adHbMidInput.value = String(mid);
+            saveAdCfg();
+            adStatusEl.textContent = `auto-fill OK: havreSacId=${captured} mapId=${adHbMidInput.value || "?"}`;
         } catch (e) {
             adStatusEl.textContent = `auto-fill error: ${String(e).slice(0, 100)}`;
         }
