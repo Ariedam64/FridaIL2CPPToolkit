@@ -159,7 +159,7 @@ let socketBroadcastSkip = new Set<string>(["jrt", "jly"]);
 // Travel/zaap classes whose fields are small and useful — extract and
 // include on every broadcast. jmw ekry is load-bearing (UI arrival
 // detection). Others are for observability in the socket panel.
-const FIELD_EXTRACT_CLASSES = new Set<string>(["gyr", "iee", "isp", "isl"]);
+const FIELD_EXTRACT_CLASSES = new Set<string>(["gyr", "iee", "isp", "isl", "igd"]);
 
 export function setSocketBroadcastSkip(classes: string[]): Promise<{ skip: string[] }> {
     return inVm(() => {

@@ -1302,8 +1302,11 @@ export function renderCoverage(container: HTMLElement): void {
             const raw = localStorage.getItem(LS_KEY);
             if (raw) return JSON.parse(raw);
         } catch {}
+        // Defaults pre-filled with the dev account's HB info — saves a
+        // round-trip through the auto-fill workflow on a fresh localStorage.
+        // Other accounts: just type your own values (auto-fill button still works).
         return { worlds: [1, -1], subareaMode: "any", subareaIds: [],
-                 havreSacId: "", havreSacMapId: "" };
+                 havreSacId: "72182268199", havreSacMapId: "162791424" };
     }
     function saveAdCfg(): void {
         const cfg: AdaptiveCfg = {
