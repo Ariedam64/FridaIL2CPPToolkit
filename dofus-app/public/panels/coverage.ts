@@ -1163,8 +1163,11 @@ export function renderCoverage(container: HTMLElement): void {
                 logRpcLine(`[path] step ${adPathIndex} (${step.kind}) threw: ${String(e).slice(0, 80)}`);
                 recomputePathFromHere("exception in step");
             }
-            await waitIdleAndStable();
-            await refreshPlayerMapId();
+            // No waitIdleAndStable / refreshPlayerMapId here — each step type
+            // already handles its own arrival semantics (travelAndCapture does
+            // its own settling; openHb/zaap/capture have no autopilot tail to
+            // drain; recompute paths read currentPlayerMapId only when needed).
+            // 20 RPC polls per step would lag the game.
         }
 
         skipBtn.disabled = true;
@@ -1173,7 +1176,9 @@ export function renderCoverage(container: HTMLElement): void {
         adStartBtn.textContent = "▶ Start path";
     }
 
-    function recomputePathFromHere(reason: string): void {
+    async function recomputePathFromHere(reason: string): Promise<void> {
+        // Refresh once here (caller doesn't poll between steps anymore).
+        await refreshPlayerMapId();
         const lastPos = currentPlayerMapId ?? 0;
         if (!lastPos) return;
         logRpcLine(`[path] recomputing from ${lastPos}: ${reason}`);
