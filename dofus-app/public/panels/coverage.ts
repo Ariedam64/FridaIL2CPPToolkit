@@ -901,9 +901,13 @@ export function renderCoverage(container: HTMLElement): void {
                 adKnownZaaps.push({ mapId: mid, posX: meta.posX, posY: meta.posY, wm: meta.worldMap });
             }
         }
+        const zaapSrc = zaapsRsp?.source ?? "?";
+        const srcWarning = zaapSrc.startsWith("static:") || zaapSrc.startsWith("instance:")
+            ? "  ⚠ generic catalog — open a zaap NPC then re-Build for your real list"
+            : "";
         adStatusEl.textContent =
             `loaded: ${adGraph.mapIdToUids.size} maps in graph, ` +
-            `${zaapsRsp?.count ?? 0} known zaaps (${adKnownZaaps.length} with coords)`;
+            `${zaapsRsp?.count ?? 0} zaaps from ${zaapSrc}${srcWarning}`;
     }
 
     function adGetUserWorlds(): Set<number> {
