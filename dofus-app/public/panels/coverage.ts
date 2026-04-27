@@ -960,15 +960,26 @@ export function renderCoverage(container: HTMLElement): void {
         while (remaining.size > 0 && iters++ < SAFETY_MAX_ITERS) {
             const lastMeta = adMapMeta.get(lastPos);
             if (!lastMeta) break;
-            // Sort remaining by Manhattan from lastPos
-            const sorted = [...remaining.values()].sort((a, b) =>
-                (Math.abs(a.posX - lastMeta.posX) + Math.abs(a.posY - lastMeta.posY))
-                - (Math.abs(b.posX - lastMeta.posX) + Math.abs(b.posY - lastMeta.posY))
-            );
+            // Sort by SCORE descending (popularity-weighted new gfx); tie-break
+            // by Manhattan ascending. Matches user intent: "couvrir le max
+            // d'interactable commun" = high-popularity maps first, with
+            // proximity preferred only between equal-score candidates.
+            // Greedy progression naturally avoids long zigzags because after
+            // each pick we re-sort from the new position.
+            const sorted = [...remaining.values()]
+                .map(m => ({
+                    m,
+                    score: scoreMap(m),
+                    dist: Math.abs(m.posX - lastMeta.posX) + Math.abs(m.posY - lastMeta.posY),
+                }))
+                .sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return a.dist - b.dist;
+                });
             // Reachable-from-lastPos cache: one BFS per lastPos value
             const reachFromLast = reachableMidsFrom(lastPos, adGraph);
             let progressed = false;
-            for (const candidate of sorted) {
+            for (const { m: candidate } of sorted) {
                 if (reachFromLast.has(candidate.mapId)) {
                     steps.push({ kind: "walk", target: candidate.mapId });
                     steps.push({ kind: "capture", target: candidate.mapId });
