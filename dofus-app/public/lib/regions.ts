@@ -163,6 +163,35 @@ export function isReachableMid(
     return false;
 }
 
+// Compute the full set of mapIds reachable from `src` via directed BFS.
+// Same algorithm as isReachableMid but returns all visited mapIds. Used by
+// the adaptive path builder to memoize reachability per zaap source.
+export function reachableMidsFrom(
+    src: number, graph: WorldGraph, maxHops = 40,
+): Set<number> {
+    const visited = new Set<number>();
+    const startUids = graph.mapIdToUids.get(src);
+    if (!startUids || startUids.length === 0) return visited;
+    visited.add(src);
+    let frontier: number[] = [...startUids];
+    for (let hop = 0; hop < maxHops; hop++) {
+        if (frontier.length === 0) break;
+        const next: number[] = [];
+        for (const uid of frontier) {
+            const dests = graph.adjacency.get(uid) ?? [];
+            for (const d of dests) {
+                const dm = graph.uidToMapId.get(d);
+                if (dm === undefined || visited.has(dm)) continue;
+                visited.add(dm);
+                const dUids = graph.mapIdToUids.get(dm);
+                if (dUids) for (const u of dUids) next.push(u);
+            }
+        }
+        frontier = next;
+    }
+    return visited;
+}
+
 export function manhattanCenter(
     region: Region,
     mapMeta: Map<number, MapMeta>,

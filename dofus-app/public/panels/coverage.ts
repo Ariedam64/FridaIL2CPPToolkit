@@ -19,9 +19,8 @@ import { rpcCall } from "../lib/rpc.js";
 import { onWsEvent } from "../lib/ws.js";
 import { logRpcLine } from "./logs.js";
 import {
-    computeRegions, regionOf, isReachableMid, manhattanCenter,
-    loadWorldGraphFromJson,
-    type Region, type WorldGraph, type MapMeta,
+    reachableMidsFrom, loadWorldGraphFromJson,
+    type WorldGraph, type MapMeta,
 } from "../lib/regions.js";
 
 interface MapEntry {
@@ -92,8 +91,8 @@ export function renderCoverage(container: HTMLElement): void {
               <button id="cv-ad-hb-autofill" class="btn" title="Go into your haven-bag (press H), then click. Captures current mapId and the next igd packet's ecxt.">auto-fill</button>
             </div>
             <div style="display:flex; gap:var(--s-2); margin-bottom:var(--s-2)">
-              <button id="cv-ad-compute" class="btn">↻ Compute regions</button>
-              <button id="cv-ad-start" class="btn primary">▶ Start adaptive</button>
+              <button id="cv-ad-compute" class="btn">↻ Build path</button>
+              <button id="cv-ad-start" class="btn primary">▶ Start path</button>
               <button id="cv-ad-resume" class="btn" style="display:none" title="resume after Tier-2 brick or N1 fallback">RESUME</button>
             </div>
             <div id="cv-ad-status" style="font-size:10px; color:var(--c-label); font-family:var(--font-mono); white-space:pre-wrap; margin-bottom:var(--s-1)"></div>
@@ -191,14 +190,28 @@ export function renderCoverage(container: HTMLElement): void {
     // Plan source mode. "scored" = resource-plan.json + dynamic scoring (default).
     // "ordered" = coverage-plan.json + walk in static order (with waypoints).
     let planMode: "scored" | "ordered" | "adaptive" = "scored";
-    // Adaptive runner state
+    // Adaptive path-runner state
     let adGraph: WorldGraph | null = null;
-    let adRegions: Region[] = [];
     let adMapMeta: Map<number, MapMeta> = new Map();
-    let adActiveRegionId: number | null = null;
-    const adRegionFails: Map<number, number> = new Map();
     let adAwaitingResume = false;
+    let adBuiltPath: PathStep[] = [];
+    let adPathIndex = 0;
+    let adPathDropped: number[] = [];
+    let adPathStats = { targetCount: 0, zaapJumps: 0 };
+    let adRegionFailsCount = 0;  // consecutive silent-rejects (Tier-2 brick proxy)
     const adSubareaTags = new Set<number>();
+    interface KnownZaap { mapId: number; posX: number; posY: number; wm: number; }
+    let adKnownZaaps: KnownZaap[] = [];
+
+    // A single step of the smart-path. Walk steps imply autoTravelInstant;
+    // capture steps imply captureCurrentMap on the current map. openHb +
+    // zaap are the cross-region bridge primitives, only inserted when a
+    // candidate is not walk-reachable from the current path-position.
+    type PathStep =
+        | { kind: "walk"; target: number }
+        | { kind: "capture"; target: number }
+        | { kind: "openHb" }
+        | { kind: "zaap"; target: number };
 
     async function loadPlan(): Promise<void> {
         try {
@@ -846,18 +859,20 @@ export function renderCoverage(container: HTMLElement): void {
     }
 
     // ============================================================
-    //  Adaptive runner — region-based, popularity-weighted.
+    //  Smart path runner — popularity scoring, proximity-greedy,
+    //  zaap-bridge inserted only for individually unreachable targets.
     // ============================================================
 
     async function loadAdaptiveData(): Promise<void> {
-        adStatusEl.textContent = "loading worldgraph + plan…";
-        const [wgJson, planJson] = await Promise.all([
+        adStatusEl.textContent = "loading worldgraph + plan + zaaps…";
+        const [wgJson, planJson, zaapsRsp] = await Promise.all([
             fetch("/api/worldgraph").then(r => r.ok ? r.json() : null).catch(() => null),
             fetch("/api/resource-plan").then(r => r.ok ? r.json() : null).catch(() => null),
+            rpcCall<any>("listKnownZaaps", []).catch(() => null),
         ]);
         if (!wgJson || !wgJson.adjacency || !wgJson.uidToMapId) {
             adStatusEl.textContent = "no worldgraph dump — open Map tab → reachability → REFRESH";
-            adGraph = null; adRegions = []; return;
+            adGraph = null; return;
         }
         adGraph = loadWorldGraphFromJson(wgJson);
         adMapMeta = new Map();
@@ -866,16 +881,22 @@ export function renderCoverage(container: HTMLElement): void {
                 posX: m.posX, posY: m.posY, worldMap: m.wm, subAreaId: m.subAreaId,
             });
         }
-        // Maps in the worldgraph but not in the resource plan (instances etc.):
-        // stub them so regions still build, but they get filtered out by
-        // adMatchesFilters (worldMap=0 doesn't match wm=1 or wm=-1 selection).
         for (const mid of adGraph.mapIdToUids.keys()) {
             if (!adMapMeta.has(mid)) {
                 adMapMeta.set(mid, { posX: 0, posY: 0, worldMap: 0, subAreaId: 0 });
             }
         }
-        adRegions = computeRegions(adGraph, adMapMeta);
-        adStatusEl.textContent = `loaded: ${adGraph.mapIdToUids.size} maps in graph, ${adRegions.length} regions`;
+        adKnownZaaps = [];
+        for (const z of (zaapsRsp?.items ?? [])) {
+            const mid = Number(z.mapId);
+            const meta = adMapMeta.get(mid);
+            if (mid > 0 && meta) {
+                adKnownZaaps.push({ mapId: mid, posX: meta.posX, posY: meta.posY, wm: meta.worldMap });
+            }
+        }
+        adStatusEl.textContent =
+            `loaded: ${adGraph.mapIdToUids.size} maps in graph, ` +
+            `${zaapsRsp?.count ?? 0} known zaaps (${adKnownZaaps.length} with coords)`;
     }
 
     function adGetUserWorlds(): Set<number> {
@@ -899,266 +920,278 @@ export function renderCoverage(container: HTMLElement): void {
         return true;
     }
 
-    function adRegionScore(r: Region): { score: number; actionableCount: number } {
-        let score = 0, count = 0;
-        const planMaps = new Map<number, MapEntry>();
-        for (const pm of mapsArr) planMaps.set(pm.mapId, pm);
-        for (const mid of r.mapIds) {
-            if (visitedMaps.has(mid) || failedMaps.has(mid)) continue;
-            if (!adMatchesFilters(mid)) continue;
-            const pm = planMaps.get(mid);
-            if (!pm) continue;
-            const s = scoreMap(pm);
-            if (s > 0) { score += s; count++; }
+    // Build the smart path. Greedy nearest-actionable-target from current
+    // position; when a candidate is not walk-reachable, search the unlock'd
+    // zaap network for a zaap whose mapId IS reachable to the candidate;
+    // if found, insert openHb → zaap(zaap.mapId) → walk(candidate); if
+    // not, drop the candidate as truly unreachable.
+    //
+    // Reachability cache: zaap mapId → Set<reachable mapId>. Computed once
+    // per zaap so the inner loop is O(1) lookups instead of N BFS calls.
+    function adBuildPath(startMid: number): {
+        steps: PathStep[]; targetCount: number; zaapJumps: number; dropped: number[];
+    } {
+        const steps: PathStep[] = [];
+        const dropped: number[] = [];
+        let targetCount = 0;
+        let zaapJumps = 0;
+        if (!adGraph) return { steps, targetCount, zaapJumps, dropped };
+
+        // Eligible candidate maps (popularity score > 0, matches filters, not visited/failed).
+        const remaining = new Map<number, MapEntry>();
+        for (const m of mapsArr) {
+            if (visitedMaps.has(m.mapId) || failedMaps.has(m.mapId)) continue;
+            if (!adMatchesFilters(m.mapId)) continue;
+            if (scoreMap(m) <= 0) continue;
+            remaining.set(m.mapId, m);
         }
-        return { score, actionableCount: count };
+
+        // Lazy zaap reachability cache — only computed for zaaps actually queried.
+        const zaapReach = new Map<number, Set<number>>();
+        const reachOfZaap = (mid: number): Set<number> => {
+            let s = zaapReach.get(mid);
+            if (!s) { s = reachableMidsFrom(mid, adGraph!); zaapReach.set(mid, s); }
+            return s;
+        };
+
+        let lastPos = startMid;
+        const SAFETY_MAX_ITERS = 5000;
+        let iters = 0;
+        while (remaining.size > 0 && iters++ < SAFETY_MAX_ITERS) {
+            const lastMeta = adMapMeta.get(lastPos);
+            if (!lastMeta) break;
+            // Sort remaining by Manhattan from lastPos
+            const sorted = [...remaining.values()].sort((a, b) =>
+                (Math.abs(a.posX - lastMeta.posX) + Math.abs(a.posY - lastMeta.posY))
+                - (Math.abs(b.posX - lastMeta.posX) + Math.abs(b.posY - lastMeta.posY))
+            );
+            // Reachable-from-lastPos cache: one BFS per lastPos value
+            const reachFromLast = reachableMidsFrom(lastPos, adGraph);
+            let progressed = false;
+            for (const candidate of sorted) {
+                if (reachFromLast.has(candidate.mapId)) {
+                    steps.push({ kind: "walk", target: candidate.mapId });
+                    steps.push({ kind: "capture", target: candidate.mapId });
+                    lastPos = candidate.mapId;
+                    remaining.delete(candidate.mapId);
+                    targetCount++;
+                    progressed = true;
+                    break;
+                }
+                // Not directly reachable — find best zaap that CAN reach it.
+                let bestZaap: KnownZaap | null = null;
+                let bestZaapDist = Infinity;
+                for (const z of adKnownZaaps) {
+                    if (!reachOfZaap(z.mapId).has(candidate.mapId)) continue;
+                    const d = Math.abs(z.posX - candidate.posX) + Math.abs(z.posY - candidate.posY);
+                    if (d < bestZaapDist) { bestZaap = z; bestZaapDist = d; }
+                }
+                if (bestZaap) {
+                    steps.push({ kind: "openHb" });
+                    steps.push({ kind: "zaap", target: bestZaap.mapId });
+                    steps.push({ kind: "walk", target: candidate.mapId });
+                    steps.push({ kind: "capture", target: candidate.mapId });
+                    lastPos = candidate.mapId;
+                    remaining.delete(candidate.mapId);
+                    targetCount++;
+                    zaapJumps++;
+                    progressed = true;
+                    break;
+                }
+                // Truly unreachable — drop and try next sorted candidate.
+                dropped.push(candidate.mapId);
+                remaining.delete(candidate.mapId);
+            }
+            if (!progressed) break;
+        }
+        return { steps, targetCount, zaapJumps, dropped };
     }
 
-    function renderRegionsList(): void {
-        if (!adRegions.length) { adRegionsEl.textContent = ""; return; }
-        const cur = currentPlayerMapId;
-        const curRegion = cur ? regionOf(cur, adRegions) : null;
-        const userWorlds = adGetUserWorlds();
-        const rows: Array<{ region: Region; score: number; count: number; isCurrent: boolean }> = [];
-        for (const r of adRegions) {
-            let intersects = userWorlds.size === 0;
-            for (const wm of r.worldMaps) if (userWorlds.has(wm)) { intersects = true; break; }
-            if (!intersects) continue;
-            const { score, actionableCount } = adRegionScore(r);
-            rows.push({ region: r, score, count: actionableCount, isCurrent: curRegion?.id === r.id });
-        }
-        rows.sort((a, b) => b.score - a.score);
+    function renderPathList(): void {
+        if (!adBuiltPath.length) { adRegionsEl.textContent = ""; return; }
         const frag = document.createDocumentFragment();
-        for (const row of rows.slice(0, 30)) {
-            const r = row.region;
-            const wmStr = r.worldMaps.size === 1 ? `wm=${[...r.worldMaps][0]}` : "mixed";
+        const head = document.createElement("div");
+        head.style.cssText = "color:#9cf; padding:2px 4px; border-bottom:1px solid #222; margin-bottom:2px";
+        head.textContent =
+            `path: ${adPathStats.targetCount} targets, ${adPathStats.zaapJumps} zaap jumps, ` +
+            `${adPathDropped.length} dropped (truly unreachable)`;
+        frag.appendChild(head);
+        // Show 80 surrounding the current step
+        const start = Math.max(0, adPathIndex - 5);
+        const end = Math.min(adBuiltPath.length, start + 80);
+        for (let i = start; i < end; i++) {
+            const s = adBuiltPath[i]!;
             const div = document.createElement("div");
-            div.style.cssText = `padding:2px 4px; ${row.isCurrent ? "background:#1a3a1a; color:#fff; border-left:3px solid #4a4" : "color:var(--c-label)"}`;
-            div.textContent = `R${r.id.toString().padStart(2)} ${wmStr.padEnd(7)} ${r.mapIds.size.toString().padStart(5)} maps  Σ=${row.score.toString().padStart(6)}  act=${row.count.toString().padStart(4)}${row.isCurrent ? "  (current)" : ""}`;
+            const isCurrent = i === adPathIndex;
+            const isDone = i < adPathIndex;
+            div.style.cssText = `padding:1px 4px; ${
+                isCurrent ? "background:#1a3a1a; color:#fff; border-left:3px solid #4a4" :
+                isDone ? "color:#666" : "color:var(--c-label)"
+            }`;
+            const meta = (s.kind === "walk" || s.kind === "capture" || s.kind === "zaap") && "target" in s
+                ? adMapMeta.get(s.target) : null;
+            const coord = meta ? ` (${meta.posX},${meta.posY})` : "";
+            const lbl =
+                s.kind === "walk"    ? `${(i+1).toString().padStart(4)}  walk    → ${s.target}${coord}` :
+                s.kind === "capture" ? `${(i+1).toString().padStart(4)}  capture   ${s.target}${coord}` :
+                s.kind === "openHb"  ? `${(i+1).toString().padStart(4)}  openHB` :
+                                       `${(i+1).toString().padStart(4)}  zaap    → ${(s as any).target}${coord}`;
+            div.textContent = lbl;
             frag.appendChild(div);
         }
-        if (rows.length === 0) {
+        if (end < adBuiltPath.length) {
             const div = document.createElement("div");
-            div.style.color = "#888";
-            div.textContent = "no region with positive score for current filters";
+            div.style.cssText = "padding:1px 4px; color:#666; font-style:italic";
+            div.textContent = `… +${adBuiltPath.length - end} more steps`;
             frag.appendChild(div);
         }
         adRegionsEl.replaceChildren(frag);
     }
 
-    function adPickInRegion(regionId: number): { map: MapEntry; score: number } | null {
-        const region = adRegions[regionId];
-        if (!region || !adGraph) return null;
-        const cur = currentPlayerMapId ?? null;
-        const planMapsByMid = new Map<number, MapEntry>();
-        for (const pm of mapsArr) planMapsByMid.set(pm.mapId, pm);
-        const curEntry = cur !== null ? planMapsByMid.get(cur) : null;
-
-        let best: MapEntry | null = null;
-        let bestScore = 0;
-        let bestKey: [number, number, number, number] = [Infinity, Infinity, Infinity, Infinity];
-        for (const mid of region.mapIds) {
-            if (visitedMaps.has(mid) || failedMaps.has(mid)) continue;
-            if (!adMatchesFilters(mid)) continue;
-            const pm = planMapsByMid.get(mid);
-            if (!pm) continue;
-            const s = scoreMap(pm);
-            if (s <= 0) continue;
-            if (cur !== null && cur !== mid && !isReachableMid(cur, mid, adGraph)) continue;
-            const dist = curEntry ? Math.abs(pm.posX - curEntry.posX) + Math.abs(pm.posY - curEntry.posY) : 0;
-            const sameWm = curEntry && curEntry.wm === pm.wm ? 0 : 1;
-            const key: [number, number, number, number] = [
-                dist <= MAX_HOP ? 0 : 1,
-                sameWm,
-                dist,
-                -s,
-            ];
-            if (best === null || keyLess(key, bestKey)) {
-                best = pm; bestScore = s; bestKey = key;
-            }
-        }
-        return best ? { map: best, score: bestScore } : null;
-    }
-
-    function adPickNextRegion(): { region: Region; score: number } | null {
-        const userWorlds = adGetUserWorlds();
-        const candidates: Array<{ region: Region; score: number }> = [];
-        for (const r of adRegions) {
-            let intersects = userWorlds.size === 0;
-            for (const wm of r.worldMaps) if (userWorlds.has(wm)) { intersects = true; break; }
-            if (!intersects) continue;
-            const { score } = adRegionScore(r);
-            if (score <= 0) continue;
-            candidates.push({ region: r, score });
-        }
-        candidates.sort((a, b) => b.score - a.score);
-        return candidates[0] ?? null;
-    }
-
-    function adIsRegionExhausted(regionId: number): boolean {
-        return adPickInRegion(regionId) === null;
-    }
-
-    async function bridgeToRegion(targetRegionId: number): Promise<"ok" | "fallback-n1"> {
-        const region = adRegions[targetRegionId];
-        if (!region) return "fallback-n1";
-
-        let known: any;
-        try { known = await rpcCall<any>("listKnownZaaps", []); }
-        catch { return n1Fallback(region, "listKnownZaaps threw"); }
-        // sender.ts:listKnownZaaps returns items shaped:
-        //   { mapId: string, denz, deoa, deob, deoc, deoi }
-        // No posX/posY — we look those up via adMapMeta.
-        const items: any[] = known?.items ?? [];
-        const inRegion = items
-            .map(z => ({ mid: Number(z.mapId), raw: z }))
-            .filter(z => z.mid > 0 && region.mapIds.has(z.mid));
-        if (inRegion.length === 0) {
-            return n1Fallback(region, "no unlocked zaap in target region");
-        }
-        const center = manhattanCenter(region, adMapMeta);
-        inRegion.sort((a, b) => {
-            const ma = adMapMeta.get(a.mid), mb = adMapMeta.get(b.mid);
-            const ax = ma?.posX ?? 0, ay = ma?.posY ?? 0;
-            const bx = mb?.posX ?? 0, by = mb?.posY ?? 0;
-            return (Math.abs(ax - center.x) + Math.abs(ay - center.y))
-                 - (Math.abs(bx - center.x) + Math.abs(by - center.y));
-        });
-        const targetMid = inRegion[0]!.mid;
-
-        const hbId = Number(adHbIdInput.value);
-        const hbMid = Number(adHbMidInput.value);
-        if (!hbId || !hbMid) {
-            return n1Fallback(region, "no havre-sac info — run auto-fill first");
-        }
-
-        setPhase("traveling", `bridge: enterHavreSac(${hbId})`);
-        try {
-            const r = await rpcCall<any>("enterHavreSac", [hbId]);
-            if (r?.ok === false) return n1Fallback(region, `enterHavreSac: ${r.reason}`);
-        } catch (e) { return n1Fallback(region, `enterHavreSac threw: ${String(e).slice(0, 60)}`); }
-        const arrivedHb = await waitForMapId(hbMid, 10000);
-        if (!arrivedHb) {
-            const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
-            if (cur !== hbMid) return n1Fallback(region, "did not arrive in haven-bag");
-        }
-
-        setPhase("traveling", `bridge: zaapTeleport(${targetMid})`);
-        try {
-            const z = await rpcCall<any>("zaapTeleport", [targetMid]);
-            if (z?.ok === false) return n1Fallback(region, `zaapTeleport: ${z.reason}`);
-        } catch (e) { return n1Fallback(region, `zaapTeleport threw: ${String(e).slice(0, 60)}`); }
-        const arrivedTarget = await waitForMapId(targetMid, 10000);
-        if (!arrivedTarget) {
-            const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
-            if (cur !== targetMid) return n1Fallback(region, "did not arrive at zaap dest");
-        }
-
-        return "ok";
-    }
-
-    function n1Fallback(region: Region, reason: string): "fallback-n1" {
-        const center = manhattanCenter(region, adMapMeta);
-        logRpcLine(`[adaptive] bridge fallback-n1: ${reason}`);
-        adStatusEl.textContent =
-            `cross-region needed (R${region.id} near ${center.x},${center.y}). ` +
-            `Reason: ${reason}. Open havre-sac + zaap manually, runner will resume.`;
-        const unsub = onWsEvent((ev) => {
-            if (ev.type !== "message") return;
-            const m = (ev as any).message;
-            if (m?.type !== "send") return;
-            const p = m.payload;
-            if (p?.type !== "socket" || p.cls !== "jmw") return;
-            const mid = Number(p.fields?.ekry ?? 0);
-            if (mid > 0 && region.mapIds.has(mid)) {
-                unsub();
-                if (adAwaitingResume) {
-                    adAwaitingResume = false;
-                    adResumeBtn.style.display = "none";
-                    if (planMode === "adaptive" && !runRequested) {
-                        runRequested = true;
-                        adStartBtn.textContent = "STOP adaptive";
-                        runPlanAdaptive().finally(() => {
-                            runRequested = false;
-                            adStartBtn.textContent = "▶ Start adaptive";
-                        });
-                    }
-                }
-            }
-        });
-        return "fallback-n1";
-    }
-
-    async function runPlanAdaptive(): Promise<void> {
+    async function adRunPath(): Promise<void> {
         if (!adGraph) {
-            setPhase("idle", "no worldgraph — click Compute regions first");
+            setPhase("idle", "no worldgraph — click Build path first");
             return;
         }
         try { await rpcCall<any>("installOutgoingHook", [[]]); } catch {}
         try { await rpcCall<any>("hookAutopilotDone", []); } catch {}
-        setPhase("init", "adaptive: starting");
+        setPhase("init", "path: starting");
         skipBtn.disabled = false;
         await refreshPlayerMapId();
 
         const BRICK_THRESHOLD = 5;
 
-        while (runRequested && !adAwaitingResume) {
-            await refreshPlayerMapId();
-            if (adActiveRegionId === null || adIsRegionExhausted(adActiveRegionId)) {
-                const nextR = adPickNextRegion();
-                if (!nextR) { setPhase("done", "no region with positive score — done"); break; }
-                const curRegion = currentPlayerMapId ? regionOf(currentPlayerMapId, adRegions) : null;
-                if (curRegion?.id !== nextR.region.id) {
-                    setPhase("traveling", `bridging to region R${nextR.region.id}`);
-                    const bridgeRes = await bridgeToRegion(nextR.region.id);
-                    if (bridgeRes === "fallback-n1") {
-                        adAwaitingResume = true;
-                        adResumeBtn.style.display = "";
-                        setPhase("stopped", `awaiting manual zaap → click RESUME or change map`);
-                        skipBtn.disabled = true;
-                        return;
+        while (runRequested && !adAwaitingResume && adPathIndex < adBuiltPath.length) {
+            const step = adBuiltPath[adPathIndex]!;
+            renderPathList();
+            try {
+                if (step.kind === "walk") {
+                    // Reuse travelAndCapture's machinery but skip its "capture
+                    // current map" tail by looking up a planMap stub. travelAndCapture
+                    // handles autopilot dispatch + retries + Tier-1 cleanup.
+                    const planMap = mapsArr.find(m => m.mapId === step.target);
+                    if (!planMap) {
+                        // Synthesize a temporary MapEntry so travelAndCapture works
+                        const meta = adMapMeta.get(step.target);
+                        const tmp: MapEntry = {
+                            mapId: step.target,
+                            posX: meta?.posX ?? 0, posY: meta?.posY ?? 0,
+                            wm: meta?.worldMap ?? 0,
+                            subAreaId: meta?.subAreaId ?? 0,
+                            subArea: "",
+                            gfxIds: [],
+                            isWaypoint: true,  // skip capture inside travelAndCapture
+                        };
+                        const r = await travelAndCapture(tmp);
+                        if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
+                        else if (r === "skip") {
+                            failedMaps.add(step.target);
+                            recomputePathFromHere("user skip");
+                        } else {
+                            failedMaps.add(step.target);
+                            adRegionFailsCount++;
+                            if (adRegionFailsCount >= BRICK_THRESHOLD) {
+                                pauseForBrick();
+                                return;
+                            }
+                            recomputePathFromHere("walk fail");
+                        }
+                    } else {
+                        const r = await travelAndCapture({ ...planMap, isWaypoint: true });
+                        if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
+                        else if (r === "skip") {
+                            failedMaps.add(step.target);
+                            recomputePathFromHere("user skip");
+                        } else {
+                            failedMaps.add(step.target);
+                            adRegionFailsCount++;
+                            if (adRegionFailsCount >= BRICK_THRESHOLD) { pauseForBrick(); return; }
+                            recomputePathFromHere("walk fail");
+                        }
                     }
-                    await refreshPlayerMapId();
+                } else if (step.kind === "capture") {
+                    setPhase("capturing", `capture ${step.target}`);
+                    // Wait 1.5s for map interactives to settle (server StatedMapUpdateEvent).
+                    await new Promise(r => setTimeout(r, 1500));
+                    try {
+                        const cap = await captureCurrentMap();
+                        if (cap) {
+                            for (const g of cap.gfxIds) captured.add(g);
+                            visitedMaps.add(cap.mapId);
+                            pruneCapturedMaps();
+                        }
+                    } catch (e) {
+                        logRpcLine(`[path] cap err: ${String(e).slice(0, 80)}`);
+                    }
+                    adPathIndex++;
+                } else if (step.kind === "openHb") {
+                    const hbId = Number(adHbIdInput.value);
+                    const hbMid = Number(adHbMidInput.value);
+                    if (!hbId || !hbMid) {
+                        adStatusEl.textContent = "openHb step blocked — fill havre-sac info first";
+                        adAwaitingResume = true; adResumeBtn.style.display = ""; return;
+                    }
+                    setPhase("traveling", `openHb (${hbMid})`);
+                    try { await rpcCall<any>("enterHavreSac", [hbId]); } catch (e) {
+                        logRpcLine(`[path] enterHavreSac err: ${String(e).slice(0, 80)}`);
+                    }
+                    const arr = await waitForMapId(hbMid, 10000);
+                    if (!arr) {
+                        const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
+                        if (cur !== hbMid) {
+                            recomputePathFromHere("enterHavreSac arrival timeout");
+                            continue;
+                        }
+                    }
+                    adPathIndex++;
+                } else if (step.kind === "zaap") {
+                    setPhase("traveling", `zaap → ${step.target}`);
+                    try { await rpcCall<any>("zaapTeleport", [step.target]); } catch (e) {
+                        logRpcLine(`[path] zaapTeleport err: ${String(e).slice(0, 80)}`);
+                    }
+                    const arr = await waitForMapId(step.target, 10000);
+                    if (!arr) {
+                        const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
+                        if (cur !== step.target) {
+                            recomputePathFromHere("zaap arrival timeout");
+                            continue;
+                        }
+                    }
+                    adPathIndex++;
                 }
-                adActiveRegionId = nextR.region.id;
-                adRegionFails.set(adActiveRegionId, 0);
-                renderRegionsList();
+            } catch (e) {
+                logRpcLine(`[path] step ${adPathIndex} (${step.kind}) threw: ${String(e).slice(0, 80)}`);
+                recomputePathFromHere("exception in step");
             }
-
-            const next = adPickInRegion(adActiveRegionId!);
-            if (!next) { adActiveRegionId = null; continue; }
-
-            setCurrentTarget(next.map, next.score);
-            const res = await travelAndCapture(next.map);
-            if (res === "ok") {
-                visitedMaps.add(next.map.mapId);
-                adRegionFails.set(adActiveRegionId!, 0);
-                pruneCapturedMaps();
-                setPhase("done", `captured ${next.map.mapId} in R${adActiveRegionId}`);
-            } else if (res === "skip") {
-                failedMaps.add(next.map.mapId);
-                setPhase("stopped", `skipped ${next.map.mapId}`);
-            } else {
-                failedMaps.add(next.map.mapId);
-                const cur = adRegionFails.get(adActiveRegionId!) ?? 0;
-                adRegionFails.set(adActiveRegionId!, cur + 1);
-                if (cur + 1 >= BRICK_THRESHOLD) {
-                    adAwaitingResume = true;
-                    adResumeBtn.style.display = "";
-                    setPhase("fail", `R${adActiveRegionId}: ${cur + 1} silent-rejects in a row — suspect Tier-2 brick. Restart Dofus then RESUME.`);
-                    skipBtn.disabled = true;
-                    return;
-                }
-                setPhase("fail", `bbd fail on ${next.map.mapId} (R${adActiveRegionId} fails=${cur + 1}/${BRICK_THRESHOLD})`);
-            }
-            await refreshPlayerMapId();
-            renderRegionsList();
             await waitIdleAndStable();
+            await refreshPlayerMapId();
         }
 
         skipBtn.disabled = true;
-        if (!runRequested && !adAwaitingResume) setPhase("stopped", "stopped");
-        adStartBtn.textContent = "▶ Start adaptive";
+        if (adPathIndex >= adBuiltPath.length) setPhase("done", "path complete");
+        else if (!runRequested && !adAwaitingResume) setPhase("stopped", "stopped");
+        adStartBtn.textContent = "▶ Start path";
+    }
+
+    function recomputePathFromHere(reason: string): void {
+        const lastPos = currentPlayerMapId ?? 0;
+        if (!lastPos) return;
+        logRpcLine(`[path] recomputing from ${lastPos}: ${reason}`);
+        const built = adBuildPath(lastPos);
+        adBuiltPath = built.steps;
+        adPathIndex = 0;
+        adPathDropped = built.dropped;
+        adPathStats = { targetCount: built.targetCount, zaapJumps: built.zaapJumps };
+        renderPathList();
+    }
+
+    function pauseForBrick(): void {
+        adAwaitingResume = true;
+        adResumeBtn.style.display = "";
+        setPhase("fail",
+            `${adRegionFailsCount} consecutive silent-rejects — suspect Tier-2 brick. ` +
+            `Restart Dofus then click RESUME.`);
+        skipBtn.disabled = true;
     }
 
     async function runPlan(): Promise<void> {
@@ -1295,7 +1328,7 @@ export function renderCoverage(container: HTMLElement): void {
             const x = document.createElement("button");
             x.textContent = "×";
             x.style.cssText = "background:none; border:none; color:#9cc; cursor:pointer; padding:0 2px; font-size:12px";
-            x.onclick = () => { adSubareaTags.delete(id); renderSubareaTags(); saveAdCfg(); renderRegionsList(); };
+            x.onclick = () => { adSubareaTags.delete(id); renderSubareaTags(); saveAdCfg(); renderPathList(); };
             tag.appendChild(x);
             adSaTags.appendChild(tag);
         }
@@ -1310,10 +1343,10 @@ export function renderCoverage(container: HTMLElement): void {
         adHbIdInput.value = cfg.havreSacId;
         adHbMidInput.value = cfg.havreSacMapId;
     }
-    adWm1Cb.addEventListener("change", () => { saveAdCfg(); renderRegionsList(); });
-    adWmm1Cb.addEventListener("change", () => { saveAdCfg(); renderRegionsList(); });
+    adWm1Cb.addEventListener("change", () => { saveAdCfg(); renderPathList(); });
+    adWmm1Cb.addEventListener("change", () => { saveAdCfg(); renderPathList(); });
     container.querySelectorAll<HTMLInputElement>("input[name=\"cv-ad-sa-mode\"]").forEach(r =>
-        r.addEventListener("change", () => { saveAdCfg(); renderRegionsList(); }));
+        r.addEventListener("change", () => { saveAdCfg(); renderPathList(); }));
     adHbIdInput.addEventListener("change", saveAdCfg);
     adHbMidInput.addEventListener("change", saveAdCfg);
     adSaInput.addEventListener("keydown", (e) => {
@@ -1325,7 +1358,7 @@ export function renderCoverage(container: HTMLElement): void {
                 adSubareaTags.add(id);
                 renderSubareaTags();
                 saveAdCfg();
-                renderRegionsList();
+                renderPathList();
                 adSaInput.value = "";
                 return;
             }
@@ -1335,7 +1368,19 @@ export function renderCoverage(container: HTMLElement): void {
     adComputeBtn.addEventListener("click", async () => {
         await loadAdaptiveData();
         await refreshPlayerMapId();
-        renderRegionsList();
+        if (!adGraph || !currentPlayerMapId) {
+            adStatusEl.textContent = "cannot build path: " + (!adGraph ? "no worldgraph" : "no current mapId");
+            return;
+        }
+        const built = adBuildPath(currentPlayerMapId);
+        adBuiltPath = built.steps;
+        adPathIndex = 0;
+        adPathDropped = built.dropped;
+        adPathStats = { targetCount: built.targetCount, zaapJumps: built.zaapJumps };
+        adStatusEl.textContent =
+            `path built: ${built.steps.length} steps, ${built.targetCount} targets, ` +
+            `${built.zaapJumps} zaap jumps, ${built.dropped.length} dropped (truly unreachable)`;
+        renderPathList();
     });
 
     adStartBtn.addEventListener("click", () => {
@@ -1346,18 +1391,46 @@ export function renderCoverage(container: HTMLElement): void {
             return;
         }
         if (!adGraph) {
-            adStatusEl.textContent = "compute regions first";
+            adStatusEl.textContent = "build path first";
+            return;
+        }
+        if (adBuiltPath.length === 0 || adPathIndex >= adBuiltPath.length) {
+            // No path or path complete — rebuild from current pos
+            (async () => {
+                await refreshPlayerMapId();
+                if (!currentPlayerMapId) { adStatusEl.textContent = "no current mapId"; return; }
+                const built = adBuildPath(currentPlayerMapId);
+                adBuiltPath = built.steps;
+                adPathIndex = 0;
+                adPathDropped = built.dropped;
+                adPathStats = { targetCount: built.targetCount, zaapJumps: built.zaapJumps };
+                renderPathList();
+                if (adBuiltPath.length === 0) {
+                    adStatusEl.textContent = "nothing to do — no actionable maps under current filters";
+                    return;
+                }
+                planMode = "adaptive";
+                runRequested = true;
+                adAwaitingResume = false;
+                adResumeBtn.style.display = "none";
+                adStartBtn.textContent = "STOP path";
+                adRunPath().finally(() => {
+                    runRequested = false;
+                    abortCurrentTravel = false;
+                    adStartBtn.textContent = "▶ Start path";
+                });
+            })();
             return;
         }
         planMode = "adaptive";
         runRequested = true;
         adAwaitingResume = false;
         adResumeBtn.style.display = "none";
-        adStartBtn.textContent = "STOP adaptive";
-        runPlanAdaptive().finally(() => {
+        adStartBtn.textContent = "STOP path";
+        adRunPath().finally(() => {
             runRequested = false;
             abortCurrentTravel = false;
-            adStartBtn.textContent = "▶ Start adaptive";
+            adStartBtn.textContent = "▶ Start path";
         });
     });
 
@@ -1365,13 +1438,21 @@ export function renderCoverage(container: HTMLElement): void {
         if (!adAwaitingResume) return;
         adAwaitingResume = false;
         adResumeBtn.style.display = "none";
+        adRegionFailsCount = 0;
         if (planMode === "adaptive" && !runRequested) {
-            runRequested = true;
-            adStartBtn.textContent = "STOP adaptive";
-            runPlanAdaptive().finally(() => {
-                runRequested = false;
-                adStartBtn.textContent = "▶ Start adaptive";
-            });
+            // Rebuild path from current position to discard whatever was stale.
+            (async () => {
+                await refreshPlayerMapId();
+                if (currentPlayerMapId) {
+                    recomputePathFromHere("resume after pause");
+                }
+                runRequested = true;
+                adStartBtn.textContent = "STOP path";
+                adRunPath().finally(() => {
+                    runRequested = false;
+                    adStartBtn.textContent = "▶ Start path";
+                });
+            })();
         }
     });
 
