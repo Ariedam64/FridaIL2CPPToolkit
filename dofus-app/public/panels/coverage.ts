@@ -1233,7 +1233,11 @@ export function renderCoverage(container: HTMLElement): void {
                     if (!arr) {
                         const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
                         if (cur !== step.target) {
-                            await recomputePathFromHere("zaap arrival timeout");
+                            // Server rejected (likely "Impossible d'utiliser ce
+                            // zaap" — account doesn't have it unlocked).
+                            adFailedZaaps.add(step.target);
+                            logRpcLine(`[path] zaap ${step.target} rejected — blacklisted for session`);
+                            await recomputePathFromHere(`zaap ${step.target} rejected`);
                             continue;
                         }
                     }
