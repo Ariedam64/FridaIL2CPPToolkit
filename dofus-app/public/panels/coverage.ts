@@ -1176,7 +1176,7 @@ export function renderCoverage(container: HTMLElement): void {
         adStartBtn.textContent = "▶ Start path";
     }
 
-    async function await recomputePathFromHere(reason: string): Promise<void> {
+    async function recomputePathFromHere(reason: string): Promise<void> {
         // Refresh once here (caller doesn't poll between steps anymore).
         await refreshPlayerMapId();
         const lastPos = currentPlayerMapId ?? 0;
