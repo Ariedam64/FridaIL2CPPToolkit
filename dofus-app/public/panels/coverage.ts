@@ -1086,7 +1086,7 @@ export function renderCoverage(container: HTMLElement): void {
                         if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
                         else if (r === "skip") {
                             failedMaps.add(step.target);
-                            recomputePathFromHere("user skip");
+                            await recomputePathFromHere("user skip");
                         } else {
                             failedMaps.add(step.target);
                             adRegionFailsCount++;
@@ -1094,19 +1094,19 @@ export function renderCoverage(container: HTMLElement): void {
                                 pauseForBrick();
                                 return;
                             }
-                            recomputePathFromHere("walk fail");
+                            await recomputePathFromHere("walk fail");
                         }
                     } else {
                         const r = await travelAndCapture({ ...planMap, isWaypoint: true });
                         if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
                         else if (r === "skip") {
                             failedMaps.add(step.target);
-                            recomputePathFromHere("user skip");
+                            await recomputePathFromHere("user skip");
                         } else {
                             failedMaps.add(step.target);
                             adRegionFailsCount++;
                             if (adRegionFailsCount >= BRICK_THRESHOLD) { pauseForBrick(); return; }
-                            recomputePathFromHere("walk fail");
+                            await recomputePathFromHere("walk fail");
                         }
                     }
                 } else if (step.kind === "capture") {
@@ -1139,7 +1139,7 @@ export function renderCoverage(container: HTMLElement): void {
                     if (!arr) {
                         const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
                         if (cur !== hbMid) {
-                            recomputePathFromHere("enterHavreSac arrival timeout");
+                            await recomputePathFromHere("enterHavreSac arrival timeout");
                             continue;
                         }
                     }
@@ -1153,7 +1153,7 @@ export function renderCoverage(container: HTMLElement): void {
                     if (!arr) {
                         const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
                         if (cur !== step.target) {
-                            recomputePathFromHere("zaap arrival timeout");
+                            await recomputePathFromHere("zaap arrival timeout");
                             continue;
                         }
                     }
@@ -1161,7 +1161,7 @@ export function renderCoverage(container: HTMLElement): void {
                 }
             } catch (e) {
                 logRpcLine(`[path] step ${adPathIndex} (${step.kind}) threw: ${String(e).slice(0, 80)}`);
-                recomputePathFromHere("exception in step");
+                await recomputePathFromHere("exception in step");
             }
             // No waitIdleAndStable / refreshPlayerMapId here — each step type
             // already handles its own arrival semantics (travelAndCapture does
@@ -1176,7 +1176,7 @@ export function renderCoverage(container: HTMLElement): void {
         adStartBtn.textContent = "▶ Start path";
     }
 
-    async function recomputePathFromHere(reason: string): Promise<void> {
+    async function await recomputePathFromHere(reason: string): Promise<void> {
         // Refresh once here (caller doesn't poll between steps anymore).
         await refreshPlayerMapId();
         const lastPos = currentPlayerMapId ?? 0;
@@ -1452,7 +1452,7 @@ export function renderCoverage(container: HTMLElement): void {
             (async () => {
                 await refreshPlayerMapId();
                 if (currentPlayerMapId) {
-                    recomputePathFromHere("resume after pause");
+                    await recomputePathFromHere("resume after pause");
                 }
                 runRequested = true;
                 adStartBtn.textContent = "STOP path";
