@@ -1006,23 +1006,25 @@ export function renderCoverage(container: HTMLElement): void {
         let known: any;
         try { known = await rpcCall<any>("listKnownZaaps", []); }
         catch { return n1Fallback(region, "listKnownZaaps threw"); }
+        // sender.ts:listKnownZaaps returns items shaped:
+        //   { mapId: string, denz, deoa, deob, deoc, deoi }
+        // No posX/posY — we look those up via adMapMeta.
         const items: any[] = known?.items ?? [];
-        const inRegion = items.filter(z => {
-            const mid = Number(z.mapId ?? z.MapId ?? z.m_mapId ?? 0);
-            return mid > 0 && region.mapIds.has(mid);
-        });
+        const inRegion = items
+            .map(z => ({ mid: Number(z.mapId), raw: z }))
+            .filter(z => z.mid > 0 && region.mapIds.has(z.mid));
         if (inRegion.length === 0) {
             return n1Fallback(region, "no unlocked zaap in target region");
         }
         const center = manhattanCenter(region, adMapMeta);
         inRegion.sort((a, b) => {
-            const ax = Number(a.posX ?? a.x ?? 0), ay = Number(a.posY ?? a.y ?? 0);
-            const bx = Number(b.posX ?? b.x ?? 0), by = Number(b.posY ?? b.y ?? 0);
+            const ma = adMapMeta.get(a.mid), mb = adMapMeta.get(b.mid);
+            const ax = ma?.posX ?? 0, ay = ma?.posY ?? 0;
+            const bx = mb?.posX ?? 0, by = mb?.posY ?? 0;
             return (Math.abs(ax - center.x) + Math.abs(ay - center.y))
                  - (Math.abs(bx - center.x) + Math.abs(by - center.y));
         });
-        const target = inRegion[0];
-        const targetMid = Number(target.mapId ?? target.MapId ?? target.m_mapId ?? 0);
+        const targetMid = inRegion[0]!.mid;
 
         const hbId = Number(adHbIdInput.value);
         const hbMid = Number(adHbMidInput.value);
