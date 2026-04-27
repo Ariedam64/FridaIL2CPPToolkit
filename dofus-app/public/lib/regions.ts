@@ -137,7 +137,7 @@ export function regionOf(mid: number, regions: Region[]): Region | null {
 // ALL uids of a destination map into the frontier (the game treats all
 // zone-vertices of a map as one logical node).
 export function isReachableMid(
-    src: number, dst: number, graph: WorldGraph, maxHops = 40,
+    src: number, dst: number, graph: WorldGraph, maxHops = 9999,
 ): boolean {
     if (src === dst) return true;
     const startUids = graph.mapIdToUids.get(src);
@@ -167,7 +167,7 @@ export function isReachableMid(
 // Same algorithm as isReachableMid but returns all visited mapIds. Used by
 // the adaptive path builder to memoize reachability per zaap source.
 export function reachableMidsFrom(
-    src: number, graph: WorldGraph, maxHops = 40,
+    src: number, graph: WorldGraph, maxHops = 9999,
 ): Set<number> {
     const visited = new Set<number>();
     const startUids = graph.mapIdToUids.get(src);
