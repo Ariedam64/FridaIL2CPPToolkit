@@ -1082,6 +1082,7 @@ export function renderCoverage(container: HTMLElement): void {
                             gfxIds: [],
                             isWaypoint: true,  // skip capture inside travelAndCapture
                         };
+                        setCurrentTarget(tmp, 0);
                         const r = await travelAndCapture(tmp);
                         if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
                         else if (r === "skip") {
@@ -1097,6 +1098,7 @@ export function renderCoverage(container: HTMLElement): void {
                             await recomputePathFromHere("walk fail");
                         }
                     } else {
+                        setCurrentTarget(planMap, scoreMap(planMap));
                         const r = await travelAndCapture({ ...planMap, isWaypoint: true });
                         if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
                         else if (r === "skip") {
