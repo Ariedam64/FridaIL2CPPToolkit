@@ -93,6 +93,7 @@ export function renderCoverage(container: HTMLElement): void {
             <div style="display:flex; gap:var(--s-2); margin-bottom:var(--s-2)">
               <button id="cv-ad-compute" class="btn">↻ Build path</button>
               <button id="cv-ad-start" class="btn primary">▶ Start path</button>
+              <button id="cv-ad-retry" class="btn" title="clear failed maps + blacklisted zaaps for this session and rebuild from current position">RETRY FAILED</button>
               <button id="cv-ad-resume" class="btn" style="display:none" title="resume after Tier-2 brick or N1 fallback">RESUME</button>
             </div>
             <div id="cv-ad-status" style="font-size:10px; color:var(--c-label); font-family:var(--font-mono); white-space:pre-wrap; margin-bottom:var(--s-1)"></div>
@@ -160,6 +161,7 @@ export function renderCoverage(container: HTMLElement): void {
     const adHbAutofill  = container.querySelector<HTMLButtonElement>("#cv-ad-hb-autofill")!;
     const adComputeBtn  = container.querySelector<HTMLButtonElement>("#cv-ad-compute")!;
     const adStartBtn    = container.querySelector<HTMLButtonElement>("#cv-ad-start")!;
+    const adRetryBtn    = container.querySelector<HTMLButtonElement>("#cv-ad-retry")!;
     const adResumeBtn   = container.querySelector<HTMLButtonElement>("#cv-ad-resume")!;
     const adStatusEl    = container.querySelector<HTMLDivElement>("#cv-ad-status")!;
     const adRegionsEl   = container.querySelector<HTMLDivElement>("#cv-ad-regions")!;
@@ -1568,6 +1570,26 @@ export function renderCoverage(container: HTMLElement): void {
             abortCurrentTravel = false;
             adStartBtn.textContent = "▶ Start path";
         });
+    });
+
+    adRetryBtn.addEventListener("click", async () => {
+        const failedCount = failedMaps.size;
+        const blacklistedZaaps = adFailedZaaps.size;
+        failedMaps = new Set();
+        adFailedZaaps.clear();
+        adRegionFailsCount = 0;
+        await refreshPlayerMapId();
+        if (currentPlayerMapId && adGraph) {
+            const built = adBuildPath(currentPlayerMapId);
+            adBuiltPath = built.steps;
+            adPathIndex = 0;
+            adPathDropped = built.dropped;
+            adPathStats = { targetCount: built.targetCount, zaapJumps: built.zaapJumps };
+            renderPathList();
+        }
+        adStatusEl.textContent =
+            `retried: cleared ${failedCount} failed maps + ${blacklistedZaaps} blacklisted zaaps. ` +
+            `Path rebuilt with ${adBuiltPath.length} steps.`;
     });
 
     adResumeBtn.addEventListener("click", () => {
