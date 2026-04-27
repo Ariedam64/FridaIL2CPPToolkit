@@ -1016,31 +1016,54 @@ export function zaapTeleport(
 }
 
 // Dump the player's unlocked zaap destinations. Each entry is a `duk` with
-// mapId at field `denx`. Source preference:
-//   1. `dun.lqq()` — STATIC method returning the master List<duk>. Observed
-//      2026-04-27 to be the actual source (47 entries on test character).
-//      `dun` has 5 such static methods (lqq, fxr, trm, eie, mjs) all
-//      returning the same backing list.
-//   2. `dun.deor` — instance field. Used to be the source but is empty in
-//      current builds (likely a UI-state cache populated only when the
-//      worldmap is open). Kept as fallback.
+// mapId at field `denx`. Source preference (most accurate first):
+//   1. `BaseZaapSelectionUI.m_fullZaapList` — instance field set by the
+//      server when the player opens a zaap NPC. THIS is the per-character
+//      unlocked list. Only populated while a zaap UI is/was opened in
+//      this session — Unity GC may keep the instance around afterwards.
+//   2. `dun.lqq()` — STATIC method returning ~47 entries. Confirmed
+//      2026-04-28 to be a static catalog (same on different accounts),
+//      NOT per-character. Useful only as a "popular zaaps" fallback.
+//   3. `dun.deor` — instance field. Empty in current builds.
 export function listKnownZaaps(): Promise<{ ok: boolean; count?: number; items?: Array<any>; reason?: string; source?: string }> {
     return inVm(() => {
-        const k = getClass("dun");
-        if (!k) return { ok: false, reason: "dun not found" };
         let list: any = null;
         let source = "";
-        try { list = (k as any).method("lqq").invoke(); if (list) source = "static:lqq"; } catch {}
-        if (!list) {
-            const dun = getLiveSingleton(k, cachedLiveDun);
-            if (dun) {
-                cachedLiveDun = dun;
-                try { list = dun.field("deor").value as any; if (list) source = "instance:deor"; } catch {}
+
+        // Try BaseZaapSelectionUI first (per-character list)
+        try {
+            const uiK = getClass("BaseZaapSelectionUI");
+            if (uiK) {
+                const arr = Il2Cpp.gc.choose(uiK);
+                if (arr.length) {
+                    const ui = arr[arr.length - 1] as any;
+                    const l = ui.field("m_fullZaapList").value;
+                    if (l) {
+                        const cnt = Number((l as any).method("get_Count").invoke());
+                        if (cnt > 0) { list = l; source = "ui:BaseZaapSelectionUI.m_fullZaapList"; }
+                    }
+                }
             }
-        } else {
-            const dun = getLiveSingleton(k, cachedLiveDun);
-            if (dun) cachedLiveDun = dun;
+        } catch {}
+
+        // Fallback: dun.lqq (static catalog)
+        if (!list) {
+            const k = getClass("dun");
+            if (k) {
+                try { list = (k as any).method("lqq").invoke(); if (list) source = "static:lqq"; } catch {}
+                if (!list) {
+                    const dun = getLiveSingleton(k, cachedLiveDun);
+                    if (dun) {
+                        cachedLiveDun = dun;
+                        try { list = dun.field("deor").value as any; if (list) source = "instance:deor"; } catch {}
+                    }
+                } else {
+                    const dun = getLiveSingleton(k, cachedLiveDun);
+                    if (dun) cachedLiveDun = dun;
+                }
+            }
         }
+
         if (!list) return { ok: true, count: 0, items: [], source: "none" };
         try {
             const n = Number(list.method("get_Count").invoke());
