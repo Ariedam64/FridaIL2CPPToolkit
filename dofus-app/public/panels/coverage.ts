@@ -1228,17 +1228,52 @@ export function renderCoverage(container: HTMLElement): void {
                         adStatusEl.textContent = "openHb step blocked — fill havre-sac info first";
                         adAwaitingResume = true; adResumeBtn.style.display = ""; return;
                     }
-                    setPhase("traveling", `openHb (${hbMid})`);
-                    try { await rpcCall<any>("enterHavreSac", [hbId]); } catch (e) {
-                        logRpcLine(`[path] enterHavreSac err: ${String(e).slice(0, 80)}`);
-                    }
-                    const arr = await waitForMapId(hbMid, 10000);
-                    if (!arr) {
-                        const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
-                        if (cur !== hbMid) {
-                            await recomputePathFromHere("enterHavreSac arrival timeout");
-                            continue;
+                    // Some maps don't allow opening the haven-bag (combat
+                    // zones, instances, dungeons, special quest maps). Try
+                    // up to N times: on failure, walk to a neighbor and retry.
+                    const MAX_HB_NEIGHBOR_RETRIES = 3;
+                    let opened = false;
+                    const triedNeighbors = new Set<number>();
+                    for (let attempt = 0; attempt <= MAX_HB_NEIGHBOR_RETRIES && !opened; attempt++) {
+                        if (attempt > 0) {
+                            // Find an unvisited neighbor map and walk there
+                            // before retrying enterHavreSac.
+                            const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
+                            if (!cur) break;
+                            let neighborMid = 0;
+                            try {
+                                const nb = await rpcCall<any>("getNeighborMapIds", [cur]);
+                                const neighbors: number[] = (nb?.neighbors ?? []).filter(
+                                    (n: number) => !triedNeighbors.has(n) && n !== cur,
+                                );
+                                if (neighbors.length === 0) break;
+                                neighborMid = neighbors[0]!;
+                                triedNeighbors.add(neighborMid);
+                            } catch { break; }
+                            setPhase("traveling", `openHb retry ${attempt}/${MAX_HB_NEIGHBOR_RETRIES} → walk to neighbor ${neighborMid}`);
+                            logRpcLine(`[path] openHb blocked on ${cur} — walking to neighbor ${neighborMid} to unstick`);
+                            try {
+                                await rpcCall<any>("autoTravelInstant", [neighborMid]);
+                            } catch {}
+                            const arrivedNb = await waitForMapId(neighborMid, 15000);
+                            if (!arrivedNb) {
+                                const cur2 = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
+                                if (cur2 !== neighborMid) continue;  // try another neighbor
+                            }
                         }
+                        setPhase("traveling", `openHb (${hbMid})${attempt > 0 ? ` attempt ${attempt + 1}` : ""}`);
+                        try { await rpcCall<any>("enterHavreSac", [hbId]); } catch (e) {
+                            logRpcLine(`[path] enterHavreSac threw: ${String(e).slice(0, 80)}`);
+                        }
+                        const arr = await waitForMapId(hbMid, 10000);
+                        if (arr) { opened = true; break; }
+                        const cur3 = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
+                        if (cur3 === hbMid) { opened = true; break; }
+                    }
+                    if (!opened) {
+                        logRpcLine(`[path] openHb failed after ${MAX_HB_NEIGHBOR_RETRIES} neighbor retries — recomputing`);
+                        await recomputePathFromHere("openHb permanently blocked here");
+                        continue;
                     }
                     adPathIndex++;
                 } else if (step.kind === "zaap") {
