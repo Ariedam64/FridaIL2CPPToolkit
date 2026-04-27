@@ -955,29 +955,37 @@ export function renderCoverage(container: HTMLElement): void {
         };
 
         let lastPos = startMid;
+        const hbMid = Number(adHbMidInput.value) || 0;
         const SAFETY_MAX_ITERS = 5000;
         let iters = 0;
         while (remaining.size > 0 && iters++ < SAFETY_MAX_ITERS) {
+            // lastMeta may be missing if the player is in their HB or another
+            // instance map not present in the worldgraph. In that case we skip
+            // walk-reachability (nothing reachable from outside the graph) and
+            // rely on the zaap fallback to route every candidate.
             const lastMeta = adMapMeta.get(lastPos);
-            if (!lastMeta) break;
+            const isOffGraph = !lastMeta || lastMeta.worldMap === 0;
             // Sort by SCORE descending (popularity-weighted new gfx); tie-break
-            // by Manhattan ascending. Matches user intent: "couvrir le max
-            // d'interactable commun" = high-popularity maps first, with
-            // proximity preferred only between equal-score candidates.
-            // Greedy progression naturally avoids long zigzags because after
-            // each pick we re-sort from the new position.
+            // by Manhattan ascending. If we're off-graph, distance is
+            // meaningless so it just becomes 0 (sort by score only).
             const sorted = [...remaining.values()]
                 .map(m => ({
                     m,
                     score: scoreMap(m),
-                    dist: Math.abs(m.posX - lastMeta.posX) + Math.abs(m.posY - lastMeta.posY),
+                    dist: lastMeta
+                        ? Math.abs(m.posX - lastMeta.posX) + Math.abs(m.posY - lastMeta.posY)
+                        : 0,
                 }))
                 .sort((a, b) => {
                     if (b.score !== a.score) return b.score - a.score;
                     return a.dist - b.dist;
                 });
-            // Reachable-from-lastPos cache: one BFS per lastPos value
-            const reachFromLast = reachableMidsFrom(lastPos, adGraph);
+            const reachFromLast = isOffGraph ? new Set<number>() : reachableMidsFrom(lastPos, adGraph);
+            // If we're already in HB, skip the openHb step on the first
+            // zaap-jump (we're at the zaap). After that first zaap, lastPos
+            // is somewhere else in the world, so subsequent zaap jumps
+            // correctly emit openHb again.
+            const inHbNow = hbMid > 0 && lastPos === hbMid;
             let progressed = false;
             for (const { m: candidate } of sorted) {
                 if (reachFromLast.has(candidate.mapId)) {
@@ -998,7 +1006,8 @@ export function renderCoverage(container: HTMLElement): void {
                     if (d < bestZaapDist) { bestZaap = z; bestZaapDist = d; }
                 }
                 if (bestZaap) {
-                    steps.push({ kind: "openHb" });
+                    // Skip openHb only if we're already standing in our own HB.
+                    if (!inHbNow) steps.push({ kind: "openHb" });
                     steps.push({ kind: "zaap", target: bestZaap.mapId });
                     steps.push({ kind: "walk", target: candidate.mapId });
                     steps.push({ kind: "capture", target: candidate.mapId });
