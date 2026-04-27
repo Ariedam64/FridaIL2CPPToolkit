@@ -202,6 +202,13 @@ export function renderCoverage(container: HTMLElement): void {
     const adSubareaTags = new Set<number>();
     interface KnownZaap { mapId: number; posX: number; posY: number; wm: number; }
     let adKnownZaaps: KnownZaap[] = [];
+    // Zaaps that returned "Impossible d'utiliser ce zaap" (i.e. the server
+    // rejected the teleport — probably this account hasn't unlocked it).
+    // dun.lqq() returns a static catalog of ~47 popular zaaps regardless of
+    // account; we can't tell unlocked from locked at build time. So we
+    // optimistically include all of them, then blacklist on first failure
+    // and recompute. Cleared on RESUME.
+    const adFailedZaaps = new Set<number>();
 
     // A single step of the smart-path. Walk steps imply autoTravelInstant;
     // capture steps imply captureCurrentMap on the current map. openHb +
@@ -1001,6 +1008,7 @@ export function renderCoverage(container: HTMLElement): void {
                 let bestZaap: KnownZaap | null = null;
                 let bestZaapDist = Infinity;
                 for (const z of adKnownZaaps) {
+                    if (adFailedZaaps.has(z.mapId)) continue;  // server-rejected this session
                     if (!reachOfZaap(z.mapId).has(candidate.mapId)) continue;
                     const d = Math.abs(z.posX - candidate.posX) + Math.abs(z.posY - candidate.posY);
                     if (d < bestZaapDist) { bestZaap = z; bestZaapDist = d; }
@@ -1519,6 +1527,7 @@ export function renderCoverage(container: HTMLElement): void {
         adAwaitingResume = false;
         adResumeBtn.style.display = "none";
         adRegionFailsCount = 0;
+        adFailedZaaps.clear();  // give blacklisted zaaps another chance after manual intervention
         if (planMode === "adaptive" && !runRequested) {
             // Rebuild path from current position to discard whatever was stale.
             (async () => {
