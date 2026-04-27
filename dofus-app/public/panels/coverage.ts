@@ -1118,9 +1118,17 @@ export function renderCoverage(container: HTMLElement): void {
                     try {
                         const cap = await captureCurrentMap();
                         if (cap) {
+                            const beforeSize = captured.size;
                             for (const g of cap.gfxIds) captured.add(g);
+                            const newGfxCount = captured.size - beforeSize;
                             visitedMaps.add(cap.mapId);
                             pruneCapturedMaps();
+                            updateCounters();
+                            // Re-render setCurrentTarget so ✓/✗ markers reflect the
+                            // newly-captured gfx for the next walk's preview.
+                            const planMap = mapsArr.find(m => m.mapId === cap.mapId);
+                            if (planMap) setCurrentTarget(planMap, scoreMap(planMap));
+                            setPhase("done", `captured ${cap.mapId}: +${newGfxCount} new gfx`);
                         }
                     } catch (e) {
                         logRpcLine(`[path] cap err: ${String(e).slice(0, 80)}`);
