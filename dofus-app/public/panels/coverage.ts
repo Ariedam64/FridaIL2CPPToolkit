@@ -1230,18 +1230,43 @@ export function renderCoverage(container: HTMLElement): void {
                     adPathIndex++;
                 } else if (step.kind === "zaap") {
                     setPhase("traveling", `zaap → ${step.target}`);
-                    try { await rpcCall<any>("zaapTeleport", [step.target]); } catch (e) {
-                        logRpcLine(`[path] zaapTeleport err: ${String(e).slice(0, 80)}`);
+                    let ztRet: any = null;
+                    try { ztRet = await rpcCall<any>("zaapTeleport", [step.target]); } catch (e) {
+                        logRpcLine(`[path] zaapTeleport threw: ${String(e).slice(0, 80)}`);
+                    }
+                    // Distinguish failure modes from the agent's response.
+                    if (ztRet?.ok === false) {
+                        const reason = String(ztRet.reason ?? "unknown");
+                        if (reason.includes("no zaap on current map")) {
+                            // We're not on a zaap map — path was wrong. Recompute
+                            // (the path-builder should have inserted openHb
+                            // first; if we're here it's a builder bug or a
+                            // mid-walk teleport landed us off-zaap).
+                            logRpcLine(`[path] zaap step from non-zaap map ${currentPlayerMapId} — recompute`);
+                            await recomputePathFromHere("zaap step on non-zaap map");
+                            continue;
+                        }
+                        // iee/gyr send-side failure or invalid mid → real RPC fail.
+                        logRpcLine(`[path] zaapTeleport(${step.target}) failed: ${reason}`);
+                        adFailedZaaps.add(step.target);
+                        await recomputePathFromHere(`zaap ${step.target} send-side fail`);
+                        continue;
                     }
                     const arr = await waitForMapId(step.target, 10000);
                     if (!arr) {
                         const cur = await rpcCall<number>("getCurrentMapId", []).catch(() => 0);
                         if (cur !== step.target) {
-                            // Server rejected (likely "Impossible d'utiliser ce
-                            // zaap" — account doesn't have it unlocked).
+                            // iee+gyr were sent ok per the agent return, but the
+                            // server didn't move us to step.target. Two possible
+                            // causes: (a) the account doesn't have this zaap
+                            // unlocked → server rejects gyr silently; (b) the
+                            // gyr's destination was overridden (default/spawn
+                            // zaap). Either way, this zaap mapId is not usable
+                            // for this session — blacklist + recompute. The
+                            // user's actual position (`cur`) becomes the start.
                             adFailedZaaps.add(step.target);
-                            logRpcLine(`[path] zaap ${step.target} rejected — blacklisted for session`);
-                            await recomputePathFromHere(`zaap ${step.target} rejected`);
+                            logRpcLine(`[path] zaap ${step.target} no arrival within 10s (cur=${cur}) — blacklisted`);
+                            await recomputePathFromHere(`zaap ${step.target} arrival timeout`);
                             continue;
                         }
                     }
