@@ -1182,10 +1182,8 @@ export function renderCoverage(container: HTMLElement): void {
                         } else {
                             failedMaps.add(step.target);
                             adRegionFailsCount++;
-                            if (adRegionFailsCount >= BRICK_THRESHOLD) {
-                                pauseForBrick();
-                                return;
-                            }
+                            // Brick pause disabled per user request — runner
+                            // keeps going through silent-rejects.
                             await recomputePathFromHere("walk fail");
                         }
                     } else {
@@ -1198,7 +1196,7 @@ export function renderCoverage(container: HTMLElement): void {
                         } else {
                             failedMaps.add(step.target);
                             adRegionFailsCount++;
-                            if (adRegionFailsCount >= BRICK_THRESHOLD) { pauseForBrick(); return; }
+                            // Brick pause disabled per user request.
                             await recomputePathFromHere("walk fail");
                         }
                     }
