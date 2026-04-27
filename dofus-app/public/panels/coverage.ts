@@ -997,9 +997,33 @@ export function renderCoverage(container: HTMLElement): void {
             // is somewhere else in the world, so subsequent zaap jumps
             // correctly emit openHb again.
             const inHbNow = hbMid > 0 && lastPos === hbMid;
+            // Cost model: zaap = ZAAP_OVERHEAD cells of "fixed cost" (open
+            // HB + teleport handshake) plus walk distance from zaap dest to
+            // candidate. Walk = Manhattan from lastPos to candidate. Pick
+            // whichever is cheaper. ZAAP_OVERHEAD=10 means we only zaap
+            // when the saving is > 10 cells of walk equivalent.
+            const ZAAP_OVERHEAD = 10;
             let progressed = false;
             for (const { m: candidate } of sorted) {
-                if (reachFromLast.has(candidate.mapId)) {
+                const walkReachable = reachFromLast.has(candidate.mapId);
+                const walkDist = lastMeta
+                    ? Math.abs(candidate.posX - lastMeta.posX) + Math.abs(candidate.posY - lastMeta.posY)
+                    : Infinity;
+
+                // Find best viable zaap (reaches candidate, not blacklisted).
+                let bestZaap: KnownZaap | null = null;
+                let bestZaapDist = Infinity;
+                for (const z of adKnownZaaps) {
+                    if (adFailedZaaps.has(z.mapId)) continue;
+                    if (!reachOfZaap(z.mapId).has(candidate.mapId)) continue;
+                    const d = Math.abs(z.posX - candidate.posX) + Math.abs(z.posY - candidate.posY);
+                    if (d < bestZaapDist) { bestZaap = z; bestZaapDist = d; }
+                }
+                const zaapCost = bestZaap ? bestZaapDist + ZAAP_OVERHEAD : Infinity;
+                const walkCost = walkReachable ? walkDist : Infinity;
+
+                if (walkCost <= zaapCost && walkReachable) {
+                    // Walk is cheaper (or zaap unavailable) — direct walk.
                     steps.push({ kind: "walk", target: candidate.mapId });
                     steps.push({ kind: "capture", target: candidate.mapId });
                     lastPos = candidate.mapId;
@@ -1008,17 +1032,8 @@ export function renderCoverage(container: HTMLElement): void {
                     progressed = true;
                     break;
                 }
-                // Not directly reachable — find best zaap that CAN reach it.
-                let bestZaap: KnownZaap | null = null;
-                let bestZaapDist = Infinity;
-                for (const z of adKnownZaaps) {
-                    if (adFailedZaaps.has(z.mapId)) continue;  // server-rejected this session
-                    if (!reachOfZaap(z.mapId).has(candidate.mapId)) continue;
-                    const d = Math.abs(z.posX - candidate.posX) + Math.abs(z.posY - candidate.posY);
-                    if (d < bestZaapDist) { bestZaap = z; bestZaapDist = d; }
-                }
                 if (bestZaap) {
-                    // Skip openHb only if we're already standing in our own HB.
+                    // Zaap shortcut is cheaper, OR walk impossible.
                     if (!inHbNow) steps.push({ kind: "openHb" });
                     steps.push({ kind: "zaap", target: bestZaap.mapId });
                     steps.push({ kind: "walk", target: candidate.mapId });
