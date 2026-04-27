@@ -1150,8 +1150,6 @@ export function renderCoverage(container: HTMLElement): void {
         skipBtn.disabled = false;
         await refreshPlayerMapId();
 
-        const BRICK_THRESHOLD = 5;
-
         while (runRequested && !adAwaitingResume && adPathIndex < adBuiltPath.length) {
             const step = adBuiltPath[adPathIndex]!;
             renderPathList();
@@ -1316,15 +1314,6 @@ export function renderCoverage(container: HTMLElement): void {
         adPathDropped = built.dropped;
         adPathStats = { targetCount: built.targetCount, zaapJumps: built.zaapJumps };
         renderPathList();
-    }
-
-    function pauseForBrick(): void {
-        adAwaitingResume = true;
-        adResumeBtn.style.display = "";
-        setPhase("fail",
-            `${adRegionFailsCount} consecutive silent-rejects — suspect Tier-2 brick. ` +
-            `Restart Dofus then click RESUME.`);
-        skipBtn.disabled = true;
     }
 
     async function runPlan(): Promise<void> {
