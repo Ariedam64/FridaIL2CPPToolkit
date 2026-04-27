@@ -1,0 +1,38 @@
+{
+  "name": "frida-il2cpp-toolkit",
+  "version": "0.1.0",
+  "description": "TypeScript toolkit for modding Unity IL2CPP games with Frida",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build:analyze": "frida-compile src/tools/01-analyze.ts        -o build/analyze.js",
+    "build:find": "frida-compile src/tools/02-find-class.ts     -o build/find-class.js",
+    "build:dump": "frida-compile src/tools/03-dump-instance.ts  -o build/dump-instance.js",
+    "build:hook": "frida-compile src/tools/04-hook-generic.ts   -o build/hook-generic.js",
+    "build:patch": "frida-compile src/tools/05-patch-values.ts   -o build/patch-values.js",
+    "build:invoke": "frida-compile src/tools/06-invoke.ts         -o build/invoke.js",
+    "build:rpc": "frida-compile src/rpc-agent/index.ts         -o build/rpc-agent.js",
+    "build:all": "npm run build:analyze && npm run build:find && npm run build:dump && npm run build:hook && npm run build:patch && npm run build:invoke && npm run build:rpc && npm run build:ui",
+    "build:ui": "tsc -p tsconfig.public.json",
+    "watch:ui": "tsc -p tsconfig.public.json --watch",
+    "host": "node host/server.js",
+    "watch:analyze": "frida-compile src/tools/01-analyze.ts        -o build/analyze.js -w",
+    "watch:find": "frida-compile src/tools/02-find-class.ts     -o build/find-class.js -w",
+    "watch:dump": "frida-compile src/tools/03-dump-instance.ts  -o build/dump-instance.js -w",
+    "watch:hook": "frida-compile src/tools/04-hook-generic.ts   -o build/hook-generic.js -w",
+    "watch:patch": "frida-compile src/tools/05-patch-values.ts   -o build/patch-values.js -w",
+    "watch:invoke": "frida-compile src/tools/06-invoke.ts         -o build/invoke.js -w",
+    "watch:rpc": "frida-compile src/rpc-agent/index.ts         -o build/rpc-agent.js -w"
+  },
+  "devDependencies": {
+    "@types/frida-gum": "^19.0.2",
+    "frida-compile": "^19.0.5",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "frida": "^17.0.0",
+    "frida-il2cpp-bridge": "^0.13.0",
+    "ws": "^8.18.0"
+  }
+}
