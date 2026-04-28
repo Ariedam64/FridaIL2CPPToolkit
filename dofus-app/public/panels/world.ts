@@ -1160,27 +1160,6 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             return caveComponentsByEntrance;
         }
         const { adj, uidToMid, midToUids } = cachedWorldGraph;
-        // Two acceptance rules: small subarea (≤60 maps), OR name matches a
-        // cave/mine/dungeon keyword AND the subarea is reasonably bounded
-        // (≤200 maps). Keywords cover French + a few English aliases since
-        // the catalog has both naming styles.
-        const SMALL_THRESHOLD = 60;
-        const NAMED_CAVE_THRESHOLD = 200;
-        const CAVE_KEYWORDS = [
-            "mine", "souterrain", "grotte", "caverne", "donjon",
-            "crypte", "tombeau", "egout", "égout", "cave", "puits",
-            "antre", "tanière", "taniere", "fosse", "abri", "cachette",
-            "ruines", "temple", "labyrinthe", "tunnel",
-        ];
-        const isCaveSubarea = (subareaName: string, size: number): boolean => {
-            if (size === 0) return false;
-            if (size <= SMALL_THRESHOLD) return true;
-            if (size > NAMED_CAVE_THRESHOLD) return false;
-            const n = subareaName.toLowerCase();
-            return CAVE_KEYWORDS.some(k => n.includes(k));
-        };
-
-        const subareaName = cachedSubareaNames;
 
         // Group maps by subareaId.
         const subareaToMaps = new Map<number, Set<number>>();
@@ -1192,6 +1171,37 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         const subareaOf = new Map<number, number>();
         for (const m of catalogs.maps) subareaOf.set(m.id, m.subAreaId);
 
+        // STRUCTURAL SIGNAL — stack_ratio: fraction of a subarea's maps that
+        // share their (posX, posY, worldMap) tuple with maps from a DIFFERENT
+        // subarea. Caves/mines/dungeons are by construction overlaid on top
+        // of surface coords — so their stack_ratio is near 1. Open areas
+        // (forêt, champs, île) have their own geographic footprint and
+        // rarely share coords → low stack_ratio.
+        //
+        // Empirically:
+        //   Mine Istairameur=1.00, Souterrains=0.89  → caves
+        //   Montagne basse=0.42, Forêt d'Astrub=0.09 → open
+        // Threshold 0.7 captures caves cleanly without false positives.
+        const coordToSubs = new Map<string, Set<number>>();
+        for (const m of catalogs.maps) {
+            const key = `${m.posX},${m.posY},${m.worldMap}`;
+            let s = coordToSubs.get(key); if (!s) { s = new Set(); coordToSubs.set(key, s); }
+            s.add(m.subAreaId);
+        }
+        const isCave = new Map<number, boolean>();
+        for (const [sid, mids] of subareaToMaps) {
+            if (mids.size === 0) continue;
+            let stacked = 0;
+            for (const mid of mids) {
+                const m = catalogs.maps.find(x => x.id === mid);
+                if (!m) continue;
+                const subs = coordToSubs.get(`${m.posX},${m.posY},${m.worldMap}`) ?? new Set();
+                if (subs.size > 1) stacked++;
+            }
+            const stackRatio = stacked / mids.size;
+            isCave.set(sid, stackRatio >= 0.7);
+        }
+
         // For each map M, list the FOREIGN cave subareas it directly
         // connects to (outgoing OR incoming edges).
         const result = new Map<number, Set<number>[]>();
@@ -1199,10 +1209,9 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             const fSa = subareaOf.get(foreignMid);
             const ownSa = subareaOf.get(entrance);
             if (fSa === undefined || ownSa === undefined || fSa === ownSa) return;
+            if (!isCave.get(fSa)) return;
             const comp = subareaToMaps.get(fSa);
             if (!comp) return;
-            const name = subareaName.get(fSa) ?? "";
-            if (!isCaveSubarea(name, comp.size)) return;
             let arr = result.get(entrance);
             if (!arr) { arr = []; result.set(entrance, arr); }
             if (!arr.some(s => s === comp)) arr.push(comp);
