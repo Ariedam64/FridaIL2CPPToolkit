@@ -183,7 +183,26 @@ export function renderCoverage(container: HTMLElement): void {
     // ---- plan + runtime state ----
     let plan: ResourcePlan | null = null;
     let captured = new Set<number>();
-    let failedMaps = new Set<number>();          // maps tried this session that didn't engage / arrive
+    // failedMaps is persisted to localStorage so the smart path-builder
+    // doesn't keep re-trying the same dead targets across page reloads.
+    // Cleared by the RETRY FAILED button (in either the runner or the
+    // smart-coverage-builder fieldset).
+    const FAILED_LS_KEY = "cv.failedMaps.v1";
+    function loadPersistedFailedMaps(): Set<number> {
+        try {
+            const raw = localStorage.getItem(FAILED_LS_KEY);
+            if (raw) return new Set(JSON.parse(raw).map((n: any) => Number(n)));
+        } catch {}
+        return new Set();
+    }
+    function savePersistedFailedMaps(): void {
+        try { localStorage.setItem(FAILED_LS_KEY, JSON.stringify([...failedMaps])); } catch {}
+    }
+    function addFailedMap(mid: number): void {
+        failedMaps.add(mid);
+        savePersistedFailedMaps();
+    }
+    let failedMaps = loadPersistedFailedMaps();
     let visitedMaps = new Set<number>();         // maps successfully captured this session
     let mapsArr: MapEntry[] = [];                // in-memory pool, removed on success/fail
     let runRequested = false;
@@ -247,7 +266,8 @@ export function renderCoverage(container: HTMLElement): void {
                 // Instead skip during pickNext: any plan-map whose gfxIds are
                 // ALL in captured will have score=0 → naturally skipped.
             } catch {}
-            failedMaps = new Set();
+            // Keep failedMaps from localStorage (persists across reloads).
+            failedMaps = loadPersistedFailedMaps();
             mapsArr = (plan?.maps ?? []).slice();
             totalCapturedAtStart = captured.size;
             const stats = plan?.stats;
@@ -279,7 +299,8 @@ export function renderCoverage(container: HTMLElement): void {
                 const cap = await fetch("/api/captured-gfx").then(r => r.json());
                 for (const g of (cap?.gfxIds ?? [])) captured.add(Number(g));
             } catch {}
-            failedMaps = new Set();
+            // Keep failedMaps from localStorage (persists across reloads).
+            failedMaps = loadPersistedFailedMaps();
             visitedMaps = new Set();
             // Convert coverage-plan entry shape → MapEntry shape.
             mapsArr = (cp?.maps ?? []).map((m: any): MapEntry => ({
@@ -1175,10 +1196,10 @@ export function renderCoverage(container: HTMLElement): void {
                         const r = await travelAndCapture(tmp);
                         if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
                         else if (r === "skip") {
-                            failedMaps.add(step.target);
+                            addFailedMap(step.target);
                             await recomputePathFromHere("user skip");
                         } else {
-                            failedMaps.add(step.target);
+                            addFailedMap(step.target);
                             adRegionFailsCount++;
                             // Brick pause disabled per user request — runner
                             // keeps going through silent-rejects.
@@ -1189,10 +1210,10 @@ export function renderCoverage(container: HTMLElement): void {
                         const r = await travelAndCapture({ ...planMap, isWaypoint: true });
                         if (r === "ok") { adPathIndex++; adRegionFailsCount = 0; }
                         else if (r === "skip") {
-                            failedMaps.add(step.target);
+                            addFailedMap(step.target);
                             await recomputePathFromHere("user skip");
                         } else {
-                            failedMaps.add(step.target);
+                            addFailedMap(step.target);
                             adRegionFailsCount++;
                             // Brick pause disabled per user request.
                             await recomputePathFromHere("walk fail");
@@ -1379,10 +1400,10 @@ export function renderCoverage(container: HTMLElement): void {
                 const prunedNote = pruned > 0 ? ` (pruned ${pruned} now-redundant maps)` : "";
                 setPhase("done", `captured ${next.map.mapId} → ${captured.size - totalCapturedAtStart} new gfx total${prunedNote}`);
             } else if (res === "skip") {
-                failedMaps.add(next.map.mapId);
+                addFailedMap(next.map.mapId);
                 setPhase("stopped", `user skipped ${next.map.mapId}`);
             } else {
-                failedMaps.add(next.map.mapId);
+                addFailedMap(next.map.mapId);
                 setPhase("fail", `bbd fail on ${next.map.mapId} — try next-best`);
             }
             // Re-render queue + counters after capture: scores changed (bonus
