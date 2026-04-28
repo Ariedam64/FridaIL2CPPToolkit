@@ -557,26 +557,53 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             overlayCtx.textAlign = "center";
             overlayCtx.textBaseline = "middle";
 
-            // Build per-mapId effective count: surface count + cave-aggregate
-            // when on wm=1. On wm=-1 (or other layers), counts are unchanged.
-            const surfaceCounts = new Map<number, number>();
-            for (const [mid, cnt] of currentResourceMaps) surfaceCounts.set(mid, cnt);
-            const drawnMids = new Set<number>();
-            // Pass 1: surface tiles (with cave-aggregate added on wm=1)
+            // Aggregate per (posX, posY) of the current worldmap. Many tiles
+            // have multiple stacked maps (e.g. 10 maps at (-1,-42) on Lac
+            // de Cania) — drawing N bubbles at the same screen point only
+            // renders the last one's count visually. Sum them instead so
+            // the user sees the true total at that coord.
+            interface CoordBubble { sumCount: number; caveCount: number; }
+            const coordTotals = new Map<string, CoordBubble>();
+            const coordKey = (x: number, y: number) => `${x},${y}`;
             for (const [mid, cnt] of currentResourceMaps) {
                 const m = byId.get(mid);
                 if (!m || m.worldMap !== currentWorldMap) continue;
-                drawnMids.add(mid);
-                const cave = currentWorldMap === 1
-                    ? (currentUndergroundCounts?.get(mid) ?? 0) : 0;
-                const total = cnt + cave;
-                const r = project(m.posX, m.posY);
+                const k = coordKey(m.posX, m.posY);
+                let row = coordTotals.get(k);
+                if (!row) { row = { sumCount: 0, caveCount: 0 }; coordTotals.set(k, row); }
+                row.sumCount += cnt;
+                if (currentWorldMap === 1) {
+                    const cave = currentUndergroundCounts?.get(mid) ?? 0;
+                    if (cave > row.caveCount) row.caveCount = cave;
+                }
+            }
+            // Pure cave entrances (surface tile has no resource itself).
+            if (currentWorldMap === 1 && currentUndergroundCounts) {
+                for (const [surfaceMid, ugCount] of currentUndergroundCounts) {
+                    if (ugCount <= 0) continue;
+                    const m = byId.get(surfaceMid);
+                    if (!m || m.worldMap !== 1) continue;
+                    const k = coordKey(m.posX, m.posY);
+                    let row = coordTotals.get(k);
+                    if (!row) { row = { sumCount: 0, caveCount: 0 }; coordTotals.set(k, row); }
+                    if (ugCount > row.caveCount) row.caveCount = ugCount;
+                }
+            }
+            // Need posX/posY back from the key for projection; iterate pairs.
+            for (const [k, row] of coordTotals) {
+                const [px, py] = k.split(",").map(Number) as [number, number];
+                const total = row.sumCount + row.caveCount;
+                if (total <= 0) continue;
+                const r = project(px, py);
                 const cx = r.sx + r.sw / 2;
                 const cy = r.sy + r.sh / 2;
                 if (cx < -radius || cy < -radius || cx > vw + radius || cy > vh + radius) continue;
-                overlayCtx.fillStyle = cave > 0
-                    ? "rgba(255, 140, 0, 0.95)"     // orange when entrance with cave
-                    : "rgba(255, 200, 0, 0.95)";    // gold otherwise
+                const isPureCave = row.sumCount === 0 && row.caveCount > 0;
+                const isMixed = row.sumCount > 0 && row.caveCount > 0;
+                overlayCtx.fillStyle =
+                    isPureCave ? "rgba(180, 100, 30, 0.85)" :
+                    isMixed    ? "rgba(255, 140, 0, 0.95)" :
+                                 "rgba(255, 200, 0, 0.95)";
                 overlayCtx.beginPath();
                 overlayCtx.arc(cx, cy, radius, 0, Math.PI * 2);
                 overlayCtx.fill();
@@ -584,33 +611,8 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
                 overlayCtx.lineWidth = 1.5;
                 overlayCtx.stroke();
                 if (drawText) {
-                    overlayCtx.fillStyle = "#000";
+                    overlayCtx.fillStyle = isPureCave ? "#fff" : "#000";
                     overlayCtx.fillText(String(total), cx, cy + 0.5);
-                }
-            }
-            // Pass 2: on wm=1, draw cave-only entrances (surface tile has no
-            // resource itself but leads to an underground cave).
-            if (currentWorldMap === 1 && currentUndergroundCounts) {
-                for (const [surfaceMid, ugCount] of currentUndergroundCounts) {
-                    if (drawnMids.has(surfaceMid)) continue;  // already drawn in pass 1
-                    if (ugCount <= 0) continue;
-                    const m = byId.get(surfaceMid);
-                    if (!m || m.worldMap !== 1) continue;
-                    const r = project(m.posX, m.posY);
-                    const cx = r.sx + r.sw / 2;
-                    const cy = r.sy + r.sh / 2;
-                    if (cx < -radius || cy < -radius || cx > vw + radius || cy > vh + radius) continue;
-                    overlayCtx.fillStyle = "rgba(180, 100, 30, 0.85)";  // darker orange for pure cave entrance
-                    overlayCtx.beginPath();
-                    overlayCtx.arc(cx, cy, radius, 0, Math.PI * 2);
-                    overlayCtx.fill();
-                    overlayCtx.strokeStyle = "rgba(0, 0, 0, 0.85)";
-                    overlayCtx.lineWidth = 1.5;
-                    overlayCtx.stroke();
-                    if (drawText) {
-                        overlayCtx.fillStyle = "#fff";
-                        overlayCtx.fillText(String(ugCount), cx, cy + 0.5);
-                    }
                 }
             }
         }
