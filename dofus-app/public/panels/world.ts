@@ -1115,13 +1115,17 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
     let caveComponentsByEntrance: Map<number, Set<number>[]> | null = null;
     let cachedWorldGraph: { adj: Map<number, number[]>; uidToMid: Map<number, number>; midToUids: Map<number, number[]> } | null = null;
     let cachedSubareaNames: Map<number, string> = new Map();
+    // mapId → [topMid, bottomMid, leftMid, rightMid] from each map's `n`
+    // field. Used for physical cave-component BFS.
+    let cachedNeighbors: Map<number, number[]> = new Map();
 
     async function ensureWorldGraphLoaded(): Promise<typeof cachedWorldGraph> {
         if (cachedWorldGraph) return cachedWorldGraph;
         try {
-            const [wgResp, saResp] = await Promise.all([
+            const [wgResp, saResp, nbResp] = await Promise.all([
                 fetch("/api/worldgraph"),
                 fetch("/api/catalog/subareas"),
+                fetch("/api/map-neighbors"),
             ]);
             if (!wgResp.ok) return null;
             const j = await wgResp.json();
@@ -1137,6 +1141,12 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             if (saResp.ok) {
                 const sa = await saResp.json();
                 for (const s of (sa?.items ?? [])) cachedSubareaNames.set(Number(s.id), String(s.name ?? ""));
+            }
+            if (nbResp.ok) {
+                const nb = await nbResp.json();
+                for (const [mid, list] of Object.entries(nb?.neighbors ?? {})) {
+                    cachedNeighbors.set(Number(mid), (list as number[]).map(Number));
+                }
             }
             return cachedWorldGraph;
         } catch { return null; }
@@ -1204,83 +1214,49 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             isCave.set(sid, stackRatio >= 0.7);
         }
 
-        // BREAK CAVE SUBAREAS INTO PHYSICAL COMPONENTS — a single subarea
-        // like "Souterrains" (sub 29) contains 66 maps spread across MANY
-        // distinct cave systems across the world. We must group them by
-        // worldgraph connectivity restricted to the cave subarea, so each
-        // physical mine/cave is its own component.
-        // mapId → its component (Set of mapIds in same connected component).
+        // PHYSICAL COMPONENTS via the in-game `n` neighbor field. Each map
+        // has up to 4 directly-walkable neighbors (top/bottom/left/right).
+        // BFS through these to find each physical cave system. Walks only
+        // into other cave-classified maps, so a non-cave surface tile cleanly
+        // bounds the cave. Caves can span multiple labeled subareas (e.g.
+        // a cave system labeled "Souterrains" connecting to one labeled
+        // "Mine X") because neighbor-walking is subarea-agnostic.
         const componentOf = new Map<number, Set<number>>();
+        const isInCave = (mid: number) => {
+            const sa = subareaOf.get(mid);
+            return sa !== undefined && isCave.get(sa) === true;
+        };
         for (const [sid, mids] of subareaToMaps) {
             if (!isCave.get(sid)) continue;
-            const visited = new Set<number>();
-            for (const mid of mids) {
-                if (visited.has(mid)) continue;
+            for (const startMid of mids) {
+                if (componentOf.has(startMid)) continue;
                 const comp = new Set<number>();
-                const queue: number[] = [mid];
+                const queue: number[] = [startMid];
                 while (queue.length) {
                     const cur = queue.shift()!;
-                    if (visited.has(cur)) continue;
-                    visited.add(cur);
+                    if (comp.has(cur)) continue;
                     comp.add(cur);
-                    const uids = midToUids.get(cur) ?? [];
-                    for (const u of uids) {
-                        // Outgoing within same subarea
-                        for (const v of (adj.get(u) ?? [])) {
-                            const dm = uidToMid.get(v);
-                            if (dm !== undefined && mids.has(dm) && !visited.has(dm)) queue.push(dm);
-                        }
-                    }
-                }
-                // Also close incoming within subarea (one-way exits inside the cave).
-                // Do a second pass over reverse adjacency for completeness.
-                let changed = true;
-                while (changed) {
-                    changed = false;
-                    for (const [src, dests] of adj) {
-                        const sm = uidToMid.get(src);
-                        if (sm === undefined || !mids.has(sm) || comp.has(sm)) continue;
-                        for (const v of dests) {
-                            const dm = uidToMid.get(v);
-                            if (dm !== undefined && comp.has(dm)) {
-                                comp.add(sm); visited.add(sm); changed = true; break;
-                            }
-                        }
+                    for (const nb of (cachedNeighbors.get(cur) ?? [])) {
+                        if (nb && nb > 0 && isInCave(nb) && !comp.has(nb)) queue.push(nb);
                     }
                 }
                 for (const m of comp) componentOf.set(m, comp);
             }
         }
 
-        // For each map M, list the FOREIGN cave COMPONENTS it directly
-        // connects to (outgoing OR incoming edges).
+        // For each map M (whether cave or not), record cave components
+        // adjacent via PHYSICAL `n` neighbors. A surface map E enters a
+        // cave component C iff one of E's `n` is in C and E itself isn't.
         const result = new Map<number, Set<number>[]>();
-        const addForeign = (entrance: number, foreignMid: number) => {
-            const fSa = subareaOf.get(foreignMid);
-            const ownSa = subareaOf.get(entrance);
-            if (fSa === undefined || ownSa === undefined || fSa === ownSa) return;
-            if (!isCave.get(fSa)) return;
-            const comp = componentOf.get(foreignMid);
-            if (!comp) return;
-            let arr = result.get(entrance);
-            if (!arr) { arr = []; result.set(entrance, arr); }
-            if (!arr.some(s => s === comp)) arr.push(comp);
-        };
         for (const m of catalogs.maps) {
-            const uids = midToUids.get(m.id) ?? [];
-            for (const u of uids) {
-                for (const v of (adj.get(u) ?? [])) {
-                    const dm = uidToMid.get(v);
-                    if (dm !== undefined) addForeign(m.id, dm);
-                }
-            }
-        }
-        for (const [src, dests] of adj) {
-            const sm = uidToMid.get(src);
-            if (sm === undefined) continue;
-            for (const v of dests) {
-                const dm = uidToMid.get(v);
-                if (dm !== undefined) addForeign(dm, sm);
+            const myComp = componentOf.get(m.id);
+            for (const nb of (cachedNeighbors.get(m.id) ?? [])) {
+                if (!nb || nb <= 0) continue;
+                const nbComp = componentOf.get(nb);
+                if (!nbComp || nbComp === myComp) continue;
+                let arr = result.get(m.id);
+                if (!arr) { arr = []; result.set(m.id, arr); }
+                if (!arr.some(s => s === nbComp)) arr.push(nbComp);
             }
         }
         caveComponentsByEntrance = result;
