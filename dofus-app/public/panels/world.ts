@@ -1228,18 +1228,23 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             isCave.set(sid, stackRatio >= 0.7);
         }
 
-        // CAVE COMPONENTS via worldgraph adjacency, restricted to cave-
-        // classified maps (stack_ratio ≥ 0.7). The worldgraph carries the
-        // full graph including special cave-entry transitions (arrows,
-        // scripts) that are absent from the per-map `n` field. Treat
-        // edges as UNDIRECTED for the component BFS so one-way exits
-        // don't artificially split a cave.
+        // CAVE CLASSIFICATION (extended):
+        //   - subarea stack_ratio ≥ 0.7 (existing rule), OR
+        //   - map.worldMap === -1 (any underground map is inherently a cave,
+        //     even when its subarea label spans both surface and underground
+        //     like "Forêt Sombre" sub 168 with mines mixed in).
+        const wmOf = new Map<number, number>();
+        for (const m of catalogs.maps) wmOf.set(m.id, m.worldMap);
         const isCaveMid = (mid: number) => {
             const sa = subareaOf.get(mid);
-            return sa !== undefined && isCave.get(sa) === true;
+            if (sa !== undefined && isCave.get(sa) === true) return true;
+            return wmOf.get(mid) === -1;
         };
-        // Build undirected cave-edge adjacency: cave-mid ↔ cave-mid (any
-        // direction in the worldgraph counts).
+
+        // CAVE EDGES — combine worldgraph (catches cave-entry transitions
+        // via arrows/scripts that aren't in `n`) AND `n` (covers maps
+        // missing from the worldgraph dump, ~28% of total). Both are
+        // treated as UNDIRECTED for component BFS.
         const caveAdj = new Map<number, Set<number>>();
         const addCaveEdge = (a: number, b: number) => {
             if (!isCaveMid(a) || !isCaveMid(b) || a === b) return;
@@ -1254,24 +1259,29 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
                 if (dm !== undefined) addCaveEdge(sm, dm);
             }
         }
-        // BFS each cave map → component.
-        const componentOf = new Map<number, Set<number>>();
-        for (const [sid, mids] of subareaToMaps) {
-            if (!isCave.get(sid)) continue;
-            for (const startMid of mids) {
-                if (componentOf.has(startMid)) continue;
-                const comp = new Set<number>();
-                const queue: number[] = [startMid];
-                while (queue.length) {
-                    const cur = queue.shift()!;
-                    if (comp.has(cur)) continue;
-                    comp.add(cur);
-                    for (const nb of (caveAdj.get(cur) ?? [])) {
-                        if (!comp.has(nb)) queue.push(nb);
-                    }
-                }
-                for (const m of comp) componentOf.set(m, comp);
+        for (const [mid, neighbors] of cachedNeighbors) {
+            for (const nb of neighbors) {
+                if (nb && nb > 0) addCaveEdge(mid, nb);
             }
+        }
+
+        // BFS each cave map → physical component.
+        const componentOf = new Map<number, Set<number>>();
+        const allCaveMids: number[] = [];
+        for (const m of catalogs.maps) if (isCaveMid(m.id)) allCaveMids.push(m.id);
+        for (const startMid of allCaveMids) {
+            if (componentOf.has(startMid)) continue;
+            const comp = new Set<number>();
+            const queue: number[] = [startMid];
+            while (queue.length) {
+                const cur = queue.shift()!;
+                if (comp.has(cur)) continue;
+                comp.add(cur);
+                for (const nb of (caveAdj.get(cur) ?? [])) {
+                    if (!comp.has(nb)) queue.push(nb);
+                }
+            }
+            for (const m of comp) componentOf.set(m, comp);
         }
 
         // ENTRANCES via worldgraph: E enters component C iff there's a
@@ -1304,8 +1314,14 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
                 if (dm !== undefined && dm !== sm) addEntranceEdge(sm, dm);
             }
         }
-        // Suppress: if `midToUids` was unused, mark it via a noop assignment
-        // so tsc doesn't complain (it remains useful for future tweaks).
+        // Also use `n` adjacency for entrance detection (catches surface
+        // entries to wm=-1 caves where the entry is encoded as a regular
+        // walking neighbor).
+        for (const [mid, neighbors] of cachedNeighbors) {
+            for (const nb of neighbors) {
+                if (nb && nb > 0 && nb !== mid) addEntranceEdge(mid, nb);
+            }
+        }
         void midToUids;
         caveComponentsByEntrance = result;
         return result;
