@@ -565,13 +565,27 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             interface CoordBubble { sumCount: number; caveCount: number; }
             const coordTotals = new Map<string, CoordBubble>();
             const coordKey = (x: number, y: number) => `${x},${y}`;
+            // On wm=1, cave maps' own counts are ALREADY rolled into the
+            // cave aggregate displayed at their entrance(s) — adding them
+            // again at their own coord double-counts. Skip them when on
+            // wm=1; show normally on wm=-1 (a separate layer that doesn't
+            // do cave-aggregation anyway).
+            const isCaveMap = (mid: number): boolean => {
+                if (currentWorldMap !== 1) return false;
+                // A map is a cave-aggregated map if any entrance points to
+                // a component containing it.
+                for (const [, comps] of (caveComponentsByEntrance ?? new Map())) {
+                    for (const c of comps) if (c.has(mid)) return true;
+                }
+                return false;
+            };
             for (const [mid, cnt] of currentResourceMaps) {
                 const m = byId.get(mid);
                 if (!m || m.worldMap !== currentWorldMap) continue;
                 const k = coordKey(m.posX, m.posY);
                 let row = coordTotals.get(k);
                 if (!row) { row = { sumCount: 0, caveCount: 0 }; coordTotals.set(k, row); }
-                row.sumCount += cnt;
+                if (!isCaveMap(mid)) row.sumCount += cnt;
                 if (currentWorldMap === 1) {
                     const cave = currentUndergroundCounts?.get(mid) ?? 0;
                     if (cave > row.caveCount) row.caveCount = cave;
