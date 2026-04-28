@@ -1112,13 +1112,17 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
     let currentUndergroundCounts: Map<number, number> | null = null;
     let caveComponentsByEntrance: Map<number, Set<number>[]> | null = null;
     let cachedWorldGraph: { adj: Map<number, number[]>; uidToMid: Map<number, number>; midToUids: Map<number, number[]> } | null = null;
+    let cachedSubareaNames: Map<number, string> = new Map();
 
     async function ensureWorldGraphLoaded(): Promise<typeof cachedWorldGraph> {
         if (cachedWorldGraph) return cachedWorldGraph;
         try {
-            const r = await fetch("/api/worldgraph");
-            if (!r.ok) return null;
-            const j = await r.json();
+            const [wgResp, saResp] = await Promise.all([
+                fetch("/api/worldgraph"),
+                fetch("/api/catalog/subareas"),
+            ]);
+            if (!wgResp.ok) return null;
+            const j = await wgResp.json();
             const adj = new Map<number, number[]>();
             for (const [k, v] of Object.entries(j.adjacency || {})) adj.set(Number(k), v as number[]);
             const uidToMid = new Map<number, number>();
@@ -1128,6 +1132,10 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
                 const list = midToUids.get(m) ?? []; list.push(u); midToUids.set(m, list);
             }
             cachedWorldGraph = { adj, uidToMid, midToUids };
+            if (saResp.ok) {
+                const sa = await saResp.json();
+                for (const s of (sa?.items ?? [])) cachedSubareaNames.set(Number(s.id), String(s.name ?? ""));
+            }
             return cachedWorldGraph;
         } catch { return null; }
     }
@@ -1152,7 +1160,27 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             return caveComponentsByEntrance;
         }
         const { adj, uidToMid, midToUids } = cachedWorldGraph;
-        const MAX_INTERIOR_MAPS = 60;
+        // Two acceptance rules: small subarea (≤60 maps), OR name matches a
+        // cave/mine/dungeon keyword AND the subarea is reasonably bounded
+        // (≤200 maps). Keywords cover French + a few English aliases since
+        // the catalog has both naming styles.
+        const SMALL_THRESHOLD = 60;
+        const NAMED_CAVE_THRESHOLD = 200;
+        const CAVE_KEYWORDS = [
+            "mine", "souterrain", "grotte", "caverne", "donjon",
+            "crypte", "tombeau", "egout", "égout", "cave", "puits",
+            "antre", "tanière", "taniere", "fosse", "abri", "cachette",
+            "ruines", "temple", "labyrinthe", "tunnel",
+        ];
+        const isCaveSubarea = (subareaName: string, size: number): boolean => {
+            if (size === 0) return false;
+            if (size <= SMALL_THRESHOLD) return true;
+            if (size > NAMED_CAVE_THRESHOLD) return false;
+            const n = subareaName.toLowerCase();
+            return CAVE_KEYWORDS.some(k => n.includes(k));
+        };
+
+        const subareaName = cachedSubareaNames;
 
         // Group maps by subareaId.
         const subareaToMaps = new Map<number, Set<number>>();
@@ -1164,7 +1192,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         const subareaOf = new Map<number, number>();
         for (const m of catalogs.maps) subareaOf.set(m.id, m.subAreaId);
 
-        // For each map M, list the FOREIGN small subareas it directly
+        // For each map M, list the FOREIGN cave subareas it directly
         // connects to (outgoing OR incoming edges).
         const result = new Map<number, Set<number>[]>();
         const addForeign = (entrance: number, foreignMid: number) => {
@@ -1172,7 +1200,9 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             const ownSa = subareaOf.get(entrance);
             if (fSa === undefined || ownSa === undefined || fSa === ownSa) return;
             const comp = subareaToMaps.get(fSa);
-            if (!comp || comp.size > MAX_INTERIOR_MAPS) return;
+            if (!comp) return;
+            const name = subareaName.get(fSa) ?? "";
+            if (!isCaveSubarea(name, comp.size)) return;
             let arr = result.get(entrance);
             if (!arr) { arr = []; result.set(entrance, arr); }
             if (!arr.some(s => s === comp)) arr.push(comp);
