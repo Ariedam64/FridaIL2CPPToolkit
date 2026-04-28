@@ -14,7 +14,6 @@
 const http = require("http");
 const fs   = require("fs");
 const path = require("path");
-const { spawn } = require("child_process");
 
 const bridge      = require("../host/lib/frida-bridge");
 const wsModule    = require("../host/lib/ws");
@@ -45,6 +44,9 @@ bridge.on("message", (m, data) => {
             if (p.tileIndex === 0 || p.tileIndex % 20 === 0) {
                 console.log(`[dofus] cartography wm=${p.worldMapId} tile ${p.tileIndex} → ${saved.file} (${saved.bytes} bytes)`);
             }
+        } else if (p && p.type === "map-screenshot" && typeof p.mapId === "number" && data) {
+            const saved = persistence.saveMapPreview(p.mapId, Buffer.from(data));
+            console.log(`[dofus] map preview ${p.mapId} ${p.width}x${p.height} → ${saved.file} (${saved.bytes} bytes)`);
         }
     } catch (e) { console.error("[dofus] persistence failed:", e); }
     broadcast({ type: "message", message: m });
@@ -85,6 +87,125 @@ async function serveStatic(req, res, pathname) {
     if (icon) {
         return serveFile(res, persistence.iconPath(icon[1], icon[2]));
     }
+    // /map-preview/<mapId>.png → per-map preview (v2 cardinal-cross-fade if
+    // present, else v1 single-map render). See persistence.mapPreviewPath.
+    const preview = pathname.match(/^\/map-preview\/(\d+)\.png$/);
+    if (preview) {
+        return serveFile(res, persistence.mapPreviewPath(preview[1]));
+    }
+    // /map-preview-single/<id>.png → v1-first (clean single-map render with no
+    // cross-fade bleed from neighbors) — used by the side panel cell overlay.
+    const previewSingle = pathname.match(/^\/map-preview-single\/(\d+)\.png$/);
+    if (previewSingle) {
+        return serveFile(res, persistence.mapPreviewPathSingle(previewSingle[1]));
+    }
+    // /maps-preview/<id>.png → v1 direct (legacy single-map render, variable size).
+    const previewV1 = pathname.match(/^\/maps-preview\/(\d+)\.png$/);
+    if (previewV1) {
+        return serveFile(res, path.join(persistence.DATA_DIR, "maps-preview", `${previewV1[1]}.png`));
+    }
+    // /maps-preview-v2/<id>.png → v2 direct (cross-fade slot 1204×860).
+    const previewV2 = pathname.match(/^\/maps-preview-v2\/(\d+)\.png$/);
+    if (previewV2) {
+        return serveFile(res, path.join(persistence.DATA_DIR, "maps-preview-v2", `${previewV2[1]}.png`));
+    }
+    // /cell-offsets.json → per-map cell-overlay offsets (built offline by
+    // build-cell-offsets.py from interactive sprite pivots).
+    if (pathname === "/cell-offsets.json") {
+        return serveFile(res, path.join(persistence.DATA_DIR, "cell-offsets.json"));
+    }
+    // /api/coverage-plan → ordered list of maps to visit for runtime capture.
+    // Built offline by build-coverage-plan.py — picks maps that maximize
+    // gfxId/cluster coverage, prioritizing caves with unmapped variants.
+    if (pathname === "/api/coverage-plan") {
+        // Optional ?file=NAME selects a specific coverage-plan-*.json variant.
+        // Whitelist enforces that the file lives in DATA_DIR + matches the prefix.
+        const url = new URL(req.url, "http://x");
+        const variant = url.searchParams.get("file");
+        let target = "coverage-plan.json";
+        if (variant && /^[a-zA-Z0-9_.-]+$/.test(variant) && variant.endsWith(".json") && variant.startsWith("coverage-plan")) {
+            target = variant;
+        }
+        return serveFile(res, path.join(persistence.DATA_DIR, target));
+    }
+    // /api/resource-plan → gfx-centric plan (one entry per unmapped gfxId,
+    // multiple candidate maps per entry). Built by build-resource-plan.py.
+    if (pathname === "/api/resource-plan") {
+        return serveFile(res, path.join(persistence.DATA_DIR, "resource-plan.json"));
+    }
+    // /api/map-neighbors → for every cached per-map JSON, dump its `n`
+    // field (4-direction physical neighbors). Used by the worldmap overlay
+    // to find the connected component of a cave/dungeon by walking the
+    // in-game adjacency, which is more reliable than the worldgraph
+    // (worldgraph contains zone vertices and one-way edges; `n` is the
+    // straight in-game N/S/E/W mapId list).
+    if (pathname === "/api/map-neighbors") {
+        const mapsDir = path.join(persistence.DATA_DIR, "maps");
+        const out = {};
+        try {
+            for (const f of fs.readdirSync(mapsDir)) {
+                if (!f.endsWith(".json")) continue;
+                try {
+                    const d = JSON.parse(fs.readFileSync(path.join(mapsDir, f), "utf8"));
+                    if (!d.mapId || !Array.isArray(d.n)) continue;
+                    out[d.mapId] = d.n;
+                } catch {}
+            }
+        } catch {}
+        return sendJson(res, 200, { count: Object.keys(out).length, neighbors: out });
+    }
+    // /api/captured-gfx → union of all gfxIds present on data/maps/<id>.json
+    // entries that have an `updatedAt` set (= captured runtime, even if
+    // gfx-to-type.json wasn't rebuilt yet). Lets the coverage panel pick up
+    // mid-session captures across page reloads without re-running the python
+    // plan generator.
+    if (pathname === "/api/captured-gfx") {
+        const mapsDir = path.join(persistence.DATA_DIR, "maps");
+        const set = new Set();
+        let scanned = 0;
+        try {
+            for (const f of fs.readdirSync(mapsDir)) {
+                if (!f.endsWith(".json")) continue;
+                try {
+                    const d = JSON.parse(fs.readFileSync(path.join(mapsDir, f), "utf8"));
+                    if (!d.updatedAt) continue;
+                    scanned++;
+                    if (Array.isArray(d.ie)) for (const row of d.ie) if (Array.isArray(row) && row.length >= 3) set.add(Number(row[2]));
+                } catch {}
+            }
+        } catch {}
+        return sendJson(res, 200, { count: set.size, scannedMaps: scanned, gfxIds: Array.from(set) });
+    }
+    // /api/worldgraph → cached worldgraph adjacency for the reachability
+    // checker. GET = serve cached file (404 if missing). POST = re-dump via
+    // Frida + save. Worldgraph is loaded once per Dofus session at login
+    // and stays static, so the disk cache is valid until the next patch.
+    if (pathname === "/api/worldgraph") {
+        const wgPath = path.join(persistence.DATA_DIR, "worldgraph-adjacency.json");
+        if (req.method === "POST") {
+            (async () => {
+                try {
+                    const r = await bridge.callRpc("dumpOutgoingEdges", []);
+                    if (!r?.ok) return sendJson(res, 500, { error: r?.reason ?? "dump failed" });
+                    fs.writeFileSync(wgPath, JSON.stringify(r));
+                    return sendJson(res, 200, { ok: true, vertexCount: r.vertexCount, edgeCount: r.edgeCount, savedTo: "worldgraph-adjacency.json" });
+                } catch (e) {
+                    return sendJson(res, 500, { error: String(e).slice(0, 200) });
+                }
+            })();
+            return;
+        }
+        // GET — serve from disk
+        return serveFile(res, wgPath);
+    }
+    // /canonical-coords-wm{N}.json → content-based (posX,posY)→mapId map.
+    // Built by build-canonical-by-content.py (CLI). The world panel uses
+    // it to dedup multi-map coords to the most outdoor-looking variant.
+    const cano = pathname.match(/^\/canonical-coords-wm(-?\d+)\.json$/);
+    if (cano) {
+        const p = path.join(persistence.DATA_DIR, `canonical-coords-wm${cano[1]}.json`);
+        return serveFile(res, p);
+    }
 
     const rel = pathname === "/" ? "/index.html" : pathname;
     // Try dofus-app/public first, fall back to toolkit public for shared
@@ -99,21 +220,15 @@ async function serveStatic(req, res, pathname) {
 // -------- route table -------------------------------------------------------
 const routes = {
     GET: {
-        "/api/processes": async (req, res, q) => sendJson(res, 200, await bridge.listProcesses(q.q)),
-        "/api/status":    (req, res)           => sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() }),
-        "/api/maps":      (_req, res)          => sendJson(res, 200, persistence.listCachedMaps()),
-        "/api/catalog":   (_req, res)          => sendJson(res, 200, persistence.listCatalogs()),
-        "/api/coverage-plan": (_req, res) => {
-            const plan = persistence.readCoveragePlan();
-            if (!plan) { res.writeHead(404); res.end(); return; }
-            sendJson(res, 200, plan);
-        },
-        "/api/gfx-to-type": (_req, res) => sendJson(res, 200, persistence.readGfxRegistry()),
-        "/api/wm-tile-names": (_req, res) => sendJson(res, 200, persistence.listWmTileNames()),
+        "/api/processes":    async (req, res, q) => sendJson(res, 200, await bridge.listProcesses(q.q)),
+        "/api/status":       (req, res)          => sendJson(res, 200, { attached: !!bridge.getAttachedInfo(), info: bridge.getAttachedInfo() }),
+        "/api/maps":         (_req, res)         => sendJson(res, 200, persistence.listCachedMaps()),
+        "/api/catalog":      (_req, res)         => sendJson(res, 200, persistence.listCatalogs()),
+        "/api/map-previews": (_req, res)         => sendJson(res, 200, persistence.listMapPreviews()),
+        "/api/resources":    (_req, res)         => sendJson(res, 200, persistence.readResources() || { items: [] }),
         "/api/tile-mapping": (_req, res) => {
             const m = persistence.readTileMapping();
-            if (!m) { sendJson(res, 200, null); return; }
-            sendJson(res, 200, m);
+            sendJson(res, 200, m || null);
         },
     },
     GET_param: {
@@ -126,6 +241,22 @@ const routes = {
             const c = persistence.readCatalog(slug);
             if (!c) { res.writeHead(404); res.end(); return; }
             sendJson(res, 200, c);
+        },
+        "/api/resource-maps": (_req, res, _q, typeId) => {
+            const m = persistence.readResourceMaps();
+            const ids = m && m[typeId] ? m[typeId] : [];
+            sendJson(res, 200, ids);
+        },
+    },
+    POST_param: {
+        // captureCurrent() in the world-panel coverage-plan orchestrator hits
+        // this. Body: { interactives: [{elementId, cell, typeId, name}, ...] }
+        // saveMapData merges with existing static fields (n/a/c/ie) — only
+        // overlays the runtime-resolved interactives + updatedAt.
+        "/api/maps": async (req, res, _q, mapId) => {
+            const body = JSON.parse(await readBody(req));
+            const saved = persistence.saveMapData(mapId, body);
+            sendJson(res, 200, { ok: true, ...saved });
         },
     },
     POST: {
@@ -143,31 +274,6 @@ const routes = {
             const { method, args } = JSON.parse(await readBody(req));
             const result = await bridge.callRpc(method, args || []);
             sendJson(res, 200, { result });
-        },
-        "/api/build-tile-mapping": (_req, res) => {
-            const script = path.join(__dirname, "scripts", "build-tile-mapping.py");
-            const proc = spawn("python", [script], { cwd: __dirname });
-            let stdout = "", stderr = "";
-            proc.stdout.on("data", d => stdout += d);
-            proc.stderr.on("data", d => stderr += d);
-            proc.on("close", code => sendJson(res, 200, { code, stdout, stderr }));
-            proc.on("error", err => sendJson(res, 500, { error: String(err) }));
-        },
-        "/api/addressables": async (req, res) => {
-            const body = JSON.parse(await readBody(req));
-            sendJson(res, 200, persistence.saveAddressables(body));
-        },
-    },
-    POST_param: {
-        "/api/maps": async (req, res, _q, mapId) => {
-            const id = parseInt(String(mapId), 10);
-            const body = JSON.parse(await readBody(req));
-            sendJson(res, 200, persistence.saveMapData(id, body));
-        },
-        "/api/wm-tile-names": async (req, res, _q, wmId) => {
-            const id = parseInt(String(wmId), 10);
-            const body = JSON.parse(await readBody(req));
-            sendJson(res, 200, persistence.saveWmTileNames(id, body.tiles || []));
         },
     },
 };
