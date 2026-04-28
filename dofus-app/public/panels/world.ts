@@ -1171,9 +1171,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             caveComponentsByEntrance = new Map();
             return caveComponentsByEntrance;
         }
-        // (worldgraph cache is loaded as a side-effect prerequisite for
-        // cachedNeighbors, but the cave component BFS uses `n` neighbors
-        // directly, so we don't destructure adj/uidToMid here anymore.)
+        const { adj, uidToMid, midToUids } = cachedWorldGraph;
 
         // Group maps by subareaId.
         const subareaToMaps = new Map<number, Set<number>>();
@@ -1216,18 +1214,34 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             isCave.set(sid, stackRatio >= 0.7);
         }
 
-        // PHYSICAL COMPONENTS via the in-game `n` neighbor field. Each map
-        // has up to 4 directly-walkable neighbors (top/bottom/left/right).
-        // BFS through these to find each physical cave system. Walks only
-        // into other cave-classified maps, so a non-cave surface tile cleanly
-        // bounds the cave. Caves can span multiple labeled subareas (e.g.
-        // a cave system labeled "Souterrains" connecting to one labeled
-        // "Mine X") because neighbor-walking is subarea-agnostic.
-        const componentOf = new Map<number, Set<number>>();
-        const isInCave = (mid: number) => {
+        // CAVE COMPONENTS via worldgraph adjacency, restricted to cave-
+        // classified maps (stack_ratio ≥ 0.7). The worldgraph carries the
+        // full graph including special cave-entry transitions (arrows,
+        // scripts) that are absent from the per-map `n` field. Treat
+        // edges as UNDIRECTED for the component BFS so one-way exits
+        // don't artificially split a cave.
+        const isCaveMid = (mid: number) => {
             const sa = subareaOf.get(mid);
             return sa !== undefined && isCave.get(sa) === true;
         };
+        // Build undirected cave-edge adjacency: cave-mid ↔ cave-mid (any
+        // direction in the worldgraph counts).
+        const caveAdj = new Map<number, Set<number>>();
+        const addCaveEdge = (a: number, b: number) => {
+            if (!isCaveMid(a) || !isCaveMid(b) || a === b) return;
+            let s = caveAdj.get(a); if (!s) { s = new Set(); caveAdj.set(a, s); } s.add(b);
+            let t = caveAdj.get(b); if (!t) { t = new Set(); caveAdj.set(b, t); } t.add(a);
+        };
+        for (const [src, dests] of adj) {
+            const sm = uidToMid.get(src);
+            if (sm === undefined) continue;
+            for (const v of dests) {
+                const dm = uidToMid.get(v);
+                if (dm !== undefined) addCaveEdge(sm, dm);
+            }
+        }
+        // BFS each cave map → component.
+        const componentOf = new Map<number, Set<number>>();
         for (const [sid, mids] of subareaToMaps) {
             if (!isCave.get(sid)) continue;
             for (const startMid of mids) {
@@ -1238,29 +1252,47 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
                     const cur = queue.shift()!;
                     if (comp.has(cur)) continue;
                     comp.add(cur);
-                    for (const nb of (cachedNeighbors.get(cur) ?? [])) {
-                        if (nb && nb > 0 && isInCave(nb) && !comp.has(nb)) queue.push(nb);
+                    for (const nb of (caveAdj.get(cur) ?? [])) {
+                        if (!comp.has(nb)) queue.push(nb);
                     }
                 }
                 for (const m of comp) componentOf.set(m, comp);
             }
         }
 
-        // For each map M (whether cave or not), record cave components
-        // adjacent via PHYSICAL `n` neighbors. A surface map E enters a
-        // cave component C iff one of E's `n` is in C and E itself isn't.
+        // ENTRANCES via worldgraph: E enters component C iff there's a
+        // worldgraph edge between E and any member of C, AND E itself
+        // is NOT in C (so E is either a non-cave surface tile or a cave
+        // tile in a different physical system that happens to share an
+        // edge — rare but possible).
         const result = new Map<number, Set<number>[]>();
-        for (const m of catalogs.maps) {
-            const myComp = componentOf.get(m.id);
-            for (const nb of (cachedNeighbors.get(m.id) ?? [])) {
-                if (!nb || nb <= 0) continue;
-                const nbComp = componentOf.get(nb);
-                if (!nbComp || nbComp === myComp) continue;
-                let arr = result.get(m.id);
-                if (!arr) { arr = []; result.set(m.id, arr); }
-                if (!arr.some(s => s === nbComp)) arr.push(nbComp);
+        const addEntranceEdge = (a: number, b: number) => {
+            const compA = componentOf.get(a);
+            const compB = componentOf.get(b);
+            // a → enters compB if compB exists and a isn't in compB
+            if (compB && compA !== compB) {
+                let arr = result.get(a);
+                if (!arr) { arr = []; result.set(a, arr); }
+                if (!arr.some(s => s === compB)) arr.push(compB);
+            }
+            // symmetric for b
+            if (compA && compA !== compB) {
+                let arr = result.get(b);
+                if (!arr) { arr = []; result.set(b, arr); }
+                if (!arr.some(s => s === compA)) arr.push(compA);
+            }
+        };
+        for (const [src, dests] of adj) {
+            const sm = uidToMid.get(src);
+            if (sm === undefined) continue;
+            for (const v of dests) {
+                const dm = uidToMid.get(v);
+                if (dm !== undefined && dm !== sm) addEntranceEdge(sm, dm);
             }
         }
+        // Suppress: if `midToUids` was unused, mark it via a noop assignment
+        // so tsc doesn't complain (it remains useful for future tweaks).
+        void midToUids;
         caveComponentsByEntrance = result;
         return result;
     }
