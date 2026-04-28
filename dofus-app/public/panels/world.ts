@@ -1202,7 +1202,55 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             isCave.set(sid, stackRatio >= 0.7);
         }
 
-        // For each map M, list the FOREIGN cave subareas it directly
+        // BREAK CAVE SUBAREAS INTO PHYSICAL COMPONENTS — a single subarea
+        // like "Souterrains" (sub 29) contains 66 maps spread across MANY
+        // distinct cave systems across the world. We must group them by
+        // worldgraph connectivity restricted to the cave subarea, so each
+        // physical mine/cave is its own component.
+        // mapId → its component (Set of mapIds in same connected component).
+        const componentOf = new Map<number, Set<number>>();
+        for (const [sid, mids] of subareaToMaps) {
+            if (!isCave.get(sid)) continue;
+            const visited = new Set<number>();
+            for (const mid of mids) {
+                if (visited.has(mid)) continue;
+                const comp = new Set<number>();
+                const queue: number[] = [mid];
+                while (queue.length) {
+                    const cur = queue.shift()!;
+                    if (visited.has(cur)) continue;
+                    visited.add(cur);
+                    comp.add(cur);
+                    const uids = midToUids.get(cur) ?? [];
+                    for (const u of uids) {
+                        // Outgoing within same subarea
+                        for (const v of (adj.get(u) ?? [])) {
+                            const dm = uidToMid.get(v);
+                            if (dm !== undefined && mids.has(dm) && !visited.has(dm)) queue.push(dm);
+                        }
+                    }
+                }
+                // Also close incoming within subarea (one-way exits inside the cave).
+                // Do a second pass over reverse adjacency for completeness.
+                let changed = true;
+                while (changed) {
+                    changed = false;
+                    for (const [src, dests] of adj) {
+                        const sm = uidToMid.get(src);
+                        if (sm === undefined || !mids.has(sm) || comp.has(sm)) continue;
+                        for (const v of dests) {
+                            const dm = uidToMid.get(v);
+                            if (dm !== undefined && comp.has(dm)) {
+                                comp.add(sm); visited.add(sm); changed = true; break;
+                            }
+                        }
+                    }
+                }
+                for (const m of comp) componentOf.set(m, comp);
+            }
+        }
+
+        // For each map M, list the FOREIGN cave COMPONENTS it directly
         // connects to (outgoing OR incoming edges).
         const result = new Map<number, Set<number>[]>();
         const addForeign = (entrance: number, foreignMid: number) => {
@@ -1210,7 +1258,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             const ownSa = subareaOf.get(entrance);
             if (fSa === undefined || ownSa === undefined || fSa === ownSa) return;
             if (!isCave.get(fSa)) return;
-            const comp = subareaToMaps.get(fSa);
+            const comp = componentOf.get(foreignMid);
             if (!comp) return;
             let arr = result.get(entrance);
             if (!arr) { arr = []; result.set(entrance, arr); }
@@ -1219,14 +1267,12 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         for (const m of catalogs.maps) {
             const uids = midToUids.get(m.id) ?? [];
             for (const u of uids) {
-                // Outgoing
                 for (const v of (adj.get(u) ?? [])) {
                     const dm = uidToMid.get(v);
                     if (dm !== undefined) addForeign(m.id, dm);
                 }
             }
         }
-        // Incoming: scan adjacency once for back-references.
         for (const [src, dests] of adj) {
             const sm = uidToMid.get(src);
             if (sm === undefined) continue;
