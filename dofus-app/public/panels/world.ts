@@ -1171,7 +1171,9 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             caveComponentsByEntrance = new Map();
             return caveComponentsByEntrance;
         }
-        const { adj, uidToMid, midToUids } = cachedWorldGraph;
+        // (worldgraph cache is loaded as a side-effect prerequisite for
+        // cachedNeighbors, but the cave component BFS uses `n` neighbors
+        // directly, so we don't destructure adj/uidToMid here anymore.)
 
         // Group maps by subareaId.
         const subareaToMaps = new Map<number, Set<number>>();
