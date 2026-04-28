@@ -348,7 +348,7 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
 
     // Per-map preview overlay (lazy-loaded). Drawn on a viewport-sized
     // canvas above the atlas, repositioned every pan/zoom (rAF-throttled).
-    const PREVIEW_MIN_PX = 25;        // map screen size at which preview kicks in
+    const PREVIEW_MIN_PX = 70;        // map screen size at which preview kicks in
     const PREVIEW_CACHE_MAX = 2000;
     const PREVIEW_LOAD_CONCURRENCY = 16;
     type PreviewBitmap = ImageBitmap | HTMLImageElement;
