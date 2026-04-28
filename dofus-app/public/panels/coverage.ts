@@ -1461,6 +1461,7 @@ export function renderCoverage(container: HTMLElement): void {
     retryBtn.addEventListener("click", () => {
         const n = failedMaps.size;
         failedMaps = new Set();
+        savePersistedFailedMaps();
         redrawQueue();
         updateCounters();
         setPhase("idle", `cleared ${n} failed maps — they'll be re-tried next pick`);
@@ -1619,6 +1620,7 @@ export function renderCoverage(container: HTMLElement): void {
         const failedCount = failedMaps.size;
         const blacklistedZaaps = adFailedZaaps.size;
         failedMaps = new Set();
+        savePersistedFailedMaps();
         adFailedZaaps.clear();
         adRegionFailsCount = 0;
         await refreshPlayerMapId();
