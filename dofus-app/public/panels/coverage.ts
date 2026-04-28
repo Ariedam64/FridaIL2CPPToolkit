@@ -1127,7 +1127,7 @@ export function renderCoverage(container: HTMLElement): void {
 
     function buildHistoryFragment(): DocumentFragment {
         const frag = document.createDocumentFragment();
-        const fmtList = (label: string, color: string, set: Set<number>) => {
+        const fmtList = (label: string, color: string, set: Set<number>, allowUnfail: boolean) => {
             if (set.size === 0) return;
             const sec = document.createElement("div");
             sec.style.cssText = `margin-top:6px; padding-top:4px; border-top:1px dashed #333; color:${color}`;
@@ -1135,28 +1135,42 @@ export function renderCoverage(container: HTMLElement): void {
             head.style.cssText = `padding:1px 4px; font-weight:bold`;
             head.textContent = `${label} (${set.size})`;
             sec.appendChild(head);
-            // Most recent first — Set preserves insertion order so reverse
             const arr = [...set].reverse().slice(0, 30);
             for (const mid of arr) {
                 const meta = adMapMeta.get(mid);
                 const planMap = mapsArr.find(m => m.mapId === mid);
                 const sa = planMap ? subareas.get(planMap.subAreaId) : undefined;
-                const div = document.createElement("div");
-                div.style.cssText = "padding:0px 4px; color:var(--c-label)";
+                const row = document.createElement("div");
+                row.style.cssText = "padding:0 4px; display:flex; align-items:center; gap:4px; color:var(--c-label)";
+                const text = document.createElement("span");
                 const coord = meta ? `(${meta.posX.toString().padStart(3)},${meta.posY.toString().padStart(3)})` : "";
-                div.textContent = `  ${mid.toString().padStart(10)} ${coord}  ${(sa?.name || "").slice(0, 24)}`;
-                sec.appendChild(div);
+                text.textContent = `${mid.toString().padStart(10)} ${coord}  ${(sa?.name || "").slice(0, 24)}`;
+                text.style.cssText = "flex:1; font-family:var(--font-mono)";
+                row.appendChild(text);
+                if (allowUnfail) {
+                    const btn = document.createElement("button");
+                    btn.textContent = "↶";
+                    btn.title = "remove from failed list (will be retried next Build path)";
+                    btn.style.cssText = "background:none; border:1px solid #444; color:#9c9; cursor:pointer; padding:0 6px; font-size:11px; border-radius:2px";
+                    btn.onclick = () => {
+                        failedMaps.delete(mid);
+                        savePersistedFailedMaps();
+                        renderPathList();
+                    };
+                    row.appendChild(btn);
+                }
+                sec.appendChild(row);
             }
             if (set.size > 30) {
                 const more = document.createElement("div");
-                more.style.cssText = "padding:0px 4px; color:#666; font-style:italic";
-                more.textContent = `  … +${set.size - 30} more`;
+                more.style.cssText = "padding:0 4px; color:#666; font-style:italic";
+                more.textContent = `… +${set.size - 30} more`;
                 sec.appendChild(more);
             }
             frag.appendChild(sec);
         };
-        fmtList("✓ captured this session", "#6c6", visitedMaps);
-        fmtList("✗ failed this session", "#c66", failedMaps);
+        fmtList("✓ captured this session", "#6c6", visitedMaps, false);
+        fmtList("✗ failed this session", "#c66", failedMaps, true);
         return frag;
     }
 
