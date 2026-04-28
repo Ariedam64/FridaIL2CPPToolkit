@@ -1132,11 +1132,19 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
         } catch { return null; }
     }
 
-    // Compute, for each surface (wm=1) map, the list of underground cave
-    // components reachable through it. A cave component = connected wm=-1
-    // mapIds (treating worldgraph edges as undirected, but only considering
-    // wm=-1↔wm=-1 edges). The surface map is an "entrance" if it has at
-    // least one direct edge into a wm=-1 map.
+    // Build a map from each "entrance" mapId to the set of FOREIGN subarea
+    // groups it directly connects to via the worldgraph.
+    //
+    // A "foreign subarea" is one DIFFERENT from the entrance map's own
+    // subareaId. We only aggregate small subareas (≤MAX_INTERIOR_MAPS) to
+    // avoid showing absurd totals at the boundary of huge open areas.
+    // Most caves/mines/dungeons fit comfortably under 50 maps; cities and
+    // open regions go in the hundreds.
+    //
+    // The catalog's `outdoor` field is broken (always false in current
+    // dumps), so we use subarea size as a heuristic for "is this an
+    // interior to aggregate". May produce false positives for small open
+    // areas — refine later if needed.
     function computeCaveComponentsByEntrance(): Map<number, Set<number>[]> {
         if (caveComponentsByEntrance) return caveComponentsByEntrance;
         if (!cachedWorldGraph || !catalogs) {
@@ -1144,72 +1152,52 @@ export async function renderWorld(container: HTMLElement): Promise<void> {
             return caveComponentsByEntrance;
         }
         const { adj, uidToMid, midToUids } = cachedWorldGraph;
-        const wmOf = new Map<number, number>();
-        for (const m of catalogs.maps) wmOf.set(m.id, m.worldMap);
+        const MAX_INTERIOR_MAPS = 60;
 
-        // Step 1: union-find on wm=-1 maps via wm=-1↔wm=-1 edges.
-        const parent = new Map<number, number>();
-        const find = (x: number): number => {
-            let p = parent.get(x);
-            if (p === undefined) { parent.set(x, x); return x; }
-            if (p === x) return x;
-            const root = find(p); parent.set(x, root); return root;
-        };
-        const union = (a: number, b: number) => {
-            const ra = find(a), rb = find(b);
-            if (ra !== rb) parent.set(ra, rb);
-        };
-        for (const [u, mid] of uidToMid) {
-            if (wmOf.get(mid) !== -1) continue;
-            find(mid);
-            for (const v of (adj.get(u) ?? [])) {
-                const dm = uidToMid.get(v);
-                if (dm !== undefined && wmOf.get(dm) === -1) union(mid, dm);
-            }
+        // Group maps by subareaId.
+        const subareaToMaps = new Map<number, Set<number>>();
+        for (const m of catalogs.maps) {
+            let set = subareaToMaps.get(m.subAreaId);
+            if (!set) { set = new Set(); subareaToMaps.set(m.subAreaId, set); }
+            set.add(m.id);
         }
-        // Group wm=-1 mapIds by component root.
-        const comps = new Map<number, Set<number>>();
-        for (const mid of parent.keys()) {
-            const root = find(mid);
-            let s = comps.get(root); if (!s) { s = new Set(); comps.set(root, s); }
-            s.add(mid);
-        }
+        const subareaOf = new Map<number, number>();
+        for (const m of catalogs.maps) subareaOf.set(m.id, m.subAreaId);
 
-        // Step 2: for each wm=1 surface map, find which wm=-1 components it
-        // connects to (via direct outgoing OR incoming edges).
-        const surfaceToComps = new Map<number, Set<Set<number>>>();
-        const addComp = (surfaceMid: number, undergroundMid: number) => {
-            const root = find(undergroundMid);
-            const comp = comps.get(root);
-            if (!comp) return;
-            let set = surfaceToComps.get(surfaceMid);
-            if (!set) { set = new Set(); surfaceToComps.set(surfaceMid, set); }
-            set.add(comp);
+        // For each map M, list the FOREIGN small subareas it directly
+        // connects to (outgoing OR incoming edges).
+        const result = new Map<number, Set<number>[]>();
+        const addForeign = (entrance: number, foreignMid: number) => {
+            const fSa = subareaOf.get(foreignMid);
+            const ownSa = subareaOf.get(entrance);
+            if (fSa === undefined || ownSa === undefined || fSa === ownSa) return;
+            const comp = subareaToMaps.get(fSa);
+            if (!comp || comp.size > MAX_INTERIOR_MAPS) return;
+            let arr = result.get(entrance);
+            if (!arr) { arr = []; result.set(entrance, arr); }
+            if (!arr.some(s => s === comp)) arr.push(comp);
         };
         for (const m of catalogs.maps) {
-            if (m.worldMap !== 1) continue;
             const uids = midToUids.get(m.id) ?? [];
             for (const u of uids) {
-                // Outgoing: surface → underground
+                // Outgoing
                 for (const v of (adj.get(u) ?? [])) {
                     const dm = uidToMid.get(v);
-                    if (dm !== undefined && wmOf.get(dm) === -1) addComp(m.id, dm);
-                }
-            }
-            // Incoming check: if any wm=-1 uid points into one of m's uids,
-            // it's also an entrance (one-way exits).
-            for (const u of uids) {
-                for (const [src, dests] of adj) {
-                    if (!dests.includes(u)) continue;
-                    const sm = uidToMid.get(src);
-                    if (sm !== undefined && wmOf.get(sm) === -1) addComp(m.id, sm);
+                    if (dm !== undefined) addForeign(m.id, dm);
                 }
             }
         }
-        const out = new Map<number, Set<number>[]>();
-        for (const [s, set] of surfaceToComps) out.set(s, [...set]);
-        caveComponentsByEntrance = out;
-        return out;
+        // Incoming: scan adjacency once for back-references.
+        for (const [src, dests] of adj) {
+            const sm = uidToMid.get(src);
+            if (sm === undefined) continue;
+            for (const v of dests) {
+                const dm = uidToMid.get(v);
+                if (dm !== undefined) addForeign(dm, sm);
+            }
+        }
+        caveComponentsByEntrance = result;
+        return result;
     }
 
     function recomputeUndergroundCounts(): void {
