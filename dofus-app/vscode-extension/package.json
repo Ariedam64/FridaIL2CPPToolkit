@@ -1,0 +1,90 @@
+{
+  "name": "frida-il2cpp-toolkit",
+  "displayName": "Frida IL2CPP Toolkit (demo)",
+  "description": "Reverse engineering toolkit for IL2CPP processes via Frida",
+  "version": "0.0.1",
+  "publisher": "local-dev",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fridaToolkit",
+          "title": "Frida Toolkit",
+          "icon": "$(zap)"
+        }
+      ]
+    },
+    "views": {
+      "fridaToolkit": [
+        { "id": "fridaProcessExplorer", "name": "Process Explorer" },
+        { "id": "fridaActiveHooks", "name": "Active Hooks" }
+      ]
+    },
+    "commands": [
+      {
+        "command": "frida.searchClass",
+        "title": "Frida: Search class",
+        "icon": "$(search)"
+      },
+      {
+        "command": "frida.renameClass",
+        "title": "Frida: Rename class"
+      },
+      {
+        "command": "frida.refreshExplorer",
+        "title": "Frida: Refresh explorer",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "frida.dumpClass",
+        "title": "Frida: Dump class details"
+      },
+      {
+        "command": "frida.toggleObfNames",
+        "title": "Frida: Toggle obfuscated names"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "frida.refreshExplorer",
+          "when": "view == fridaProcessExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "frida.searchClass",
+          "when": "view == fridaProcessExplorer",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Frida IL2CPP Toolkit",
+      "properties": {
+        "fridaToolkit.rpcEndpoint": {
+          "type": "string",
+          "default": "http://localhost:3001/api/call",
+          "description": "Frida RPC endpoint URL"
+        },
+        "fridaToolkit.profilePath": {
+          "type": "string",
+          "default": "",
+          "description": "Profile JSON path (auto-derived from build-guid if empty)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}
