@@ -112,12 +112,32 @@ def _is_valid_class_name(name: str) -> bool:
     return True
 
 
+def _strip_csharp_noise(text: str) -> str:
+    """
+    Strip C# comments and string literals to avoid matching identifiers inside them.
+    """
+    # Remove // line comments
+    text = re.sub(r"//[^\n]*", "", text)
+    # Remove /* ... */ block comments
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    # Remove "..." string literals (handle escaped quotes naively — close enough for our purpose)
+    text = re.sub(r'"(?:[^"\\]|\\.)*"', '""', text)
+    # Remove @"..." verbatim strings
+    text = re.sub(r'@"(?:[^"]|"")*"', '""', text)
+    # Remove $"..." interpolated strings (best-effort, may leak inside `{}` but acceptable)
+    text = re.sub(r'\$"(?:[^"\\]|\\.)*"', '""', text)
+    return text
+
+
 def extract_class_refs(cs_text: str) -> dict[str, int]:
     """
     Extract real-looking class name identifiers from a C# source string.
     Returns {class_name: occurrence_count}.
     """
     counts: dict[str, int] = {}
+
+    # Strip comments and strings first to avoid matching identifiers inside them
+    cs_text = _strip_csharp_noise(cs_text)
 
     for m in _RE_IDENTIFIER.finditer(cs_text):
         name = m.group(1)
@@ -129,14 +149,22 @@ def extract_class_refs(cs_text: str) -> dict[str, int]:
 
 def _detect_namespace_for_name(name: str, cs_text: str) -> str:
     """
-    Try to find the namespace for a class name from `using` directives or
-    `namespace` declaration. Returns the best guess or empty string.
+    Try to find the namespace for a class name. Strategy:
+      1. Look for `using <ns>.<name>;` — return <ns>.
+      2. Look for `using <ns>;` where ns ends with name — same.
+      3. Fallback: file-level `namespace <ns>` declaration.
     """
-    # Check using directives whose last segment matches the name
+    candidates = []
     for m in _RE_USING.finditer(cs_text):
         ns = m.group(1)
-        # If it's a using alias (e.g., `using Foo = ...`) skip; handled separately
-        # Just capture the namespace
+        parts = ns.split(".")
+        if parts and parts[-1] == name:
+            ns_without_name = ".".join(parts[:-1])
+            if ns_without_name:
+                candidates.append(ns_without_name)
+    if candidates:
+        # Prefer the longest (most specific) namespace
+        return max(candidates, key=len)
     # Use the file's own namespace declaration as fallback
     ns_match = re.search(r'\bnamespace\s+([\w.]+)', cs_text)
     if ns_match:
