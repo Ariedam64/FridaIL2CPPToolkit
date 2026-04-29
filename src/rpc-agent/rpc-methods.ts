@@ -13,8 +13,14 @@ import * as stacktraceRpc from "./stacktrace";
 import * as mapstateRpc from "./mapstate";
 import * as senderRpc from "./sender";
 import * as catalogRpc from "./catalog";
+import * as sentryRpc from "./sentry";
+import * as gbeRouterRpc from "./gbe-router";
+import * as gbeProbeRpc from "./gbe-probe";
+import * as attributesRpc from "./attributes";
+import * as dataCenterRpc from "./datacenter";
+import * as protoDescriptorCaptureRpc from "./proto-descriptor-capture";
 
-type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc;
+type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc & typeof sentryRpc & typeof gbeRouterRpc & typeof gbeProbeRpc & typeof attributesRpc & typeof dataCenterRpc & typeof protoDescriptorCaptureRpc;
 
 export function getRpcMethods(): AllRpc {
     return {
@@ -31,5 +37,11 @@ export function getRpcMethods(): AllRpc {
         ...mapstateRpc,
         ...senderRpc,
         ...catalogRpc,
+        ...sentryRpc,
+        ...gbeRouterRpc,
+        ...gbeProbeRpc,
+        ...attributesRpc,
+        ...dataCenterRpc,
+        ...protoDescriptorCaptureRpc,
     } as AllRpc;
 }
