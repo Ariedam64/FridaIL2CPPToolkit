@@ -31,6 +31,7 @@ J1_SOURCES = [
     DATA_EXTERNAL / "assetripper-monobehaviours.json",
     DATA_EXTERNAL / "dbi-name-table.json",
     DATA_EXTERNAL / "protodec-rename.json",
+    DATA_EXTERNAL / "clear-dll-rename.json",  # Task 13: clear-DLL xref leaks
 ]
 J2_SOURCES = [DATA_RUNTIME / "filedescriptor-init-rename.json"]
 J3_SOURCES = [DATA_INDEXED / "string-refs-rename.json"]

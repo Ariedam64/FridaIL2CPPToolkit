@@ -14,7 +14,8 @@ from typing import Iterable, Literal
 Confidence = Literal["high_unique", "high_runtime", "medium_xref", "low_struct_match"]
 EvidenceSource = Literal[
     "assetripper", "dbi", "protodec", "filedescriptor_hook",
-    "stringrefs", "existing_deobmap", "existing_proto_mapping"
+    "stringrefs", "existing_deobmap", "existing_proto_mapping",
+    "clear_dll_xref"
 ]
 
 
