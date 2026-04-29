@@ -1,0 +1,106 @@
+[
+  {
+    "obf_name": "hnh",
+    "original_name": "ReleaseDisplayConfig",
+    "namespace": "",
+    "confidence": "low_struct_match",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "2-way ref to 'ReleaseDisplayConfig' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "ReleaseDisplayConfig",
+    "namespace": "",
+    "confidence": "low_struct_match",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "2-way ref to 'ReleaseDisplayConfig' (cat=function_name)"
+  },
+  {
+    "obf_name": "hnh",
+    "original_name": "GetWindowPosition",
+    "namespace": "",
+    "confidence": "low_struct_match",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "2-way ref to 'GetWindowPosition' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "GetWindowPosition",
+    "namespace": "",
+    "confidence": "low_struct_match",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "2-way ref to 'GetWindowPosition' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "GetDisplayConfig",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'GetDisplayConfig' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "GetWindowState",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'GetWindowState' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "InitializeWindowMessageProcessing",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'InitializeWindowMessageProcessing' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "RegisterDisplayConfigChangedCallback",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'RegisterDisplayConfigChangedCallback' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "RegisterVerboseLoggingCallback",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'RegisterVerboseLoggingCallback' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "RegisterWindowPositionChangedCallback",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'RegisterWindowPositionChangedCallback' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "RegisterWindowStateChangedCallback",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'RegisterWindowStateChangedCallback' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "ReleaseWindowMessageProcessing",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'ReleaseWindowMessageProcessing' (cat=function_name)"
+  },
+  {
+    "obf_name": "glc",
+    "original_name": "SetWindowSizeConstraints",
+    "namespace": "",
+    "confidence": "high_unique",
+    "evidence_source": "stringrefs",
+    "evidence_detail": "only ref to 'SetWindowSizeConstraints' (cat=function_name)"
+  }
+]

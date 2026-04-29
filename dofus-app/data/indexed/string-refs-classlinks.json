@@ -1,0 +1,81 @@
+{
+  "83562056": {
+    "string": "ReleaseDisplayConfig",
+    "category": "function_name",
+    "classes": {
+      "hnh": 1,
+      "glc": 1
+    }
+  },
+  "83561952": {
+    "string": "GetWindowPosition",
+    "category": "function_name",
+    "classes": {
+      "hnh": 1,
+      "glc": 4
+    }
+  },
+  "83562032": {
+    "string": "GetDisplayConfig",
+    "category": "function_name",
+    "classes": {
+      "glc": 2
+    }
+  },
+  "83562016": {
+    "string": "GetWindowState",
+    "category": "function_name",
+    "classes": {
+      "glc": 4
+    }
+  },
+  "83561688": {
+    "string": "InitializeWindowMessageProcessing",
+    "category": "function_name",
+    "classes": {
+      "glc": 2
+    }
+  },
+  "83562080": {
+    "string": "RegisterDisplayConfigChangedCallback",
+    "category": "function_name",
+    "classes": {
+      "glc": 1
+    }
+  },
+  "83562120": {
+    "string": "RegisterVerboseLoggingCallback",
+    "category": "function_name",
+    "classes": {
+      "glc": 2
+    }
+  },
+  "83561912": {
+    "string": "RegisterWindowPositionChangedCallback",
+    "category": "function_name",
+    "classes": {
+      "glc": 1
+    }
+  },
+  "83561976": {
+    "string": "RegisterWindowStateChangedCallback",
+    "category": "function_name",
+    "classes": {
+      "glc": 1
+    }
+  },
+  "83561792": {
+    "string": "ReleaseWindowMessageProcessing",
+    "category": "function_name",
+    "classes": {
+      "glc": 1
+    }
+  },
+  "83561880": {
+    "string": "SetWindowSizeConstraints",
+    "category": "function_name",
+    "classes": {
+      "glc": 3
+    }
+  }
+}
