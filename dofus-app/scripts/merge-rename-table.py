@@ -226,13 +226,15 @@ def merge_into_table(aggregated: dict, table: dict) -> dict:
         name_candidates = agg.get("name_candidates")
 
         if obf_name not in classes:
-            # New entry — create minimal stub
-            classes[obf_name] = {}
+            # New entry — create minimal stub with default label = obf_name
+            classes[obf_name] = {"label": obf_name}
             stats["new"] += 1
         else:
             stats["updated"] += 1
 
         entry = classes[obf_name]
+        # Ensure label exists even on classes that pre-existed without one
+        entry.setdefault("label", obf_name)
 
         # Update deobfusc fields
         entry["original_name"] = original_name
