@@ -271,11 +271,58 @@ Plan d'implémentation : [`docs/superpowers/plans/2026-04-29-deobfusc-sprint-mul
 
 ### Pistes encore actives (à exécuter en session manuelle)
 
-1. **AssetRipper export GUI** : lancer `C:/Tools/AssetRipper/AssetRipper.GUI.Free.exe`, charger `F:/Jeux/Dofus-dofus3/Dofus_Data/`, exporter les bundles avec scripts off + resources YAML on dans `dofus-app/data/external/assetripper-export/`. Puis re-run `parse-assetripper-monobehaviours.py` + `merge-rename-table.py`. **Gain attendu** : +50 à +500 classes (MonoBehaviour attachés à des prefabs/scenes).
+1. **Frida runtime capture** : attacher Frida à `Dofus.exe`, lancer `node dofus-app/scripts/capture-proto-descriptors.js`, login + charger une map. **Gain attendu** : 4 .proto files au minimum (les Reflection classes nommées) ; potentiellement plus si les cctors déclenchent des byte[] reads via partner classes.
 
-2. **Frida runtime capture** : attacher Frida à `Dofus.exe`, lancer `node dofus-app/scripts/capture-proto-descriptors.js`, login + charger une map. **Gain attendu** : 4 .proto files au minimum (les Reflection classes nommées) ; potentiellement plus si les cctors déclenchent des byte[] reads via partner classes.
+2. **Scan `global-metadata.dat`** : nouvelle source non implémentée ce sprint. Les noms managed strings y vivent. Un parser metadata IL2CPP exposerait `LiteralMethodToString → method_index` et permettrait de rejoindre les XRefs natifs. À évaluer en session 9.
 
-3. **Scan `global-metadata.dat`** : nouvelle source non implémentée ce sprint. Les noms managed strings y vivent. Un parser metadata IL2CPP exposerait `LiteralMethodToString → method_index` et permettrait de rejoindre les XRefs natifs. À évaluer en session 9.
+### Update post-session-manuelle (2026-04-29 — partie AssetRipper terminée)
+
+L'export AssetRipper a tourné (~1h). Résultats :
+
+| Vecteur | Résultat |
+|---|---|
+| **MonoBehaviour name resolution** | ❌ DEAD — 23041 MonoScripts + 58289 MonoBehaviours **tous "Unreadable"** (JSON vide). Limitation IL2CPP : Unity ne stocke pas `m_ClassName` côté serialization, juste des fileIDs vers stubs Mono. AssetRipper ne peut pas reconstruire les noms côté MonoBehaviour pour ce backend. |
+| **DLL Cpp2IL régénérées** | ✅ 26 MB, 18 Ankama.* DLLs incluant `Ankama.Dofus.Protocol.Game.dll` + `Core.dll` + `Ankama.Dofus.Core.{Characters,DataCenter,World}.dll` + `Com.Ankama.Haapi*.dll`. **Débloque Task 4** (protodec --il2cpp). |
+| **Scripts/ décompilés** | ✅ 23572 .cs total. 7605 obfusqués (= doublons session 3) + **1953 clear .cs en 18 DLLs séparées** non analysées avant. |
+| **protodec --il2cpp** sur `Ankama.Dofus.Protocol.Game.dll` | ✅ tourne propre — 1505 .proto générés. Mais 0 noms clairs : OPS strip métadonnées Protobuf au build → protodec rend les obf names tels quels. **Cross-check structurel** : confirme `gui` est l'enveloppe oneof. Schéma propre comme alternative à `proto-schema-decompiled.json`. |
+| **String-refs sweep** sur GameAssembly.dll | ✅ 13 RenameEntry — 9 high_unique sur class `glc` (= display/window manager via Win32 fns) + 4 low_struct_match sur `hnh`. Yield limité par architecture IL2CPP (managed strings dans `global-metadata.dat`). |
+| **Clear-DLL xref leak (Task 13 ad-hoc)** | ✅ **GROS GAIN**. Les .cs clears ne référencent PAS directement les obf de Core (AssetRipper résout cross-asm aux noms publics propres). **Pivot** vers mining de la hiérarchie INTERNE de l'index Cpp2IL : pour chaque type obf, agréger ses parents + types de fields + paramètres. **356 RenameEntry émises** : **26 high_unique + 234 medium_xref + 96 low_struct_match**. Voir top labels ci-dessous. |
+
+### Top labels inférés via clear-DLL leak (à auditer)
+
+| Obf | Label inféré | Refs | Confiance | Source |
+|---|---|---|---|---|
+| `fqi` | BindingBase | 711 | high_unique | parent of every UI binding struct |
+| `fpz` | CartographyToolBase | 186 | high_unique | abstract UI tool base |
+| `ere` | Bus | 146 | high_unique | m_bus field in CustomGridGenerator + CachedDataService |
+| `erl` | PlayedCharacterService | 124 | high_unique | m_playedCharacterService |
+| `eou` | CriterionDependenciesProvider | 117 | high_unique | dependency injection provider |
+| `euh` | ItemTooltipDependenciesProvider | 104 | high_unique | tooltip provider |
+| `ero` | PlayerService | 84 | high_unique | service de joueur |
+| `esx` | TooltipService | 79 | high_unique | service de tooltip |
+| `lh` | AccountRightsCriterionBase | 75 | high_unique | parent of Criterion classes |
+| `etu` | DofusContextualMenuService | 73 | high_unique | menu contextuel |
+
+### Métriques finales (post Tasks 13)
+
+| Métrique | Avant sprint | Après sprint offline | Après AssetRipper + Tasks 13 |
+|---|---|---|---|
+| Classes Core nommées | ~110 | ~110 | **~110 + 26 high_unique nouvelles + 234 medium_xref** = **370 effectives** |
+| Classes dans frida-rename-table | 466 | 468 | **773** |
+| Confidence breakdown | n/a | 38 high_unique, 0 medium, 0 low | **64 high_unique, 234 medium_xref, 96 low_struct_match** |
+
+### Plafond pratique recalculé v2
+
+- Avant sprint : ~50% du plafond pratique (~65%)
+- Après sprint offline : ~52%
+- **Après AssetRipper + Task 13 : ~70%** (+260 classes labellisées avec confiance ≥ medium → ~50% du plafond pratique théorique atteint)
+- Après Frida runtime (à venir) : projection 75-85%
+
+### Pistes encore actives v2
+
+1. **Frida runtime capture** (Task 8) — inchangé. ~30 min, +4 à +50 .proto descriptors.
+2. **Audit manuel des 234 medium_xref** — 1 par 1 dans `merge-conflicts.md` + le top des high_unique inférés. Validation/correction par le user.
+3. **Scan global-metadata.dat** — nouvelle source. Les managed strings y vivent. Effort 1 jour, gain potentiel +200 classes via XRefs natifs.
 
 ### Effort sprint
 
