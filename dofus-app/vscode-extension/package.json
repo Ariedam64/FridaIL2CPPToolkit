@@ -21,47 +21,36 @@
     "views": {
       "fridaToolkit": [
         { "id": "fridaProcessExplorer", "name": "Process Explorer" },
-        { "id": "fridaActiveHooks", "name": "Active Hooks" }
+        { "id": "fridaBookmarks", "name": "Bookmarks" },
+        { "id": "fridaMigrations", "name": "Migrations" }
       ]
     },
     "commands": [
-      {
-        "command": "frida.searchClass",
-        "title": "Frida: Search class",
-        "icon": "$(search)"
-      },
-      {
-        "command": "frida.renameClass",
-        "title": "Frida: Rename class"
-      },
-      {
-        "command": "frida.refreshExplorer",
-        "title": "Frida: Refresh explorer",
-        "icon": "$(refresh)"
-      },
-      {
-        "command": "frida.dumpClass",
-        "title": "Frida: Dump class details"
-      },
-      {
-        "command": "frida.toggleObfNames",
-        "title": "Frida: Toggle obfuscated names"
-      }
+      { "command": "frida.refresh", "title": "Frida: Refresh", "icon": "$(refresh)" },
+      { "command": "frida.search", "title": "Frida: Search..." },
+      { "command": "frida.openClassDetail", "title": "Frida: Open class detail by obf name" },
+      { "command": "frida.renameClass", "title": "Frida: Rename class..." },
+      { "command": "frida.renameMethod", "title": "Frida: Rename method..." },
+      { "command": "frida.renameField", "title": "Frida: Rename field..." },
+      { "command": "frida.toggleBookmark", "title": "Frida: Toggle bookmark" },
+      { "command": "frida.addNote", "title": "Frida: Add note" },
+      { "command": "frida.toggleObfNames", "title": "Frida: Toggle obfuscated names" },
+      { "command": "frida.undoRename", "title": "Frida: Undo rename" },
+      { "command": "frida.redoRename", "title": "Frida: Redo rename" },
+      { "command": "frida.exportLabels", "title": "Frida: Export labels (JSON)" },
+      { "command": "frida.importLabels", "title": "Frida: Import labels (JSON, merge)" },
+      { "command": "frida.showProfileInfo", "title": "Frida: Show profile info" },
+      { "command": "frida.openMigrationReview", "title": "Frida: Open migration review" }
     ],
     "menus": {
       "view/title": [
-        {
-          "command": "frida.refreshExplorer",
-          "when": "view == fridaProcessExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "frida.searchClass",
-          "when": "view == fridaProcessExplorer",
-          "group": "navigation"
-        }
+        { "command": "frida.refresh", "when": "view == fridaProcessExplorer", "group": "navigation" },
+        { "command": "frida.search", "when": "view == fridaProcessExplorer", "group": "navigation" }
       ]
     },
+    "keybindings": [
+      { "command": "frida.search", "key": "ctrl+shift+f", "when": "fridaToolkit.connected" }
+    ],
     "configuration": {
       "title": "Frida IL2CPP Toolkit",
       "properties": {
@@ -70,10 +59,30 @@
           "default": "http://localhost:3001/api/call",
           "description": "Frida RPC endpoint URL"
         },
-        "fridaToolkit.profilePath": {
+        "fridaToolkit.profileRoot": {
           "type": "string",
           "default": "",
-          "description": "Profile JSON path (auto-derived from build-guid if empty)"
+          "description": "Profile storage path (empty = ~/.frida-toolkit/profiles)"
+        },
+        "fridaToolkit.gameNameOverride": {
+          "type": "string",
+          "default": "",
+          "description": "Override the auto-derived game name"
+        },
+        "fridaToolkit.showObfNamesAlongside": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show obfuscated names next to labels"
+        },
+        "fridaToolkit.search.maxResults": {
+          "type": "number",
+          "default": 100,
+          "description": "Max results in universal search"
+        },
+        "fridaToolkit.migration.autoMigrateThreshold": {
+          "type": "number",
+          "default": 0.95,
+          "description": "Score threshold for automatic migration (0.0-1.0)"
         }
       }
     }
