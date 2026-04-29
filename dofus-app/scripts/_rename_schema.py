@@ -7,7 +7,7 @@ Le merger final consomme ces objets.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Iterable, Literal
 
@@ -41,9 +41,18 @@ def write_entries(entries: Iterable[RenameEntry], path: Path) -> int:
 def read_entries(path: Path) -> list[RenameEntry]:
     if not path.exists():
         return []
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in {path}: {e}") from e
+    if not isinstance(raw, list):
+        raise ValueError(f"Expected JSON array in {path}, got {type(raw).__name__}")
     out = []
-    for r in raw:
+    for i, r in enumerate(raw):
+        if not isinstance(r, dict):
+            raise ValueError(f"{path}[{i}]: expected object, got {type(r).__name__}")
+        if "obf_name" not in r or "original_name" not in r:
+            raise ValueError(f"{path}[{i}]: missing required keys obf_name/original_name (got keys={list(r.keys())})")
         out.append(RenameEntry(
             obf_name=r["obf_name"],
             original_name=r["original_name"],
