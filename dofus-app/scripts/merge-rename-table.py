@@ -32,6 +32,7 @@ J1_SOURCES = [
     DATA_EXTERNAL / "dbi-name-table.json",
     DATA_EXTERNAL / "protodec-rename.json",
     DATA_EXTERNAL / "clear-dll-rename.json",  # Task 13: clear-DLL xref leaks
+    DATA_EXTERNAL / "inlined-strings-rename.json",  # Task 14: inlined-string domain classification
 ]
 J2_SOURCES = [DATA_RUNTIME / "filedescriptor-init-rename.json"]
 J3_SOURCES = [DATA_INDEXED / "string-refs-rename.json"]
