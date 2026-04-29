@@ -225,7 +225,7 @@ class ActiveHooksProvider implements vscode.TreeDataProvider<ActiveHook> {
 // Webview: class detail
 // ---------------------------------------------------------------------------
 
-async function openClassWebview(context: vscode.ExtensionContext, obfName: string) {
+async function openClassWebview(_context: vscode.ExtensionContext, obfName: string) {
     const panel = vscode.window.createWebviewPanel(
         "fridaClassDetail",
         `Class: ${display(obfName)}`,
