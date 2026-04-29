@@ -1,0 +1,6 @@
+{
+  "exe_path": "C:/Tools/AssetRipper/AssetRipper.GUI.Free.exe",
+  "version": "1.3.14",
+  "mode": "gui_then_parse",
+  "note": "AssetRipper GUI Free 1.3.x has no scripted export CLI. Export workflow: launch GUI, load Dofus data, click Export → dofus-app/data/external/assetripper-export/, then parser consumes the YAML. Headless mode (--headless) hosts a local web UI (port shown on stdout) but we don't yet have HTTP-driver code; treat the export as manual."
+}
