@@ -303,26 +303,46 @@ L'export AssetRipper a tourné (~1h). Résultats :
 | `lh` | AccountRightsCriterionBase | 75 | high_unique | parent of Criterion classes |
 | `etu` | DofusContextualMenuService | 73 | high_unique | menu contextuel |
 
-### Métriques finales (post Tasks 13)
+### Task 14 — Inlined-strings domain classification (terminée 2026-04-29)
 
-| Métrique | Avant sprint | Après sprint offline | Après AssetRipper + Tasks 13 |
-|---|---|---|---|
-| Classes Core nommées | ~110 | ~110 | **~110 + 26 high_unique nouvelles + 234 medium_xref** = **370 effectives** |
-| Classes dans frida-rename-table | 466 | 468 | **773** |
-| Confidence breakdown | n/a | 38 high_unique, 0 medium, 0 low | **64 high_unique, 234 medium_xref, 96 low_struct_match** |
+**Stratégie** : pas besoin de parser global-metadata.dat ; AssetRipper a inliné les string literals managed dans les .cs décompilés. Pour chaque obf .cs (Scripts/Core/, Scripts/Ankama.Dofus.Protocol.Game/), extraire les string constants + tokens des `using` namespaces + `original_name` Cpp2IL des méthodes async, classer contre un vocabulaire de 17 domaines (cartography, fight, audio, haapi, social, render, network, etc.), inférer un label `<Domain><Suffix>`.
 
-### Plafond pratique recalculé v2
+**Résultats** :
+- 5366 obf .cs scannés, 2873 ont ≥3 tokens informatifs
+- 81 classes avec signal de domaine fort (score ≥ 0.30, ≥3 hits distincts)
+- 78 RenameEntry uniques émises
+- **15 confirmées vs labels existants** (validation croisée — `els → AudioService` ✓, `egq → HaapiService` ✓, `eat → cartography` ✓)
+- **18 contradictions** (mostly `render` domain qui capture trop large — entity vocab partagé entre rendering et fight services). Aucun label existant high_unique écrasé.
+- 48 genuinely new labels
+
+**Caveats** : domaine `render` trop large, capture des entity-services qui appartiennent ailleurs. À polir avec blacklist contextuelle.
+
+### Métriques finales (post Tasks 13 + 14)
+
+| Métrique | Avant sprint | Sprint offline | + AssetRipper + Task 13 | **+ Task 14 (inlined strings)** |
+|---|---|---|---|---|
+| Classes Core nommées (effectives) | ~110 | ~110 | ~370 | **~420** |
+| Classes dans frida-rename-table | 466 | 468 | 773 | **814** |
+| `high_unique` | 0 | 38 | 64 | **70** |
+| `medium_xref` | 0 | 0 | 234 | **280** |
+| `low_struct_match` | 0 | 2 | 96 | **108** |
+| Total avec confiance ≥ medium | 0 | 38 | 298 | **350** |
+
+### Plafond pratique recalculé v3
 
 - Avant sprint : ~50% du plafond pratique (~65%)
 - Après sprint offline : ~52%
-- **Après AssetRipper + Task 13 : ~70%** (+260 classes labellisées avec confiance ≥ medium → ~50% du plafond pratique théorique atteint)
-- Après Frida runtime (à venir) : projection 75-85%
+- Après AssetRipper + Task 13 : ~70%
+- **Après Task 14 (inlined strings) : ~73%**
+- Après Frida runtime (à venir) : projection 78-87%
 
-### Pistes encore actives v2
+### Pistes encore actives v3
 
-1. **Frida runtime capture** (Task 8) — inchangé. ~30 min, +4 à +50 .proto descriptors.
-2. **Audit manuel des 234 medium_xref** — 1 par 1 dans `merge-conflicts.md` + le top des high_unique inférés. Validation/correction par le user.
-3. **Scan global-metadata.dat** — nouvelle source. Les managed strings y vivent. Effort 1 jour, gain potentiel +200 classes via XRefs natifs.
+1. **Frida runtime capture** (Task 8 manuelle) — inchangé. ~30 min, +4 à +50 .proto descriptors.
+2. **Audit manuel** des 18 contradictions Task 14 + des 280 medium_xref. Voir `dofus-app/docs/deobfuscation-review.md` (généré pour faciliter la revue).
+3. **Polir le domain classifier** — narrower "render" domain, ajouter blacklist contextuelle pour les entity-services.
+4. **Re-runner matcher proto v3 graph-based** avec les nouvelles 350 ancres comme seed pour propagation. Session 6 v0/v1/v2 plafonnait avec 27-44 ancres ; avec 350 ancres ça peut débloquer plusieurs centaines de message names .proto.
+5. **Scan brut de global-metadata.dat** — toujours dispo si on veut récupérer les strings que AssetRipper aurait pu manquer. Effort 1 jour. Probablement gain marginal vu Task 14.
 
 ### Effort sprint
 
