@@ -48,9 +48,11 @@ export class AnnotationStore {
     private listeners: Array<Listener<AnnotationChangeEvent>> = [];
     private filePath: string;
     private dirty = false;
+    private onCorruption?: (backupPath: string) => void;
 
-    constructor(filePath: string) {
+    constructor(filePath: string, onCorruption?: (backupPath: string) => void) {
         this.filePath = filePath;
+        this.onCorruption = onCorruption;
         this.loadFromDisk();
     }
 
@@ -135,12 +137,28 @@ export class AnnotationStore {
 
     private loadFromDisk(): void {
         if (!fs.existsSync(this.filePath)) return;
+        let raw: string;
         try {
-            const data = JSON.parse(fs.readFileSync(this.filePath, "utf-8")) as AnnotationsFileV1;
+            raw = fs.readFileSync(this.filePath, "utf-8");
+        } catch {
+            return;
+        }
+        try {
+            const data = JSON.parse(raw) as AnnotationsFileV1;
             for (const [k, v] of Object.entries(data.bookmarks ?? {})) this.bookmarks.set(k, v);
             for (const [k, v] of Object.entries(data.notes ?? {})) this.notes.set(k, v);
         } catch {
-            throw new Error(`annotations.json invalid at ${this.filePath}`);
+            const backup = `${this.filePath}.corrupted.${Date.now()}.json`;
+            try {
+                fs.renameSync(this.filePath, backup);
+            } catch {
+                return;
+            }
+            this.bookmarks.clear();
+            this.notes.clear();
+            if (this.onCorruption) {
+                try { this.onCorruption(backup); } catch { /* ignore */ }
+            }
         }
     }
 }

@@ -28,7 +28,10 @@ export interface Profile {
 }
 
 export class ProfileManager {
-    constructor(private readonly profilesRoot: string) {}
+    constructor(
+        private readonly profilesRoot: string,
+        private readonly onCorruption?: (backupPath: string) => void,
+    ) {}
 
     async createProfile(input: CreateProfileInput): Promise<Profile> {
         const dir = path.join(this.profilesRoot, input.gameName, input.buildId);
@@ -56,8 +59,8 @@ export class ProfileManager {
 
         return {
             manifest,
-            labels: new LabelStore(path.join(dir, "labels.json")),
-            annotations: new AnnotationStore(path.join(dir, "annotations.json")),
+            labels: new LabelStore(path.join(dir, "labels.json"), this.onCorruption),
+            annotations: new AnnotationStore(path.join(dir, "annotations.json"), this.onCorruption),
             rootPath: dir,
         };
     }
@@ -74,8 +77,8 @@ export class ProfileManager {
 
         return {
             manifest,
-            labels: new LabelStore(path.join(dir, "labels.json")),
-            annotations: new AnnotationStore(path.join(dir, "annotations.json")),
+            labels: new LabelStore(path.join(dir, "labels.json"), this.onCorruption),
+            annotations: new AnnotationStore(path.join(dir, "annotations.json"), this.onCorruption),
             rootPath: dir,
         };
     }

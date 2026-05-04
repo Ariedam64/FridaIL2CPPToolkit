@@ -120,4 +120,23 @@ describe("LabelStore", () => {
         expect(reimport.get(classKey("egq"))).toBe("HaapiService");
         expect(reimport.get(methodKey("egq", "ywp"))).toBe("ConsumeKardByCode");
     });
+
+    it("backs up a corrupted JSON file and starts fresh", () => {
+        fs.writeFileSync(labelsPath, "this is not valid json {{{", "utf-8");
+        const backups: string[] = [];
+        const store = new LabelStore(labelsPath, (backup) => backups.push(backup));
+
+        // Original file is gone, replaced by .corrupted.<ts>.json
+        expect(fs.existsSync(labelsPath)).toBe(false);
+        expect(backups).toHaveLength(1);
+        expect(backups[0]).toMatch(/\.corrupted\.\d+\.json$/);
+        expect(fs.existsSync(backups[0])).toBe(true);
+
+        // Store starts empty
+        expect(store.get(classKey("egq"))).toBeNull();
+
+        // Can still set + flush new data
+        store.set(classKey("egq"), "Fresh");
+        expect(store.get(classKey("egq"))).toBe("Fresh");
+    });
 });

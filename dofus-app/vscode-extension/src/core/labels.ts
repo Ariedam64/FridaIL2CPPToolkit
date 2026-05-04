@@ -33,9 +33,11 @@ export class LabelStore {
     private flushPromise: Promise<void> = Promise.resolve();
     private undoStack: UndoFrame[] = [];
     private redoStack: UndoFrame[] = [];
+    private onCorruption?: (backupPath: string) => void;
 
-    constructor(filePath: string) {
+    constructor(filePath: string, onCorruption?: (backupPath: string) => void) {
         this.filePath = filePath;
+        this.onCorruption = onCorruption;
         this.loadFromDisk();
     }
 
@@ -198,13 +200,33 @@ export class LabelStore {
 
     private loadFromDisk(): void {
         if (!fs.existsSync(this.filePath)) return;
+        let raw: string;
         try {
-            const data = JSON.parse(fs.readFileSync(this.filePath, "utf-8")) as LabelsFileV1;
+            raw = fs.readFileSync(this.filePath, "utf-8");
+        } catch {
+            // Unreadable — leave store empty, file will be overwritten on next flush
+            return;
+        }
+        try {
+            const data = JSON.parse(raw) as LabelsFileV1;
             for (const [k, v] of Object.entries(data.classes ?? {})) this.classes.set(k, v);
             for (const [k, v] of Object.entries(data.methods ?? {})) this.methods.set(k, v);
             for (const [k, v] of Object.entries(data.fields ?? {})) this.fields.set(k, v);
         } catch {
-            throw new Error(`labels.json invalid at ${this.filePath}`);
+            // Corrupted JSON — back up the file and start fresh
+            const backup = `${this.filePath}.corrupted.${Date.now()}.json`;
+            try {
+                fs.renameSync(this.filePath, backup);
+            } catch {
+                // Couldn't rename; nothing we can do, leave the corrupted file as-is
+                return;
+            }
+            this.classes.clear();
+            this.methods.clear();
+            this.fields.clear();
+            if (this.onCorruption) {
+                try { this.onCorruption(backup); } catch { /* ignore */ }
+            }
         }
     }
 

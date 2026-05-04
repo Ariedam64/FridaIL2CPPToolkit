@@ -94,3 +94,19 @@ describe("AnnotationStore — events", () => {
         expect(events).toEqual(["note:added", "note:updated", "note:removed"]);
     });
 });
+
+describe("AnnotationStore — corruption", () => {
+    it("backs up a corrupted JSON file and starts fresh", () => {
+        fs.writeFileSync(annPath, "broken json {", "utf-8");
+        const backups: string[] = [];
+        const store = new AnnotationStore(annPath, (b) => backups.push(b));
+
+        expect(fs.existsSync(annPath)).toBe(false);
+        expect(backups).toHaveLength(1);
+        expect(fs.existsSync(backups[0])).toBe(true);
+
+        expect(store.isBookmarked(classKey("egq"))).toBe(false);
+        store.toggleBookmark(classKey("egq"));
+        expect(store.isBookmarked(classKey("egq"))).toBe(true);
+    });
+});
