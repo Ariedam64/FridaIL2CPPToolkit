@@ -21,15 +21,28 @@ import { UniversalSearch } from "./core/search";
 import { registerCommands } from "./core/commands";
 import { createCoreApi, type CoreApi } from "./core/api";
 import { matchFingerprints } from "./core/migrations";
-import type { ClassFingerprint } from "./core/types";
+import { FridaDirectClient, resolveDefaultAgentPath } from "./core/frida-direct";
+import type { ClassFingerprint, RpcClient } from "./core/types";
 
 let coreApi: CoreApi | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const config = vscode.workspace.getConfiguration("fridaToolkit");
-    const rpc = new HttpRpcClient({
-        endpoint: config.get<string>("rpcEndpoint", "http://localhost:3001/api/call"),
-    });
+    const useDirect = config.get<boolean>("useDirectMode", true);
+
+    let rpc: RpcClient;
+    let fridaDirect: FridaDirectClient | undefined;
+
+    if (useDirect) {
+        const agentScriptPath = config.get<string>("agentScriptPath", "")
+            || resolveDefaultAgentPath(context.extension);
+        fridaDirect = new FridaDirectClient(agentScriptPath);
+        rpc = fridaDirect;
+    } else {
+        rpc = new HttpRpcClient({
+            endpoint: config.get<string>("rpcEndpoint", "http://localhost:3001/api/call"),
+        });
+    }
 
     const profilesRoot = config.get<string>("profileRoot", "")
         || path.join(os.homedir(), ".frida-toolkit", "profiles");
@@ -186,25 +199,37 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             search.invalidate();
         },
         showSearch: () => search.show(),
+        fridaDirect,
+        onAttachedReinit: async () => {
+            currentProfile = null;
+            await initSession(true);
+        },
     }));
 
-    // Boot: retry init every 2s for up to 30s. RPC may not be reachable
-    // immediately if the agent finishes loading after the extension activates.
-    void (async () => {
-        for (let i = 0; i < 15; i++) {
-            const ok = await initSession(false);
-            if (ok) return;
-            await new Promise((r) => setTimeout(r, 2000));
-        }
-        // After 30s of unsuccessful attempts, surface a hint via toast.
-        // The user can hit "Frida: Refresh" once the agent is up.
-        vscode.window.showWarningMessage(
-            "Frida RPC unreachable after 30s. Use Frida: Refresh once the agent is up.",
+    if (useDirect) {
+        // Direct mode: do not auto-attach. The user picks a target via
+        // "Frida: Attach to process..." command. Until then, status bar
+        // shows "not connected".
+        vscode.window.showInformationMessage(
+            "Frida direct mode. Use \"Frida: Attach to process...\" to begin.",
         );
-    })();
+    } else {
+        // HTTP mode: agent server is supposed to be running already.
+        // Retry init every 2s for up to 30s.
+        void (async () => {
+            for (let i = 0; i < 15; i++) {
+                const ok = await initSession(false);
+                if (ok) return;
+                await new Promise((r) => setTimeout(r, 2000));
+            }
+            vscode.window.showWarningMessage(
+                "Frida RPC unreachable after 30s. Use Frida: Refresh once the agent is up.",
+            );
+        })();
+    }
 }
 
-async function deriveGameName(rpc: HttpRpcClient): Promise<string> {
+async function deriveGameName(rpc: RpcClient): Promise<string> {
     try {
         const dataPath = await rpc.call<string>("getDataPath");
         if (!dataPath) return "unknown-process";

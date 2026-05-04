@@ -4,9 +4,15 @@
   "description": "Reverse engineering toolkit for IL2CPP processes via Frida",
   "version": "0.0.1",
   "publisher": "local-dev",
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -20,44 +26,135 @@
     },
     "views": {
       "fridaToolkit": [
-        { "id": "fridaProcessExplorer", "name": "Process Explorer" },
-        { "id": "fridaBookmarks", "name": "Bookmarks" },
-        { "id": "fridaMigrations", "name": "Migrations" }
+        {
+          "id": "fridaProcessExplorer",
+          "name": "Process Explorer"
+        },
+        {
+          "id": "fridaBookmarks",
+          "name": "Bookmarks"
+        },
+        {
+          "id": "fridaMigrations",
+          "name": "Migrations"
+        }
       ]
     },
     "commands": [
-      { "command": "frida.refresh", "title": "Frida: Refresh", "icon": "$(refresh)" },
-      { "command": "frida.search", "title": "Frida: Search..." },
-      { "command": "frida.openClassDetail", "title": "Frida: Open class detail by obf name" },
-      { "command": "frida.renameClass", "title": "Frida: Rename class..." },
-      { "command": "frida.renameMethod", "title": "Frida: Rename method..." },
-      { "command": "frida.renameField", "title": "Frida: Rename field..." },
-      { "command": "frida.toggleBookmark", "title": "Frida: Toggle bookmark" },
-      { "command": "frida.addNote", "title": "Frida: Add note" },
-      { "command": "frida.toggleObfNames", "title": "Frida: Toggle obfuscated names" },
-      { "command": "frida.undoRename", "title": "Frida: Undo rename" },
-      { "command": "frida.redoRename", "title": "Frida: Redo rename" },
-      { "command": "frida.exportLabels", "title": "Frida: Export labels (JSON)" },
-      { "command": "frida.importLabels", "title": "Frida: Import labels (JSON, merge)" },
-      { "command": "frida.showProfileInfo", "title": "Frida: Show profile info" },
-      { "command": "frida.openMigrationReview", "title": "Frida: Open migration review" }
+      {
+        "command": "frida.attachToProcess",
+        "title": "Frida: Attach to process...",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "frida.detach",
+        "title": "Frida: Detach"
+      },
+      {
+        "command": "frida.refresh",
+        "title": "Frida: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "frida.search",
+        "title": "Frida: Search..."
+      },
+      {
+        "command": "frida.openClassDetail",
+        "title": "Frida: Open class detail by obf name"
+      },
+      {
+        "command": "frida.renameClass",
+        "title": "Frida: Rename class..."
+      },
+      {
+        "command": "frida.renameMethod",
+        "title": "Frida: Rename method..."
+      },
+      {
+        "command": "frida.renameField",
+        "title": "Frida: Rename field..."
+      },
+      {
+        "command": "frida.toggleBookmark",
+        "title": "Frida: Toggle bookmark"
+      },
+      {
+        "command": "frida.addNote",
+        "title": "Frida: Add note"
+      },
+      {
+        "command": "frida.toggleObfNames",
+        "title": "Frida: Toggle obfuscated names"
+      },
+      {
+        "command": "frida.undoRename",
+        "title": "Frida: Undo rename"
+      },
+      {
+        "command": "frida.redoRename",
+        "title": "Frida: Redo rename"
+      },
+      {
+        "command": "frida.exportLabels",
+        "title": "Frida: Export labels (JSON)"
+      },
+      {
+        "command": "frida.importLabels",
+        "title": "Frida: Import labels (JSON, merge)"
+      },
+      {
+        "command": "frida.showProfileInfo",
+        "title": "Frida: Show profile info"
+      },
+      {
+        "command": "frida.openMigrationReview",
+        "title": "Frida: Open migration review"
+      }
     ],
     "menus": {
       "view/title": [
-        { "command": "frida.refresh", "when": "view == fridaProcessExplorer", "group": "navigation" },
-        { "command": "frida.search", "when": "view == fridaProcessExplorer", "group": "navigation" }
+        {
+          "command": "frida.attachToProcess",
+          "when": "view == fridaProcessExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "frida.refresh",
+          "when": "view == fridaProcessExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "frida.search",
+          "when": "view == fridaProcessExplorer",
+          "group": "navigation"
+        }
       ]
     },
     "keybindings": [
-      { "command": "frida.search", "key": "ctrl+shift+f", "when": "fridaToolkit.connected" }
+      {
+        "command": "frida.search",
+        "key": "ctrl+shift+f",
+        "when": "fridaToolkit.connected"
+      }
     ],
     "configuration": {
       "title": "Frida IL2CPP Toolkit",
       "properties": {
+        "fridaToolkit.useDirectMode": {
+          "type": "boolean",
+          "default": true,
+          "description": "Connect to Frida directly via the frida-node binding (no HTTP server needed). Disable to fall back to HTTP RPC (host/server.js)."
+        },
+        "fridaToolkit.agentScriptPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the compiled Frida agent script. Empty = <repo>/build/rpc-agent.js. Build with: npm run build:rpc"
+        },
         "fridaToolkit.rpcEndpoint": {
           "type": "string",
           "default": "http://localhost:3001/api/call",
-          "description": "Frida RPC endpoint URL"
+          "description": "Frida RPC endpoint URL (HTTP fallback mode only)"
         },
         "fridaToolkit.profileRoot": {
           "type": "string",
@@ -98,5 +195,8 @@
     "@types/vscode": "^1.85.0",
     "typescript": "^5.3.0",
     "vitest": "^1.6.0"
+  },
+  "dependencies": {
+    "frida": "^17.9.6"
   }
 }

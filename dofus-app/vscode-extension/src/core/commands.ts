@@ -6,6 +6,7 @@ import * as vscode from "vscode";
 import { openClassDetail } from "./webviews/class-detail";
 import type { Profile } from "./profile";
 import type { LabelKey, RpcClient } from "./types";
+import type { FridaDirectClient } from "./frida-direct";
 
 export interface CommandsDeps {
     rpc: RpcClient;
@@ -13,6 +14,10 @@ export interface CommandsDeps {
     refresh: () => void;
     onShowObfNamesToggled: (showing: boolean) => void;
     showSearch: () => Promise<void>;
+    /** Optional — present when running in direct-Frida mode. */
+    fridaDirect?: FridaDirectClient;
+    /** Called after a successful attach to trigger profile init. */
+    onAttachedReinit?: () => Promise<void>;
 }
 
 let showObfNames = false;
@@ -169,6 +174,56 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
             { modal: true },
         );
     }));
+
+    // Direct-Frida-only commands
+    if (deps.fridaDirect) {
+        const direct = deps.fridaDirect;
+
+        cmds.push(vscode.commands.registerCommand("frida.attachToProcess", async () => {
+            let processes: Awaited<ReturnType<typeof direct.listProcesses>>;
+            try {
+                processes = await direct.listProcesses();
+            } catch (e) {
+                vscode.window.showErrorMessage(
+                    `Failed to enumerate processes: ${e instanceof Error ? e.message : String(e)}\n` +
+                    `Make sure frida-server is running (or you have permissions on this OS).`,
+                );
+                return;
+            }
+
+            const pick = await vscode.window.showQuickPick(
+                processes.map((p) => ({
+                    label: p.name,
+                    description: `pid=${p.pid}`,
+                    pid: p.pid,
+                })),
+                {
+                    placeHolder: "Pick a process to attach to",
+                    matchOnDescription: true,
+                },
+            );
+            if (!pick) return;
+
+            try {
+                const info = await direct.attach(pick.pid);
+                vscode.window.showInformationMessage(`Attached to ${info.name} (pid=${info.pid})`);
+                if (deps.onAttachedReinit) {
+                    await deps.onAttachedReinit();
+                }
+                deps.refresh();
+            } catch (e) {
+                vscode.window.showErrorMessage(
+                    `Attach failed: ${e instanceof Error ? e.message : String(e)}`,
+                );
+            }
+        }));
+
+        cmds.push(vscode.commands.registerCommand("frida.detach", async () => {
+            await direct.detach();
+            vscode.window.showInformationMessage("Detached from Frida");
+            deps.refresh();
+        }));
+    }
 
     return cmds;
 }
