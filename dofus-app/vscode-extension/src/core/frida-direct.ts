@@ -118,16 +118,37 @@ export class FridaDirectClient implements RpcClient {
 
         const source = fs.readFileSync(this.agentScriptPath, "utf-8");
         this.script = await this.session.createScript(source);
+
+        // The agent calls `send({type:"agent-ready"})` after Il2Cpp.perform()
+        // has finished initializing. Until then, RPC methods that touch IL2CPP
+        // will fail. We listen for that message and resolve `agentReady` to
+        // gate the rest of init.
+        let resolveReady: (() => void) | null = null;
+        const agentReady = new Promise<void>((resolve) => { resolveReady = resolve; });
+
         this.script.message.connect((msg: unknown) => {
-            // Surface uncaught errors from the agent.
-            if (msg && typeof msg === "object" && (msg as { type?: string }).type === "error") {
-                console.error("[frida-direct] agent error:", msg);
+            if (msg && typeof msg === "object") {
+                const m = msg as { type?: string; payload?: { type?: string } };
+                if (m.type === "send" && m.payload?.type === "agent-ready") {
+                    console.log("[frida-direct] agent-ready received");
+                    resolveReady?.();
+                }
+                if (m.type === "error") {
+                    console.error("[frida-direct] agent error:", msg);
+                }
             }
         });
         this.script.logHandler = (level: string, payload: string) => {
             console.log(`[frida-agent ${level}]`, payload);
         };
         await this.script.load();
+
+        // Wait up to 10s for the agent to signal ready. If we time out,
+        // proceed anyway — IL2CPP may already be initialized in the host.
+        await Promise.race([
+            agentReady,
+            new Promise<void>((resolve) => setTimeout(resolve, 10_000)),
+        ]);
 
         this.attachedInfo = { pid, name: proc.name };
         this.emitChange();
