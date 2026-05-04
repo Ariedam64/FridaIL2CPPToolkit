@@ -62,11 +62,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // Universal search
     const search = new UniversalSearch(rpc, profileSource);
 
-    // Status bar
-    const statusBar = new StatusBarController(rpc, profileSource, "frida.refresh");
-    context.subscriptions.push(statusBar);
-    statusBar.start();
-
     const refreshAll = (): void => {
         explorerProvider.refresh();
         bookmarksProvider.refresh();
@@ -75,33 +70,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         statusBar.tick();
     };
 
-    // Commands
-    context.subscriptions.push(...registerCommands({
-        rpc,
-        profileSource,
-        refresh: refreshAll,
-        onShowObfNamesToggled: (show) => {
-            explorerProvider.setShowObfNames(show);
-            search.invalidate();
-        },
-        showSearch: () => search.show(),
-    }));
+    // Status bar — refresh button calls frida.refresh which triggers initSession
+    const statusBar = new StatusBarController(rpc, profileSource, "frida.refresh");
+    context.subscriptions.push(statusBar);
+    statusBar.start();
 
-    // Initial profile detection (fire-and-forget; UI degrades gracefully if RPC down)
-    void (async () => {
+    // Init session: detect build, load/create profile, run migrations, save fingerprints.
+    // Idempotent — if a profile is already loaded, just refresh the UI.
+    let initInFlight = false;
+    const initSession = async (notify: boolean = false): Promise<boolean> => {
+        if (initInFlight) return currentProfile !== null;
+        initInFlight = true;
         try {
             const healthy = await rpc.isHealthy();
-            if (!healthy) return;
+            if (!healthy) {
+                if (notify) {
+                    vscode.window.showWarningMessage(
+                        "Frida RPC unreachable. Check the agent is running on the configured endpoint.",
+                    );
+                }
+                return false;
+            }
 
             const detected = await detectBuildId(rpc);
             const gameNameOverride = config.get<string>("gameNameOverride", "");
             const gameName = gameNameOverride || (await deriveGameName(rpc));
 
-            // Try load existing
             try {
                 currentProfile = await profileManager.loadProfile(gameName, detected.buildId);
             } catch {
-                // Need to create — try deriving from a previous build
                 const previous = await profileManager.findMostRecentBuild(gameName, detected.buildId);
                 currentProfile = await profileManager.createProfile({
                     gameName,
@@ -111,7 +108,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 });
             }
 
-            // Fetch current fingerprints from the attached process
             let currentFps: ClassFingerprint[] = [];
             try {
                 currentFps = await rpc.call<ClassFingerprint[]>("listClassFingerprints");
@@ -119,7 +115,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 console.warn("listClassFingerprints failed:", e);
             }
 
-            // If we just created a NEW profile derived from a previous build, run migration
             const wasNewlyCreated = currentProfile.manifest.derivedFrom !== null
                 && currentProfile.manifest.attachedFirstAt === currentProfile.manifest.attachedLastAt;
             if (wasNewlyCreated && currentProfile.manifest.derivedFrom) {
@@ -129,7 +124,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     const oldLabels = await profileManager.loadProfileLabels(gameName, previousBuildId);
                     const result = matchFingerprints({ oldFps, newFps: currentFps, oldLabels });
 
-                    // Apply auto-migrated labels to current profile
                     for (const m of result.auto) {
                         currentProfile.labels.set({ kind: "class", className: m.newObf }, m.label);
                     }
@@ -146,7 +140,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 }
             }
 
-            // Always save current fingerprints for the next attach to compare against
             if (currentFps.length > 0) {
                 try {
                     await profileManager.saveFingerprints(currentProfile, currentFps);
@@ -158,10 +151,56 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await vscode.commands.executeCommand("setContext", "fridaToolkit.connected", true);
             profileEmitter.fire(currentProfile);
             refreshAll();
+
+            if (notify) {
+                vscode.window.showInformationMessage(
+                    `Connected: ${currentProfile.manifest.gameName} / ${currentProfile.manifest.buildId.slice(0, 8)}`,
+                );
+            }
+            return true;
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            vscode.window.showWarningMessage(`Frida toolkit init failed: ${msg}`);
+            if (notify) {
+                vscode.window.showWarningMessage(`Frida toolkit init failed: ${msg}`);
+            } else {
+                console.warn("Frida toolkit init failed:", msg);
+            }
+            return false;
+        } finally {
+            initInFlight = false;
         }
+    };
+
+    // Commands — refresh both reloads trees AND retries init when no profile yet
+    context.subscriptions.push(...registerCommands({
+        rpc,
+        profileSource,
+        refresh: () => {
+            refreshAll();
+            if (!currentProfile) {
+                void initSession(true);
+            }
+        },
+        onShowObfNamesToggled: (show) => {
+            explorerProvider.setShowObfNames(show);
+            search.invalidate();
+        },
+        showSearch: () => search.show(),
+    }));
+
+    // Boot: retry init every 2s for up to 30s. RPC may not be reachable
+    // immediately if the agent finishes loading after the extension activates.
+    void (async () => {
+        for (let i = 0; i < 15; i++) {
+            const ok = await initSession(false);
+            if (ok) return;
+            await new Promise((r) => setTimeout(r, 2000));
+        }
+        // After 30s of unsuccessful attempts, surface a hint via toast.
+        // The user can hit "Frida: Refresh" once the agent is up.
+        vscode.window.showWarningMessage(
+            "Frida RPC unreachable after 30s. Use Frida: Refresh once the agent is up.",
+        );
     })();
 }
 
