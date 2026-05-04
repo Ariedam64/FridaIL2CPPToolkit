@@ -10,7 +10,7 @@ import * as path from "path";
 
 import { LabelStore } from "./labels";
 import { AnnotationStore } from "./annotations";
-import type { BuildIdSource, ProfileManifest } from "./types";
+import type { BuildIdSource, ClassFingerprint, ProfileManifest } from "./types";
 
 export interface CreateProfileInput {
     gameName: string;
@@ -107,5 +107,44 @@ export class ProfileManager {
         );
         stats.sort((a, b) => b.mtime - a.mtime);
         return stats[0].build;
+    }
+
+    async saveFingerprints(profile: Profile, fps: ClassFingerprint[]): Promise<void> {
+        const data = JSON.stringify({ schemaVersion: 1, fingerprints: fps });
+        const fpPath = path.join(profile.rootPath, "fingerprints.json");
+        const tmp = fpPath + ".tmp";
+        await fs.promises.writeFile(tmp, data, "utf-8");
+        await fs.promises.rename(tmp, fpPath);
+    }
+
+    async loadFingerprints(gameName: string, buildId: string): Promise<ClassFingerprint[] | null> {
+        const fpPath = path.join(this.profilesRoot, gameName, buildId, "fingerprints.json");
+        if (!fs.existsSync(fpPath)) return null;
+        try {
+            const data = JSON.parse(await fs.promises.readFile(fpPath, "utf-8")) as {
+                schemaVersion: 1;
+                fingerprints: ClassFingerprint[];
+            };
+            return data.fingerprints ?? [];
+        } catch {
+            return null;
+        }
+    }
+
+    async loadProfileLabels(gameName: string, buildId: string): Promise<Record<string, string>> {
+        const labelsPath = path.join(this.profilesRoot, gameName, buildId, "labels.json");
+        if (!fs.existsSync(labelsPath)) return {};
+        try {
+            const data = JSON.parse(await fs.promises.readFile(labelsPath, "utf-8")) as {
+                classes?: Record<string, { label: string }>;
+            };
+            const out: Record<string, string> = {};
+            for (const [obf, entry] of Object.entries(data.classes ?? {})) {
+                out[obf] = entry.label;
+            }
+            return out;
+        } catch {
+            return {};
+        }
     }
 }

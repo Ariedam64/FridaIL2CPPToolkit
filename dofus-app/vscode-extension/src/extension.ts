@@ -20,6 +20,8 @@ import {
 import { UniversalSearch } from "./core/search";
 import { registerCommands } from "./core/commands";
 import { createCoreApi, type CoreApi } from "./core/api";
+import { matchFingerprints } from "./core/migrations";
+import type { ClassFingerprint } from "./core/types";
 
 let coreApi: CoreApi | undefined;
 
@@ -107,12 +109,49 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     buildIdSource: detected.source,
                     derivedFromBuildId: previous ?? undefined,
                 });
-                if (previous) {
+            }
+
+            // Fetch current fingerprints from the attached process
+            let currentFps: ClassFingerprint[] = [];
+            try {
+                currentFps = await rpc.call<ClassFingerprint[]>("listClassFingerprints");
+            } catch (e) {
+                console.warn("listClassFingerprints failed:", e);
+            }
+
+            // If we just created a NEW profile derived from a previous build, run migration
+            const wasNewlyCreated = currentProfile.manifest.derivedFrom !== null
+                && currentProfile.manifest.attachedFirstAt === currentProfile.manifest.attachedLastAt;
+            if (wasNewlyCreated && currentProfile.manifest.derivedFrom) {
+                const previousBuildId = currentProfile.manifest.derivedFrom.split("/")[1];
+                const oldFps = await profileManager.loadFingerprints(gameName, previousBuildId);
+                if (oldFps && currentFps.length > 0) {
+                    const oldLabels = await profileManager.loadProfileLabels(gameName, previousBuildId);
+                    const result = matchFingerprints({ oldFps, newFps: currentFps, oldLabels });
+
+                    // Apply auto-migrated labels to current profile
+                    for (const m of result.auto) {
+                        currentProfile.labels.set({ kind: "class", className: m.newObf }, m.label);
+                    }
+                    await currentProfile.labels.flush();
+
+                    migrationsProvider.setMigrations(result);
                     vscode.window.showInformationMessage(
-                        `New build detected. Migrations from ${previous} pending — see Migrations panel.`,
+                        `Migrations: ${result.auto.length} auto-migrated, ${result.review.length} to review, ${result.lost.length} lost. See Migrations panel.`,
                     );
-                    // Migration computation happens here in a future task; currently
-                    // we just record the lineage.
+                } else if (!oldFps) {
+                    vscode.window.showInformationMessage(
+                        `New build detected. No stored fingerprints for ${previousBuildId} — migrations will be available after next attach.`,
+                    );
+                }
+            }
+
+            // Always save current fingerprints for the next attach to compare against
+            if (currentFps.length > 0) {
+                try {
+                    await profileManager.saveFingerprints(currentProfile, currentFps);
+                } catch (e) {
+                    console.warn("saveFingerprints failed:", e);
                 }
             }
 
