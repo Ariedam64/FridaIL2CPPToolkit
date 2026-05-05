@@ -43,6 +43,8 @@ export interface CoreApi {
         showWebview(opts: WebviewOptions): vscode.WebviewPanel;
         notify(message: string, level?: "info" | "warning" | "error"): void;
     };
+    /** Frida `send()` payloads from the agent. Empty no-op event in HTTP mode. */
+    readonly onAgentMessage: vscode.Event<unknown>;
 }
 
 // DiskPluginStorage now lives in plugin-storage.ts (vscode-free, testable).
@@ -52,6 +54,7 @@ export interface CoreApiDeps {
     profileDetachEmitter: vscode.EventEmitter<void>;
     profileSource: { current(): Profile | null };
     rpc: RpcClient;
+    onAgentMessage: vscode.Event<unknown>;
 }
 
 export function createCoreApi(deps: CoreApiDeps): CoreApi {
@@ -114,5 +117,6 @@ export function createCoreApi(deps: CoreApiDeps): CoreApi {
                 else vscode.window.showInformationMessage(msg);
             },
         },
+        onAgentMessage: deps.onAgentMessage,
     };
 }

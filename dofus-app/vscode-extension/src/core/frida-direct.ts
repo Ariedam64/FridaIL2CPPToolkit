@@ -52,6 +52,10 @@ export class FridaDirectClient implements RpcClient {
     private readonly listeners: Array<(info: AttachInfo | null) => void> = [];
     private fridaCache: FridaModule | null = null;
 
+    private readonly _onMessage = new vscode.EventEmitter<unknown>();
+    /** Stream of `send()` payloads from the agent (after `type === "send"` filter). */
+    readonly onMessage = this._onMessage.event;
+
     constructor(private readonly agentScriptPath: string) {}
 
     private async getFrida(): Promise<FridaModule> {
@@ -133,6 +137,9 @@ export class FridaDirectClient implements RpcClient {
                     console.log("[frida-direct] agent-ready received");
                     resolveReady?.();
                 }
+                if (m.type === "send" && m.payload !== undefined) {
+                    this._onMessage.fire(m.payload);
+                }
                 if (m.type === "error") {
                     console.error("[frida-direct] agent error:", msg);
                 }
@@ -168,6 +175,10 @@ export class FridaDirectClient implements RpcClient {
             this.attachedInfo = null;
             this.emitChange();
         }
+    }
+
+    dispose(): void {
+        this._onMessage.dispose();
     }
 
     async call<T>(method: string, args: unknown[] = []): Promise<T> {

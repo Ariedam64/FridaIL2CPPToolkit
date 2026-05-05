@@ -57,11 +57,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     const profileEmitter = new vscode.EventEmitter<Profile>();
     const profileDetachEmitter = new vscode.EventEmitter<void>();
 
+    const onAgentMessage: vscode.Event<unknown> = fridaDirect
+        ? fridaDirect.onMessage
+        : new vscode.EventEmitter<unknown>().event;
+
     coreApi = createCoreApi({
         profileEmitter,
         profileDetachEmitter,
         profileSource,
         rpc,
+        onAgentMessage,
     });
 
     // Tree providers
