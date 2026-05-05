@@ -142,6 +142,10 @@
       {
         "command": "frida.hooks.addFromMember",
         "title": "Frida: Hook this method..."
+      },
+      {
+        "command": "frida.hooks.traceMember",
+        "title": "Frida: Trace this method (log + stack)"
       }
     ],
     "menus": {

@@ -1,6 +1,9 @@
 // Webview that renders class detail (fields, methods) with structured syntax-
 // highlighted HTML. Actions: rename, bookmark, add-note, copy-obf. Each method
-// row has an inline Hook button that fires frida.hooks.addFromMember.
+// row has inline Hook/Trace/Copy buttons. Fields have a Copy button.
+// Feature A/D: Hook v2 + Trace (log-stack, no prompt)
+// Feature E: Search bar (filter by name, case-insensitive substring)
+// Feature F: Copy signature (ClassName.member → clipboard)
 
 import * as vscode from "vscode";
 
@@ -55,8 +58,19 @@ export async function openClassDetail(
                 vscode.window.showInformationMessage(`Copied: ${obfClassName}`);
                 break;
             case "hookMethod":
-                if (typeof msg.methodName === "string") {
-                    await vscode.commands.executeCommand("frida.hooks.addFromMember", obfClassName, msg.methodName);
+                if (typeof (msg as any).methodName === "string") {
+                    await vscode.commands.executeCommand("frida.hooks.addFromMember", obfClassName, (msg as any).methodName);
+                }
+                break;
+            case "traceMethod":
+                if (typeof (msg as any).methodName === "string") {
+                    await vscode.commands.executeCommand("frida.hooks.traceMember", obfClassName, (msg as any).methodName);
+                }
+                break;
+            case "copySignature":
+                if (typeof (msg as any).text === "string") {
+                    await vscode.env.clipboard.writeText((msg as any).text);
+                    vscode.window.showInformationMessage(`Copied: ${(msg as any).text}`);
                 }
                 break;
         }
@@ -198,8 +212,8 @@ function renderClass(obf: string, dump: string, profile: Profile | null): string
 
     const parsed = parseDump(dump);
 
-    const fieldsHtml  = parsed.fields.map(renderField).join("\n");
-    const methodsHtml = parsed.methods.map(renderMethod).join("\n");
+    const fieldsHtml  = parsed.fields.map(f => renderField(f, obf)).join("\n");
+    const methodsHtml = parsed.methods.map(m => renderMethod(m, obf)).join("\n");
 
     const titleHtml = friendly
         ? `${escHtml(display)} <span class="obf-tag">[${escHtml(obf)}]</span>`
@@ -225,7 +239,7 @@ function renderClass(obf: string, dump: string, profile: Profile | null): string
             border-left: 3px solid var(--vscode-textBlockQuote-border);
             padding: 0.6rem 0.8rem; margin: 0.8rem 0; font-style: italic;
         }
-        .actions { margin: 0.6rem 0 1rem 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .actions { margin: 0.6rem 0 0.6rem 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
         .actions button {
             background: var(--vscode-button-background);
             color: var(--vscode-button-foreground);
@@ -236,6 +250,16 @@ function renderClass(obf: string, dump: string, profile: Profile | null): string
             background: var(--vscode-statusBarItem-warningBackground);
             color: var(--vscode-statusBarItem-warningForeground);
         }
+        .filter-row { padding: 4px 0 8px 0; }
+        #member-filter {
+            width: 100%; padding: 4px 8px;
+            background: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 3px;
+            font-family: var(--vscode-font-family);
+            box-sizing: border-box;
+        }
         .section-title {
             font-weight: bold; margin: 1.2em 0 0.3em 0;
             color: var(--vscode-textLink-foreground);
@@ -244,21 +268,26 @@ function renderClass(obf: string, dump: string, profile: Profile | null): string
         .member-list { list-style: none; margin: 0; padding: 0; }
         .field, .method {
             display: flex; align-items: center; gap: 0.45em;
-            padding: 1px 0;
+            padding: 3px 0;
             font-family: var(--vscode-editor-font-family);
             font-size: var(--vscode-editor-font-size, 13px);
         }
+        .field:hover, .method:hover { background: var(--vscode-list-hoverBackground); }
         .static-badge { color: var(--vscode-debugTokenExpression-string); font-style: italic; font-size: 0.9em; }
         .type-name    { color: var(--vscode-symbolIcon-classForeground, #4ec9b0); }
         .member-name  { color: var(--vscode-symbolIcon-methodForeground, #dcdcaa); font-weight: 600; }
         .params       { color: var(--vscode-descriptionForeground); }
-        .hook-btn {
+        .method-actions { display: inline-flex; gap: 4px; margin-left: auto; }
+        .action-btn {
             background: var(--vscode-button-secondaryBackground);
             color: var(--vscode-button-secondaryForeground);
-            border: none; padding: 1px 7px; border-radius: 3px; cursor: pointer;
-            font-size: 0.82em; margin-left: 0.3em; white-space: nowrap;
+            border: 1px solid var(--vscode-button-border, transparent);
+            padding: 2px 8px; border-radius: 3px; cursor: pointer;
+            font-size: 0.85em; font-family: var(--vscode-font-family);
+            transition: background-color 80ms ease;
+            white-space: nowrap;
         }
-        .hook-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+        .action-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
         hr { border: none; border-top: 1px solid var(--vscode-panel-border, #333); margin: 0.6rem 0; }
     </style></head><body>
         <h2>${titleHtml}</h2>
@@ -267,6 +296,9 @@ function renderClass(obf: string, dump: string, profile: Profile | null): string
             <button class="${isBookmarked ? "active" : ""}" onclick="post('bookmark')">${isBookmarked ? "&#9733; Bookmarked" : "&#9734; Bookmark"}</button>
             <button onclick="post('addNote')">${note ? "Edit note" : "Add note"}</button>
             <button onclick="post('copyObf')">Copy obf</button>
+        </div>
+        <div class="filter-row">
+            <input type="text" id="member-filter" placeholder="Filter methods/fields…" autocomplete="off" spellcheck="false">
         </div>
         ${noteHtml}
         <div class="section-title">Fields (${parsed.fields.length})</div>
@@ -282,32 +314,59 @@ ${methodsHtml}
         <script>
             const vscode = acquireVsCodeApi();
             function post(type, extra) { vscode.postMessage(Object.assign({ type }, extra)); }
+
+            // Action button dispatcher (hook / trace / copy)
             document.addEventListener("click", function(e) {
-                const btn = e.target && e.target.closest && e.target.closest(".hook-btn");
-                if (btn) {
-                    post("hookMethod", { methodName: btn.dataset.method });
+                const btn = e.target && e.target.closest && e.target.closest("button.action-btn");
+                if (!btn) return;
+                const method = btn.dataset.method;
+                if (btn.classList.contains("hook")) {
+                    post("hookMethod", { methodName: method });
+                } else if (btn.classList.contains("trace")) {
+                    post("traceMethod", { methodName: method });
+                } else if (btn.classList.contains("copy")) {
+                    post("copySignature", { text: btn.dataset.sig });
                 }
+            });
+
+            // Search/filter bar
+            const filter = document.getElementById("member-filter");
+            filter.addEventListener("input", function() {
+                const q = filter.value.toLowerCase();
+                document.querySelectorAll(".method, .field").forEach(function(row) {
+                    const nameEl = row.querySelector(".member-name");
+                    const name = nameEl ? nameEl.textContent.toLowerCase() : "";
+                    row.style.display = (q === "" || name.includes(q)) ? "" : "none";
+                });
             });
         </script>
     </body></html>`;
 }
 
-function renderField(f: FieldEntry): string {
-    const staticBadge = f.isStatic ? `<span class="static-badge">static</span> ` : "";
+function renderField(f: FieldEntry, className: string): string {
+    const staticBadge = f.isStatic ? `<span class="static-badge">static</span>` : "";
     const typePart    = f.typeName  ? `<span class="type-name">${escHtml(f.typeName)}</span>` : "";
     const namePart    = f.fieldName ? `<span class="member-name">${escHtml(f.fieldName)}</span>` : "";
-    return `            <li class="field">${staticBadge}${typePart} ${namePart}</li>`;
+    const sig         = escAttr(`${className}.${f.fieldName}`);
+    const copyBtn     = f.fieldName
+        ? `<span class="method-actions"><button class="action-btn copy" data-sig="${sig}" title="Copy">&#x1F4CB;</button></span>`
+        : "";
+    return `            <li class="field">${staticBadge}${typePart} ${namePart}${copyBtn}</li>`;
 }
 
-function renderMethod(m: MethodEntry): string {
-    const staticBadge = m.isStatic ? `<span class="static-badge">static</span> ` : "";
+function renderMethod(m: MethodEntry, className: string): string {
+    const staticBadge = m.isStatic ? `<span class="static-badge">static</span>` : "";
     const retPart     = m.returnType ? `<span class="type-name">${escHtml(m.returnType)}</span>` : "";
     const namePart    = m.methodName ? `<span class="member-name">${escHtml(m.methodName)}</span>` : "";
     const paramPart   = `<span class="params">(${escHtml(m.params)})</span>`;
-    // Encode the method name for the data attribute
     const dataMethod  = escAttr(m.methodName);
-    const hookBtn     = `<button class="hook-btn" data-method="${dataMethod}">&#x1FA9D; Hook</button>`;
-    return `            <li class="method">${staticBadge}${retPart} ${namePart}${paramPart}${hookBtn}</li>`;
+    const sig         = escAttr(`${className}.${m.methodName}(${m.params})`);
+    const actions     = `<span class="method-actions">` +
+        `<button class="action-btn hook" data-method="${dataMethod}" title="Hook (choose template)">&#x1FA9D; Hook</button>` +
+        `<button class="action-btn trace" data-method="${dataMethod}" title="Trace (log+stack, no prompt)">&#x1F3AF; Trace</button>` +
+        `<button class="action-btn copy" data-method="${dataMethod}" data-sig="${sig}" title="Copy signature">&#x1F4CB;</button>` +
+        `</span>`;
+    return `            <li class="method">${staticBadge}${retPart} ${namePart}${paramPart}${actions}</li>`;
 }
 
 function renderError(obf: string, msg: string): string {

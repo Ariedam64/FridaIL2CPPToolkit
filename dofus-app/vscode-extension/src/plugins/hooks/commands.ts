@@ -146,6 +146,37 @@ export function registerHookCommands(deps: HooksCommandDeps): vscode.Disposable[
         }
     }));
 
+    cmds.push(vscode.commands.registerCommand("frida.hooks.traceMember",
+        async (className?: string, methodName?: string) => {
+            if (!className || !methodName) {
+                vscode.window.showWarningMessage("frida.hooks.traceMember: missing className/methodName");
+                return;
+            }
+            const spec: HookSpec = {
+                template: "log-stack",
+                className,
+                methodName,
+                stackCaptureCount: 5,
+            };
+            const v = validateHookSpec(spec);
+            if (!v.ok) {
+                vscode.window.showErrorMessage(`Invalid hook: ${v.reason}`);
+                return;
+            }
+            const stored = store.add(spec);
+            try {
+                await store.install(stored.id);
+                vscode.window.showInformationMessage(`Tracing: ${className}.${methodName} (5 stack frames)`);
+                // Open log focused on this hook
+                openLog(stored.id);
+            } catch (err) {
+                vscode.window.showWarningMessage(
+                    `Trace saved disarmed (install failed): ${err instanceof Error ? err.message : String(err)}`,
+                );
+            }
+        },
+    ));
+
     cmds.push(vscode.commands.registerCommand("frida.hooks.addFromMember",
         async (arg1?: any, arg2?: any) => {
             let className: string | undefined;
