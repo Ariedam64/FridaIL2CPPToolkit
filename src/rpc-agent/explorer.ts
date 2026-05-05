@@ -87,6 +87,20 @@ function ensureInheritanceCache(): void {
     console.log(`[explorer] inheritance cache built: ${map.size} parents`);
 }
 
+/**
+ * Pre-warm the explorer index during attach so the first user click is instant.
+ * Safe to call multiple times — buildExplorerIndex() is idempotent.
+ */
+export function prewarmExplorerIndex(): Promise<{ assemblies: number; classes: number }> {
+    return inVm(() => {
+        buildExplorerIndex();
+        return {
+            assemblies: _asmIndex!.length,
+            classes: _classByName!.size,
+        };
+    }) as unknown as Promise<{ assemblies: number; classes: number }>;
+}
+
 /** List assemblies + class count. Returns array of { name, classes }. */
 export function listAssembliesInfo(): Promise<Array<{ name: string; classes: number }>> {
     return inVm(() => {

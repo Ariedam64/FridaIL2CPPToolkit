@@ -193,6 +193,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 console.warn("initial updateStats failed:", e);
             });
 
+            // Pre-warm the Process Explorer index off the user's first click.
+            try {
+                const r = await rpc.call<{ assemblies: number; classes: number }>("prewarmExplorerIndex");
+                console.log(`[toolkit] explorer index prewarmed: ${r.assemblies} asm / ${r.classes} classes`);
+            } catch (e) {
+                console.warn("prewarmExplorerIndex failed:", e);
+            }
+
             await vscode.commands.executeCommand("setContext", "fridaToolkit.connected", true);
             profileEmitter.fire(currentProfile);
             refreshAll();

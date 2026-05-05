@@ -61,7 +61,7 @@ export class ProcessExplorerProvider implements vscode.TreeDataProvider<Explorer
             case "class": {
                 const key: LabelKey = { kind: "class", className: node.obfName };
                 const display = profile ? this.displayWithObfTag(profile, key) : node.obfName;
-                const item = new vscode.TreeItem(display, vscode.TreeItemCollapsibleState.Collapsed);
+                const item = new vscode.TreeItem(display, vscode.TreeItemCollapsibleState.None);
                 item.iconPath = new vscode.ThemeIcon("symbol-class");
                 item.contextValue = "frida.class";
                 item.tooltip = node.obfName;
@@ -108,29 +108,6 @@ export class ProcessExplorerProvider implements vscode.TreeDataProvider<Explorer
                 return list.map((obfName) => ({
                     kind: "class", assembly: node.assembly, ns: node.ns, obfName,
                 }));
-            }
-            if (node.kind === "class") {
-                const list = await this.rpc.call<{ methods: string[]; fields: string[] }>(
-                    "listClassMembers", [node.obfName],
-                );
-                const out: ExplorerNode[] = [];
-                for (const name of list.methods) {
-                    out.push({
-                        kind: "member",
-                        container: { className: node.obfName },
-                        memberKind: "method",
-                        obfName: name,
-                    });
-                }
-                for (const name of list.fields) {
-                    out.push({
-                        kind: "member",
-                        container: { className: node.obfName },
-                        memberKind: "field",
-                        obfName: name,
-                    });
-                }
-                return out;
             }
             return [];
         } catch (err) {
