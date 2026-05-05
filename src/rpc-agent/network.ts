@@ -1,6 +1,7 @@
 // RPC methods for network capture: startNetworkCapture, stopNetworkCapture, resolveProtobufName, sampleResolvedProtobufs.
 import "frida-il2cpp-bridge";
 import { findClass, stringifyValue } from "../lib";
+import { getSingleton } from "./singleton-cache";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
@@ -450,14 +451,9 @@ let _mdGet: Il2Cpp.Method<any> | null = null;
 function getMonsterName(id: number): string {
     if (!_mdRoot) {
         try {
-            let klass: Il2Cpp.Class | null = null;
-            for (const asm of Il2Cpp.domain.assemblies) {
-                try { for (const k of asm.image.classes) if (k.name === "MonstersDataRoot") { klass = k; break; } } catch {}
-                if (klass) break;
-            }
+            const klass = findClass("MonstersDataRoot");
             if (klass) {
-                const arr = Il2Cpp.gc.choose(klass);
-                if (arr.length) _mdRoot = arr[0];
+                _mdRoot = getSingleton(klass);
                 _mdGet = klass.methods.find(m => m.name === "GetMonsterById" && m.parameters.length === 1) ?? null;
             }
         } catch {}

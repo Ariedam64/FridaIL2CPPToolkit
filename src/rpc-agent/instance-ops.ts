@@ -2,6 +2,7 @@
 import "frida-il2cpp-bridge";
 import { findClass, dumpFields, stringifyValue } from "../lib";
 import { setCaptured, getCaptured, forEachCaptured, coerce } from "./registry";
+import { notFoundClass, notFoundMethod, noLiveInstance } from "./errors";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
@@ -15,10 +16,10 @@ export function capture(className: string, tickMethod: string, timeoutMs?: numbe
     const ms = typeof timeoutMs === "number" && timeoutMs > 0 ? timeoutMs : 10000;
     return inVm(() => new Promise<string>((resolve, reject) => {
         const klass = findClass(className);
-        if (!klass) return reject(`class ${className} not found`);
+        if (!klass) return reject(notFoundClass(className));
         const method = klass.tryMethod(tickMethod);
-        if (!method) return reject(`method ${tickMethod} not found on ${className}`);
-        if (method.isStatic) return reject(`${tickMethod} is static, cannot capture instance`);
+        if (!method) return reject(notFoundMethod(className, tickMethod));
+        if (method.isStatic) return reject(new Error(`${tickMethod} is static, cannot capture instance`));
 
         let done = false;
         const timer = setTimeout(() => {
@@ -61,7 +62,7 @@ export function listCaptured(): Promise<string[]> {
 export function listInstances(className: string, max = 20): Promise<string[]> {
     return inVm(() => {
         const klass = findClass(className);
-        if (!klass) throw new Error(`class ${className} not found`);
+        if (!klass) throw notFoundClass(className);
         const instances = Il2Cpp.gc.choose(klass);
         const shown = Math.min(max, instances.length);
         const out: string[] = [];
@@ -81,9 +82,9 @@ export function listInstances(className: string, max = 20): Promise<string[]> {
 export function captureViaGC(className: string, index = 0): Promise<string> {
     return inVm(() => {
         const klass = findClass(className);
-        if (!klass) throw new Error(`class ${className} not found`);
+        if (!klass) throw notFoundClass(className);
         const instances = Il2Cpp.gc.choose(klass);
-        if (!instances.length) throw new Error(`no live instance of ${className}. If it's a MonoBehaviour, use capture(cls, tickMethod) instead.`);
+        if (!instances.length) throw noLiveInstance(className);
         const idx = index | 0;
         if (idx < 0 || idx >= instances.length) throw new Error(`index ${idx} out of range (${instances.length} alive)`);
         const inst = instances[idx];

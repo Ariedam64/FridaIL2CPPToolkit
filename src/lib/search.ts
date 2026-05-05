@@ -20,19 +20,65 @@ export function* allClasses(): Generator<Il2Cpp.Class> {
     }
 }
 
+// Class-name index for O(1) exact-match lookup. Built lazily on the first
+// `findClass(stringPattern)` call — one full pass over every assembly
+// (~13k classes on Dofus 3). Each non-cached call would otherwise re-scan
+// every assembly: a cold sequence of 5 distinct lookups visibly freezes
+// the game (~500ms). The index stores both short name AND full name so
+// callers don't need to know which they have.
+let _classIndex: Map<string, Il2Cpp.Class> | null = null;
+
+function ensureClassIndex(): Map<string, Il2Cpp.Class> {
+    if (_classIndex) return _classIndex;
+    const m = new Map<string, Il2Cpp.Class>();
+    for (const asm of Il2Cpp.domain.assemblies) {
+        try {
+            for (const k of asm.image.classes) {
+                try {
+                    if (!m.has(k.name)) m.set(k.name, k);
+                    const full = fullClassName(k);
+                    if (full !== k.name && !m.has(full)) m.set(full, k);
+                } catch {
+                    // some classes throw on inspection; skip
+                }
+            }
+        } catch {}
+    }
+    _classIndex = m;
+    return m;
+}
+
+/** Drop the cached class index. Call after assemblies load dynamically. */
+export function invalidateClassIndex(): void {
+    _classIndex = null;
+}
+
+/**
+ * Strict exact-match by short or full name. O(1) via the class index.
+ * Returns null if no class has that exact name. No regex fallback.
+ *
+ * Use this when you have a known class name — safer than `findClass(name)`
+ * for short obfuscated names like "ecu" or "dtt" where a regex fallback
+ * would match unrelated classes.
+ */
+export function findClassExact(name: string): Il2Cpp.Class | null {
+    return ensureClassIndex().get(name) ?? null;
+}
+
 /**
  * Première classe dont le nom matche.
- * - String : exact-match (nom simple ou full) en priorité, puis fallback regex substring.
- * - RegExp : premier match du regex.
+ * - String : exact-match (nom simple ou full) en priorité via l'index O(1),
+ *   puis fallback regex substring (slow path — préserve l'ancien comportement).
+ * - RegExp : premier match du regex (slow path).
  *
  * Cette priorité évite le piège où findClass("Player") retournerait
  * "UnityEngine.InputSystem.RemoteInputPlayerConnection" (qui contient "Player").
  */
 export function findClass(pattern: string | RegExp): Il2Cpp.Class | null {
     if (typeof pattern === "string") {
-        for (const klass of allClasses()) {
-            if (klass.name === pattern || fullClassName(klass) === pattern) return klass;
-        }
+        const hit = ensureClassIndex().get(pattern);
+        if (hit) return hit;
+        // Fall through: pattern wasn't an exact name → regex substring search.
     }
     const re = toRegex(pattern);
     for (const klass of allClasses()) {

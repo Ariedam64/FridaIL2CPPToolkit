@@ -6,17 +6,11 @@
 // These catalogs are session-stable — once extracted they don't change
 // until a game update. The panel runs them once per new build.
 import "frida-il2cpp-bridge";
+import { findClassExact as findClass } from "../lib/search";
 import { scheduleMainThread } from "./sender";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
-}
-
-function findClass(name: string): Il2Cpp.Class | null {
-    for (const asm of Il2Cpp.domain.assemblies) {
-        try { for (const k of asm.image.classes) if (k.name === name) return k; } catch {}
-    }
-    return null;
 }
 
 function readString(obj: any, fieldName: string): string {

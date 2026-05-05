@@ -2,6 +2,8 @@
 // zaap helpers. Reads the Dofus runtime's MapRenderer + the DataCenter
 // catalog for static map/interactive lookups.
 import "frida-il2cpp-bridge";
+import { findClassExact as findClass } from "../lib/search";
+import { getSingleton } from "./singleton-cache";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
@@ -49,34 +51,8 @@ function readListInt32(list: any): number[] {
     return out;
 }
 
-function firstInstance(klass: Il2Cpp.Class): Il2Cpp.Object | null {
-    try {
-        const arr = Il2Cpp.gc.choose(klass);
-        return arr.length ? arr[0] : null;
-    } catch { return null; }
-}
-
-function findClass(name: string): Il2Cpp.Class | null {
-    for (const asm of Il2Cpp.domain.assemblies) {
-        try { for (const k of asm.image.classes) if (k.name === name) return k; } catch {}
-    }
-    return null;
-}
-
-// Cached MapRenderer singleton — `Il2Cpp.gc.choose` is an expensive heap walk
-// and the MapRenderer is a persistent Unity singleton, so caching eliminates
-// the freeze on repeated polls (e.g. plan-mode arrival detection).
-let cachedRenderer: Il2Cpp.Object | null = null;
 function getRenderer(): Il2Cpp.Object | null {
-    if (cachedRenderer) {
-        try { void cachedRenderer.field("cywa").value; return cachedRenderer; }
-        catch { cachedRenderer = null; }
-    }
-    const k = findClass("MapRenderer");
-    if (!k) return null;
-    const r = firstInstance(k);
-    if (r) cachedRenderer = r;
-    return r;
+    return getSingleton("MapRenderer");
 }
 
 /** Fast current-map id read. <1ms after first call. Used by plan arrival polling. */
@@ -223,20 +199,13 @@ export interface InteractiveOnMap {
 
 export function getInteractivesOnMap(): Promise<InteractiveOnMap[]> {
     return inVm(() => {
-        const dviKlass = findClass("dvi");
-        const rootKlass = findClass("InteractivesDataRoot");
-        if (!dviKlass) return [];
-        const dviInsts = Il2Cpp.gc.choose(dviKlass);
-        if (!dviInsts.length) return [];
-        const dvi = dviInsts[0];
+        const dvi = getSingleton("dvi");
+        if (!dvi) return [];
 
         const dict = dvi.field("<dexl>k__BackingField").value as any;
         if (!dict) return [];
 
-        let rootInst: Il2Cpp.Object | null = null;
-        if (rootKlass) {
-            try { const arr = Il2Cpp.gc.choose(rootKlass); if (arr.length) rootInst = arr[0]; } catch {}
-        }
+        const rootInst = getSingleton("InteractivesDataRoot");
 
         const resolveName = (typeId: number): string => {
             if (!rootInst) return "";
