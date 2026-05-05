@@ -8,3 +8,4 @@ export * from "./patch";
 export * from "./invoke";
 export * from "./instances";
 export * from "./memory";
+export * from "./stack-trace";

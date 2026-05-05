@@ -17,7 +17,14 @@
 //    onto pendingMainWork runs on the Unity main thread.
 //  - IL2CPP method-address table for stack-frame → Cls.method+0xoff.
 //  - Live-singleton cache to avoid repeat heap scans per call.
+//
+// Class lookup goes through `lib/search.findClass`, which keeps a global
+// name → class index (built once, ~13k classes on Dofus 3). Without that
+// cache a cold zaapTeleport touching 5 distinct names would pay 5 full
+// assembly walks = visible freeze.
 import "frida-il2cpp-bridge";
+import { findClassExact } from "../lib/search";
+import { buildMethodTable, resolveFrame, getStackFrames, getMethodTable } from "../lib/stack-trace";
 
 // -----------------------------------------------------------------------------
 // Core helpers
@@ -27,27 +34,11 @@ function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
 }
 
-// Class lookup — on first miss we build a single index of every class
-// across all assemblies (one pass, ~13k classes). Subsequent getClass
-// calls are O(1) map lookups. Without this each fresh lookup scans all
-// assemblies again, and a cold zaapTeleport that needs 5 distinct names
-// (ecu/dun/dbv/iee/dvi) would pay 5 full walks = visible freeze.
-let classIndex: Map<string, Il2Cpp.Class> | null = null;
-
-function buildClassIndex(): void {
-    if (classIndex) return;
-    const m = new Map<string, Il2Cpp.Class>();
-    for (const asm of Il2Cpp.domain.assemblies) {
-        try { for (const k of asm.image.classes) if (!m.has(k.name)) m.set(k.name, k); } catch {}
-    }
-    classIndex = m;
-    console.log(`[sender] class index built: ${m.size} classes`);
-}
-
-function getClass(name: string): Il2Cpp.Class | null {
-    if (!classIndex) buildClassIndex();
-    return classIndex!.get(name) ?? null;
-}
+// Local alias preserved for readability — sender.ts has hundreds of
+// references to `getClass(name)` and renaming them all would be churn.
+// Exact-match only: short obfuscated names like "ecu"/"dtt" must not
+// fall back to a regex substring search.
+const getClass = findClassExact;
 
 // Read a set of static enum values (e.g. dod.ddas, dod.ddat) as
 // Il2Cpp.Object references. Needed because enum fields reject raw ints.
@@ -78,59 +69,6 @@ function getLiveSingleton(klass: Il2Cpp.Class, cached: Il2Cpp.Object | null): Il
     }
     const live = Il2Cpp.gc.choose(klass);
     return live.length ? live[live.length - 1] : null;
-}
-
-// -----------------------------------------------------------------------------
-// IL2CPP method-address table — resolves raw stack frames back to
-// `Cls.method+0xoff`. Built lazily (once per session — ~349k entries).
-// -----------------------------------------------------------------------------
-
-interface MethodRef { addrHex: string; cls: string; name: string; }
-let methodTable: MethodRef[] = [];
-
-function hexPad(p: NativePointer): string {
-    const s = p.toString();
-    return (s.startsWith("0x") ? s.slice(2) : s).padStart(16, "0");
-}
-
-function buildIl2cppMethodTable(): number {
-    if (methodTable.length) return methodTable.length;
-    const list: MethodRef[] = [];
-    for (const asm of Il2Cpp.domain.assemblies) {
-        try {
-            for (const k of asm.image.classes) {
-                try {
-                    for (const m of k.methods) {
-                        try {
-                            const va = m.virtualAddress;
-                            if (!va || va.isNull()) continue;
-                            list.push({ addrHex: hexPad(va), cls: k.name, name: m.name });
-                        } catch {}
-                    }
-                } catch {}
-            }
-        } catch {}
-    }
-    list.sort((a, b) => a.addrHex < b.addrHex ? -1 : a.addrHex > b.addrHex ? 1 : 0);
-    methodTable = list;
-    console.log(`[il2cpp-stack] method table built: ${list.length} entries`);
-    return list.length;
-}
-
-function resolveFrame(frame: NativePointer): string {
-    if (!methodTable.length) return frame.toString();
-    const target = hexPad(frame);
-    let lo = 0, hi = methodTable.length - 1, best = -1;
-    while (lo <= hi) {
-        const mid = (lo + hi) >> 1;
-        if (methodTable[mid].addrHex <= target) { best = mid; lo = mid + 1; }
-        else { hi = mid - 1; }
-    }
-    if (best < 0) return frame.toString();
-    const m = methodTable[best];
-    const offset = BigInt("0x" + target) - BigInt("0x" + m.addrHex);
-    if (offset < 0n || offset > 0x20000n) return frame.toString() + " (unresolved)";
-    return `${m.cls}.${m.name}+0x${offset.toString(16)}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -182,13 +120,84 @@ function snapshotFields(obj: any): Record<string, string> {
     return out;
 }
 
+// Like snapshotFields but tries to deeply expand RepeatedField<T> backing
+// fields (`X_` storing a repeated proto field) — protobuf-generated classes
+// store these as inner objects with `_size:Int32` and `_items:T[]`. Used for
+// inspecting iri (path = RepeatedField<Int32>) and similar map-transition
+// packets so we can read the actual cell sequence the client sends.
+function snapshotFieldsDeep(obj: any): Record<string, string> {
+    const out: Record<string, string> = {};
+    try {
+        for (const f of obj.class.fields) {
+            if (f.isStatic) continue;
+            const ftype = f.type?.name ?? "";
+            const fname = f.name;
+            try {
+                const v = obj.field(fname).value;
+                if (v === null || v === undefined) { out[fname] = `(${ftype}) <null>`; continue; }
+                if (ftype.includes("RepeatedField")) {
+                    try {
+                        const cnt = Number((v as any).method("get_Count").invoke());
+                        const getItem = (v as any).method("get_Item");
+                        const arr: any[] = [];
+                        for (let i = 0; i < Math.min(cnt, 100); i++) {
+                            try { arr.push(Number(getItem.invoke(i))); }
+                            catch (e) {
+                                try { arr.push(String(getItem.invoke(i)).slice(0, 30)); }
+                                catch { arr.push("?"); }
+                            }
+                        }
+                        out[fname] = `(${ftype}) size=${cnt}, items=[${arr.join(",")}${cnt > 100 ? "..." : ""}]`;
+                    } catch (e) {
+                        out[fname] = `(${ftype}) <repfield-err: ${String(e).slice(0, 40)}>`;
+                    }
+                } else {
+                    out[fname] = `(${ftype}) ${String(v).slice(0, 200)}`;
+                }
+            } catch (e) { out[fname] = `(${ftype}) <err: ${String(e).slice(0, 40)}>`; }
+        }
+    } catch {}
+    return out;
+}
+
+let captureSeqMaxCount = 0;
+let capturedSeq: Array<{ cls: string; ts: number; fields: Record<string, string> }> = [];
+
+// Per-class clone storage so we can replay any of the transition packets.
+// Set captureClonesArmed to capture next iri/isu/isp clones.
+let capturedTransitionClones: { iri?: any; isu?: any; isp?: any; jmw?: any; isl?: any } = {};
+let captureClonesArmed = false;
+
+// Drop the next outgoing isu (the client's natural follow-up) so we control
+// timing entirely via injected sendFakeIsu — prevents server-side rollback
+// from receiving two isu in close succession.
+let blockNextIsuArmed = false;
+
+// Incoming log: hook fzk.Decode and push decoded packet class names. Mirrors
+// outgoingLog. Use installIncomingHook to enable, getIncomingLog to read.
+const incomingLog: Array<{ ts: number; cls: string }> = [];
+let fzkHookInstalled = false;
+
+// Captured irx packets (the entity-add/remove push that arrives during map
+// transitions, including fake-isp-triggered ones). Each captured entry holds
+// the resolved (elementId, cell, typeId) for every entity in efhc + efhf.
+// MapId is read from MapRenderer.cywa at the time the irx arrives.
+let irxCapturedEntities: Array<{
+    ts: number;
+    mapId: number;
+    listIdx: number; // 0 = efhc (added), 1 = efhf (removed)
+    elementId: string;
+    cell: number;
+    typeId: number;
+}> = [];
+
 export function installOutgoingHook(traceClsList: string[] = []): Promise<{ ok: boolean; tableSize: number; traced: string[]; all: boolean }> {
     return inVm(() => {
         traceAll = traceClsList.includes("*");
         traceClsSet = new Set(traceClsList.filter(c => c !== "*"));
         stackCaptureLimit = traceAll ? 200 : 60;
         const needTable = traceAll || traceClsSet.size > 0;
-        const tableSize = needTable ? buildIl2cppMethodTable() : 0;
+        const tableSize = needTable ? buildMethodTable() : 0;
         if (xbeHookInstalled) {
             return { ok: true, tableSize, traced: [...traceClsSet], all: traceAll };
         }
@@ -201,6 +210,13 @@ export function installOutgoingHook(traceClsList: string[] = []): Promise<{ ok: 
             let cls = "?";
             try {
                 cls = args[0]?.class?.name ?? "?";
+                // Drop next isu if armed (used to suppress the client's natural
+                // post-iri arrival packet so our injected isu controls timing).
+                if (blockNextIsuArmed && cls === "isu") {
+                    blockNextIsuArmed = false;
+                    console.log("[block-isu] dropped one outgoing isu");
+                    return;
+                }
                 // Non-sub autopilot bypass — server treats the map change
                 // as a manual walk when efmg is false.
                 if (cls === "isp") {
@@ -208,6 +224,53 @@ export function installOutgoingHook(traceClsList: string[] = []): Promise<{ ok: 
                 }
                 outgoingLog.push({ ts: Date.now(), cls });
                 if (outgoingLog.length > 200) outgoingLog.shift();
+
+                // Sequence capture (deep-dump every outgoing packet up to
+                // captureSeqMaxCount, e.g. all 6 packets of a map transition).
+                if (captureSeqMaxCount > 0) {
+                    try {
+                        capturedSeq.push({
+                            cls,
+                            ts: Date.now(),
+                            fields: snapshotFieldsDeep(args[0]),
+                        });
+                        captureSeqMaxCount--;
+                    } catch {}
+                }
+
+                // Transition clones capture: clone iri/isu/isp/jmw/isl during
+                // a real map transition so we can replay them later.
+                if (captureClonesArmed) {
+                    if (cls === "iri" && !capturedTransitionClones.iri) {
+                        try { capturedTransitionClones.iri = (args[0] as any).method("Clone").invoke(); console.log("[clones] iri cloned"); } catch {}
+                    } else if (cls === "isu" && !capturedTransitionClones.isu) {
+                        try { capturedTransitionClones.isu = (args[0] as any).method("Clone").invoke(); console.log("[clones] isu cloned"); } catch {}
+                    } else if (cls === "isp" && !capturedTransitionClones.isp) {
+                        try { capturedTransitionClones.isp = (args[0] as any).method("Clone").invoke(); console.log("[clones] isp cloned"); } catch {}
+                    } else if (cls === "jmw" && !capturedTransitionClones.jmw) {
+                        try { capturedTransitionClones.jmw = (args[0] as any).method("Clone").invoke(); console.log("[clones] jmw cloned"); } catch {}
+                    } else if (cls === "isl" && !capturedTransitionClones.isl) {
+                        try { capturedTransitionClones.isl = (args[0] as any).method("Clone").invoke(); console.log("[clones] isl cloned"); } catch {}
+                    }
+                    // Disarm once we have isp (= the transition packet) — that's the key one.
+                    if (capturedTransitionClones.iri && capturedTransitionClones.isu && capturedTransitionClones.isp) {
+                        captureClonesArmed = false;
+                        console.log("[clones] all 3 captured, disarming");
+                    }
+                }
+
+                // Iri capture (calibration test for "does our send actually
+                // reach the network?"). Set captureIriArmed = true via
+                // armCaptureIri RPC, then user moves once → we clone the iri.
+                if (captureIriArmed && cls === "iri" && !capturedIriClone) {
+                    try {
+                        capturedIriClone = (args[0] as any).method("Clone").invoke();
+                        captureIriArmed = false;
+                        console.log(`[capture-iri] cloned outgoing iri instance`);
+                    } catch (e) {
+                        console.log(`[capture-iri] clone failed: ${String(e).slice(0, 100)}`);
+                    }
+                }
 
                 const fields: Record<string, string> = {};
                 if (cls === "jmw") {
@@ -219,9 +282,7 @@ export function installOutgoingHook(traceClsList: string[] = []): Promise<{ ok: 
                     try { send({ type: "socket", direction: "out", cls, name: "?", fullName: "?", fields, ts: Date.now() }); } catch {}
                 }
                 if (traceAll || traceClsSet.has(cls)) {
-                    const bt = Thread.backtrace(this.context, Backtracer.ACCURATE);
-                    const frames: string[] = [];
-                    for (let i = 0; i < Math.min(bt.length, 20); i++) frames.push(resolveFrame(bt[i]));
+                    const frames = getStackFrames(this.context, 20);
                     const snap = snapshotFields(args[0]);
                     stackCaptures.push({ ts: Date.now(), cls, frames, fields: snap });
                     if (stackCaptures.length > stackCaptureLimit) stackCaptures.shift();
@@ -709,6 +770,933 @@ export function autoTravelInstantNative(mapId: number | string): Promise<{ ok: b
                 settle({ ok: true, returnValue: Number(ret), targetMapId: mid });
             } catch (e) {
                 settle({ ok: false, reason: 'native: ' + String(e).slice(0, 120) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Fire MapRenderer.osm(mapId) — the IL2CPP `LoadMap(Int64) → UniTask` async
+// method — via raw NativeFunction. method.invoke throws "breakpoint
+// triggered" because il2cpp_runtime_invoke can't marshal the 16-byte UniTask
+// return on Win64. Bypassing it via NativeFunction with the proper hidden
+// retSlot lets the method actually run.
+//
+// Win64 ABI for a 16-byte struct return:
+//   void osm(UniTask* retSlot /*rcx*/, MapRenderer* this /*rdx*/, Int64 mapId /*r8*/, MethodInfo* mi /*r9*/)
+//
+// Test purpose: see whether triggering osm on a non-current map causes the
+// game to load it AND whether the server pushes interactive packets that
+// land in dvi. Likely outcomes: (a) renderer breaks like with osl, (b) we
+// teleport to the target, (c) nothing visible happens (UniTask sits awaiting).
+export function loadMapNative(mapId: number | string): Promise<{
+    ok: boolean; reason?: string; durationMs?: number; mapId?: number;
+}> {
+    return inVm(() => new Promise((resolve) => {
+        const mid = typeof mapId === "string" ? parseInt(mapId, 10) : mapId;
+        if (!Number.isFinite(mid) || mid <= 0) { resolve({ ok: false, reason: `invalid mapId ${mapId}` }); return; }
+
+        const mrKlass = getClass("MapRenderer");
+        if (!mrKlass) { resolve({ ok: false, reason: "MapRenderer class not found" }); return; }
+        const mrInsts = Il2Cpp.gc.choose(mrKlass);
+        if (!mrInsts.length) { resolve({ ok: false, reason: "no live MapRenderer" }); return; }
+        const mr = mrInsts[mrInsts.length - 1]!;
+
+        let osmMethod: any = null;
+        for (const m of mrKlass.methods) {
+            if (m.name === "osm") { osmMethod = m; break; }
+        }
+        if (!osmMethod) { resolve({ ok: false, reason: "MapRenderer.osm not found" }); return; }
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            const t0 = Date.now();
+            try {
+                const retSlot = Memory.alloc(16);
+                const fn = new NativeFunction(
+                    osmMethod.virtualAddress,
+                    'void',
+                    ['pointer', 'pointer', 'int64', 'pointer'],
+                    'win64',
+                );
+                fn(retSlot, (mr as any).handle, mid as any, NULL);
+                console.log(`[loadMapNative] osm(${mid}) fired, duration=${Date.now()-t0}ms`);
+                settle({ ok: true, durationMs: Date.now() - t0, mapId: mid });
+            } catch (e) {
+                settle({ ok: false, reason: 'native: ' + String(e).slice(0, 200), durationMs: Date.now() - t0 });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 5000);
+    }));
+}
+
+// Calibration: capture the next outgoing `iri` (MovementRequest) the user
+// sends, clone it, and let it be replayed later via `replayCapturedIri`. If
+// replay actually moves the character in-game, we have proof that
+// `ecu.xbe.method.invoke()` reaches the network — and therefore our previous
+// fake jmw send WAS sent but server-ignored.
+let capturedIriClone: any = null;
+let captureIriArmed = false;
+
+export function armCaptureIri(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => {
+        capturedIriClone = null;
+        captureIriArmed = true;
+        return { ok: true };
+    });
+}
+
+// Capture the next N outgoing packets with FULL field dumps (incl. RepeatedField
+// expansion). Use to disect a map-transition sequence (iri/isu/jrt/isp/jmw/isl).
+export function armCaptureSequence(maxPackets: number = 12): Promise<{ ok: boolean }> {
+    return inVm(() => {
+        capturedSeq = [];
+        captureSeqMaxCount = maxPackets;
+        return { ok: true };
+    });
+}
+
+export function getCapturedSequence(): Promise<Array<{ cls: string; ts: number; fields: Record<string, string> }>> {
+    return inVm(() => capturedSeq);
+}
+
+// Arm capture of the next transition's iri/isu/isp packets as clones (not just
+// field dumps), so we can replay them via replayTransition().
+export function armCaptureTransition(): Promise<{ ok: boolean }> {
+    return inVm(() => {
+        capturedTransitionClones = {};
+        captureClonesArmed = true;
+        return { ok: true };
+    });
+}
+
+export function getCapturedTransitionStatus(): Promise<{ iri: boolean; isu: boolean; isp: boolean; jmw: boolean; isl: boolean; armed: boolean }> {
+    return inVm(() => ({
+        iri: !!capturedTransitionClones.iri,
+        isu: !!capturedTransitionClones.isu,
+        isp: !!capturedTransitionClones.isp,
+        jmw: !!capturedTransitionClones.jmw,
+        isl: !!capturedTransitionClones.isl,
+        armed: captureClonesArmed,
+    }));
+}
+
+// Hook fzk.Decode (incoming packet decoder). It appends decoded IMessages to
+// the `output` List<Object>. After original runs, peek the last item(s) and
+// log their class name into incomingLog for unified timeline reading.
+export function installIncomingHook(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => {
+        if (fzkHookInstalled) return { ok: true };
+        const fzkK = getClass("fzk");
+        if (!fzkK) return { ok: false, reason: "fzk class not found" };
+        const decode = fzkK.tryMethod("Decode");
+        if (!decode) return { ok: false, reason: "fzk.Decode not found" };
+
+        decode.implementation = function (this: any, ...args: any[]): any {
+            const self = this as Il2Cpp.Object;
+            // Snapshot output list size BEFORE running original.
+            let szBefore = 0;
+            try { szBefore = Number((args[2] as any).field("_size").value); } catch {}
+            // Run original.
+            const ret = (self as any).method("Decode").invoke(...args);
+            // Compare size AFTER. New items are at indices [szBefore, szAfter).
+            try {
+                const out = args[2] as any;
+                const szAfter = Number(out.field("_size").value);
+                if (szAfter > szBefore) {
+                    const items = out.field("_items").value as any;
+                    for (let i = szBefore; i < szAfter; i++) {
+                        try {
+                            const item = items.get(i);
+                            let cls = item?.class?.name ?? "?";
+                            let inner: any = null;
+                            // GameMessage wraps the actual protobuf in <dqef>k__BackingField.
+                            // Unwrap to get the real packet class name.
+                            if (cls === "GameMessage") {
+                                try {
+                                    inner = item.field("<dqef>k__BackingField").value;
+                                    if (inner) cls = inner.class.name;
+                                } catch {}
+                            }
+                            incomingLog.push({ ts: Date.now(), cls });
+                            if (incomingLog.length > 400) incomingLog.shift();
+                            // Broadcast via WS so socket panel UI displays incoming.
+                            try { send({ type: "socket", direction: "in", cls, name: "?", fullName: "?", fields: {}, ts: Date.now() }); } catch {}
+
+                            // Special-case iso: efkv is RepeatedField<khs>, the FULL
+                            // list of interactives the server pushes for the new map.
+                            // Extract each khs's raw Int32 fields for offline mapping.
+                            if (cls === "iso" && inner) {
+                                try {
+                                    const mr = getClass("MapRenderer");
+                                    let curMid = -1;
+                                    if (mr) {
+                                        const insts = Il2Cpp.gc.choose(mr);
+                                        if (insts.length) {
+                                            try { curMid = Number((insts[insts.length - 1] as any).field("cywa").value); } catch {}
+                                        }
+                                    }
+                                    const rep = inner.field("efkv").value;
+                                    if (rep) {
+                                        const cnt = Number((rep as any).method("get_Count").invoke());
+                                        const getItem = (rep as any).method("get_Item");
+                                        for (let k = 0; k < cnt; k++) {
+                                            try {
+                                                const khs = getItem.invoke(k);
+                                                const e: any = { ts: Date.now(), mapId: curMid, source: "iso.efkv" };
+                                                for (const fname of ["eptw", "epty", "epua", "epuc", "epul"]) {
+                                                    try { e[fname] = String((khs as any).field(fname).value); } catch {}
+                                                }
+                                                irxCapturedEntities.push(e as any);
+                                                if (irxCapturedEntities.length > 1000) irxCapturedEntities.shift();
+                                            } catch {}
+                                        }
+                                    }
+                                } catch (e) { console.log(`[iso-extract] ${String(e).slice(0,80)}`); }
+                            }
+
+                            // Special-case irx: extract entities from efhc + efhf
+                            // RepeatedField<khe>. khe = {eppb:Int64 id, eppd:kcp pos, eppf:enum state}.
+                            // kcp has position fields including cell.
+                            if (cls === "irx" && inner) {
+                                try {
+                                    const mr = getClass("MapRenderer");
+                                    let curMid = -1;
+                                    if (mr) {
+                                        const insts = Il2Cpp.gc.choose(mr);
+                                        if (insts.length) {
+                                            try { curMid = Number((insts[insts.length - 1] as any).field("cywa").value); } catch {}
+                                        }
+                                    }
+                                    const lists = ["efhc", "efhf"];
+                                    for (let li = 0; li < lists.length; li++) {
+                                        try {
+                                            const rep = inner.field(lists[li]).value;
+                                            if (!rep) continue;
+                                            const cnt = Number((rep as any).method("get_Count").invoke());
+                                            const getItem = (rep as any).method("get_Item");
+                                            for (let k = 0; k < cnt; k++) {
+                                                try {
+                                                    const khe = getItem.invoke(k);
+                                                    let eid = ""; try { eid = String((khe as any).field("eppb").value); } catch {}
+                                                    let cell = -1;
+                                                    let typeId = 0;
+                                                    try {
+                                                        const pos = (khe as any).field("eppd").value;
+                                                        if (pos) {
+                                                            try { cell = Number((pos as any).field("dphm").value); } catch {}
+                                                            try { typeId = Number((pos as any).field("cutn").value); } catch {}
+                                                        }
+                                                    } catch {}
+                                                    // Also try direct fields on khe (cutn might live there)
+                                                    if (!typeId) { try { typeId = Number((khe as any).field("cutn").value); } catch {} }
+                                                    irxCapturedEntities.push({
+                                                        ts: Date.now(), mapId: curMid, listIdx: li,
+                                                        elementId: eid, cell, typeId,
+                                                    });
+                                                    if (irxCapturedEntities.length > 1000) irxCapturedEntities.shift();
+                                                } catch {}
+                                            }
+                                        } catch {}
+                                    }
+                                } catch (e) { console.log(`[irx-extract] ${String(e).slice(0,80)}`); }
+                            }
+                        } catch {}
+                    }
+                }
+            } catch {}
+            return ret;
+        };
+        fzkHookInstalled = true;
+        console.log(`[inhook] fzk.Decode installed`);
+        return { ok: true };
+    });
+}
+
+export function getIncomingLog(): Promise<Array<{ ts: number; cls: string }>> {
+    return inVm(() => incomingLog.slice());
+}
+
+export function clearIncomingLog(): Promise<number> {
+    return inVm(() => { const n = incomingLog.length; incomingLog.length = 0; return n; });
+}
+
+export function getIrxCapturedEntities(): Promise<typeof irxCapturedEntities> {
+    return inVm(() => irxCapturedEntities.slice() as any);
+}
+
+export function clearIrxCapturedEntities(): Promise<number> {
+    return inVm(() => { const n = irxCapturedEntities.length; irxCapturedEntities = []; return n; });
+}
+
+// Combined log of incoming + outgoing, sorted by ts, each entry tagged with direction.
+export function getCombinedLog(): Promise<Array<{ ts: number; dir: string; cls: string }>> {
+    return inVm(() => {
+        const out: Array<{ ts: number; dir: string; cls: string }> = [];
+        for (const e of outgoingLog) out.push({ ts: e.ts, dir: "↑out", cls: e.cls });
+        for (const e of incomingLog) out.push({ ts: e.ts, dir: "↓in", cls: e.cls });
+        out.sort((a, b) => a.ts - b.ts);
+        return out;
+    });
+}
+
+export function armBlockNextIsu(): Promise<{ ok: boolean }> {
+    return inVm(() => {
+        blockNextIsuArmed = true;
+        return { ok: true };
+    });
+}
+
+// Read the captured iri's path cells via RepeatedField.get_Count + get_Item.
+export function inspectIriPath(): Promise<{ ok: boolean; reason?: string; cells?: number[]; mapId?: number }> {
+    return inVm(() => {
+        if (!capturedIriClone) return { ok: false, reason: "no captured iri" };
+        try {
+            const path = (capturedIriClone as any).method("bztj").invoke();
+            const cells: number[] = [];
+            try {
+                const count = Number((path as any).method("get_Count").invoke());
+                const getItem = (path as any).method("get_Item");
+                for (let i = 0; i < count; i++) {
+                    cells.push(Number(getItem.invoke(i)));
+                }
+            } catch (e) {
+                return { ok: false, reason: "get_Count/get_Item err: " + String(e).slice(0, 100) };
+            }
+            const mapId = Number((capturedIriClone as any).method("bzth").invoke());
+            return { ok: true, cells, mapId };
+        } catch (e) {
+            return { ok: false, reason: String(e).slice(0, 100) };
+        }
+    });
+}
+
+// Clone the captured iri, append extra cells to its path, and send.
+export function replayIriWithExtra(extraCells: number[]): Promise<{ ok: boolean; reason?: string; sentPath?: number[] }> {
+    return inVm(() => new Promise((resolve) => {
+        if (!capturedIriClone) { resolve({ ok: false, reason: "no captured iri" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                // Clone the iri so the original capturedIriClone stays pristine
+                // for future replay.
+                const cloned = (capturedIriClone as any).method("Clone").invoke();
+                const path = (cloned as any).method("bztj").invoke();
+                const addM = (path as any).method("Add");
+                for (const c of extraCells) {
+                    try { addM.invoke(c | 0); } catch (e) {
+                        console.log(`[iriExtra] Add(${c}) threw: ${String(e).slice(0, 60)}`);
+                    }
+                }
+                // Verify final path
+                let finalPath: number[] = [];
+                try {
+                    const count = Number((path as any).method("get_Count").invoke());
+                    const getItem = (path as any).method("get_Item");
+                    for (let i = 0; i < count; i++) finalPath.push(Number(getItem.invoke(i)));
+                } catch {}
+                (ecu as any).method("xbe").invoke(cloned);
+                console.log(`[iriExtra] sent iri with path=${JSON.stringify(finalPath)}`);
+                settle({ ok: true, sentPath: finalPath });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Bundle the entire fake transition chain into ONE main-thread work item
+// (after a short JS-side delay). Minimizes IL2CPP VM lock acquisitions:
+// one for the iri replay, one for the burst of all 5 follow-up packets.
+// Total perceptible freeze in-game: ~80ms instead of 6× ~500ms.
+export function executeFakeTransition(
+    targetMapId: number | string,
+    _walkDelayMs: number = 800,
+    extraCells: number[] = [],
+    timings: { jrt?: number; isu?: number; isp?: number; jmwIsl?: number } = {},
+    freshIri?: { mapId: number; cells: number[] },
+): Promise<{
+    ok: boolean; reason?: string; sent?: string[]; iriPath?: number[];
+}> {
+    return inVm(() => new Promise((resolve) => {
+        const target = typeof targetMapId === "string" ? parseInt(targetMapId, 10) : targetMapId;
+        if (!Number.isFinite(target) || target <= 0) { resolve({ ok: false, reason: `invalid mapId ${targetMapId}` }); return; }
+        if (!freshIri && !capturedIriClone) { resolve({ ok: false, reason: "no captured iri (and no freshIri provided)" }); return; }
+
+        const ecuK = getClass("ecu");
+        const jrtK = getClass("jrt");
+        const isuK = getClass("isu");
+        const ispK = getClass("isp");
+        const jmwK = getClass("jmw");
+        const islK = getClass("isl");
+        if (!ecuK || !jrtK || !isuK || !ispK || !jmwK || !islK) {
+            resolve({ ok: false, reason: "missing one of: ecu/jrt/isu/isp/jmw/isl" }); return;
+        }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+
+        const sent: string[] = [];
+        const xbe = (ecu as any).method("xbe");
+
+        // Block the natural client isu (would conflict with our forged one).
+        blockNextIsuArmed = true;
+
+        // Default = natural transition timing observed in baseline. Override via `timings` param.
+        // Add ±100ms jitter to each timing to avoid uniform-timing detection signatures.
+        const jitter = () => Math.floor(Math.random() * 200) - 100;
+        const T_JRT = (timings.jrt ?? 760) + jitter();
+        const T_ISU = (timings.isu ?? 2563) + jitter();
+        const T_ISP = (timings.isp ?? (T_ISU + 50)) + jitter();
+        const T_JMW_ISL = (timings.jmwIsl ?? (T_ISP + 638)) + jitter();
+
+        let iriPath: number[] = [];
+
+        // Batch 1 (T+0): iri
+        pendingMainWork = () => {
+            try {
+                let toSend: any;
+                if (freshIri) {
+                    // Construct iri from scratch
+                    const iriK = getClass("iri");
+                    if (!iriK) throw new Error("iri class not found");
+                    toSend = (iriK as any).new();
+                    toSend.field("efdg").value = false;
+                    toSend.field("efdi").value = 0;
+                    toSend.field("efdk").value = freshIri.mapId;
+                    const path = (toSend as any).method("bztj").invoke();
+                    const addM = (path as any).method("Add");
+                    for (const c of [...freshIri.cells, ...extraCells]) {
+                        try { addM.invoke(c | 0); iriPath.push(c | 0); } catch {}
+                    }
+                } else {
+                    toSend = capturedIriClone;
+                    if (extraCells.length > 0) {
+                        toSend = (capturedIriClone as any).method("Clone").invoke();
+                        const path = (toSend as any).method("bztj").invoke();
+                        const addM = (path as any).method("Add");
+                        for (const c of extraCells) {
+                            try { addM.invoke(c | 0); } catch {}
+                        }
+                        try {
+                            const cnt = Number((path as any).method("get_Count").invoke());
+                            const getItem = (path as any).method("get_Item");
+                            for (let i = 0; i < cnt; i++) iriPath.push(Number(getItem.invoke(i)));
+                        } catch {}
+                    }
+                }
+                xbe.invoke(toSend);
+                sent.push("iri");
+            } catch (e) { console.log(`[fakeTrans] iri threw: ${String(e).slice(0, 80)}`); }
+        };
+
+        // jrt removed: it's a periodic heartbeat (~5s interval), not part of the
+        // transition chain. Sending it forged would break the server's expectation.
+        // Keep T_JRT only as a placeholder for backwards-compat.
+        void T_JRT;
+        void jrtK;
+
+        // Batch 3 (T+2563): isu, then immediately (T+2613) isp
+        setTimeout(() => {
+            pendingMainWork = () => {
+                try {
+                    const isu = (isuK as any).new();
+                    xbe.invoke(isu); sent.push("isu");
+                    const isp = (ispK as any).new();
+                    isp.field("efmg").value = false;
+                    isp.field("efmi").value = target;
+                    xbe.invoke(isp); sent.push("isp");
+                } catch (e) { console.log(`[fakeTrans] isu+isp threw: ${String(e).slice(0, 80)}`); }
+            };
+        }, T_ISU);
+
+        // Batch 4 (T+3251): jmw + isl (after server has responded to isp)
+        setTimeout(() => {
+            pendingMainWork = () => {
+                try {
+                    const jmw = (jmwK as any).new();
+                    jmw.field("ekry").value = target;
+                    xbe.invoke(jmw); sent.push("jmw");
+                    const isl = (islK as any).new();
+                    isl.field("efka").value = 0;
+                    isl.field("efke").value = target;
+                    xbe.invoke(isl); sent.push("isl");
+                    console.log(`[fakeTrans] full chain sent: ${sent.join(", ")}`);
+                    resolve({ ok: true, sent, iriPath });
+                } catch (e) {
+                    console.log(`[fakeTrans] jmw+isl threw: ${String(e).slice(0, 100)}`);
+                    resolve({ ok: false, reason: String(e).slice(0, 200), sent, iriPath });
+                }
+            };
+        }, T_JMW_ISL);
+
+        // Safety timeout
+        setTimeout(() => {
+            if (sent.length < 6) resolve({ ok: false, reason: "incomplete (timeout)", sent, iriPath });
+        }, T_JMW_ISL + 1500);
+    }));
+}
+
+// Replay just the captured transition iri alone (no isu, no isp).
+export function replayTransitionIri(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => new Promise((resolve) => {
+        if (!capturedTransitionClones.iri) { resolve({ ok: false, reason: "no iri clone — armCaptureTransition + transition first" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                (ecu as any).method("xbe").invoke(capturedTransitionClones.iri);
+                console.log(`[replayTransIri] sent iri`);
+                settle({ ok: true });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Replay just iri + isu (no isp) — tests if the server updates player position
+// from packet pair alone, without committing to map transition.
+export function replayIriIsu(): Promise<{ ok: boolean; reason?: string; sent?: string[] }> {
+    return inVm(() => new Promise((resolve) => {
+        if (!capturedTransitionClones.iri || !capturedTransitionClones.isu) {
+            resolve({ ok: false, reason: "missing iri or isu clone" }); return;
+        }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        const sent: string[] = [];
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                (ecu as any).method("xbe").invoke(capturedTransitionClones.iri); sent.push("iri");
+                (ecu as any).method("xbe").invoke(capturedTransitionClones.isu); sent.push("isu");
+                console.log(`[replayIriIsu] sent ${sent.join(", ")}`);
+                settle({ ok: true, sent });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200), sent });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout", sent }), 5000);
+    }));
+}
+
+// Replay the captured transition packets in their real order: iri → isu → isp.
+// If server trusts the packet sequence without strict position validation, the
+// player gets server-teleported to the destination map.
+export function replayTransition(delayBetweenMs: number = 200): Promise<{
+    ok: boolean; reason?: string; sent?: string[];
+}> {
+    return inVm(() => new Promise((resolve) => {
+        if (!capturedTransitionClones.iri || !capturedTransitionClones.isu || !capturedTransitionClones.isp) {
+            resolve({ ok: false, reason: "missing one of iri/isu/isp clones — call armCaptureTransition then transition once" });
+            return;
+        }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        const sent: string[] = [];
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+
+        // Fire all 3 in sequence. We use a single main-thread work item that
+        // synchronously calls all three with delays via setTimeout doesn't work
+        // inside inVm. Just invoke them back-to-back; protobuf send is fast.
+        pendingMainWork = () => {
+            try {
+                (ecu as any).method("xbe").invoke(capturedTransitionClones.iri); sent.push("iri");
+                (ecu as any).method("xbe").invoke(capturedTransitionClones.isu); sent.push("isu");
+                (ecu as any).method("xbe").invoke(capturedTransitionClones.isp); sent.push("isp");
+                console.log(`[replayTrans] sent ${sent.join(", ")}`);
+                settle({ ok: true, sent });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200), sent });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout", sent }), 5000);
+    }));
+}
+
+// Read all readable fields of the captured iri (via getter methods bztd/bztf/
+// bzth/bztj) so we can compare same-map vs map-transition iris and figure out
+// which field encodes the destination map / transition cell.
+export function inspectCapturedIri(): Promise<{
+    ok: boolean; reason?: string;
+    bztd?: any; bztf?: any; bzth?: any; bztj?: any[]; rawDump?: string[];
+}> {
+    return inVm(() => {
+        if (!capturedIriClone) return { ok: false, reason: "no captured iri yet" };
+        const out: any = { ok: true, rawDump: [] };
+        const tryGet = (mname: string, label: string) => {
+            try {
+                const m = (capturedIriClone as any).method(mname);
+                if (!m) { out.rawDump.push(`${label}(${mname}): NO METHOD`); return undefined; }
+                const v = m.invoke();
+                out.rawDump.push(`${label}(${mname}): ${typeof v} ${String(v).slice(0, 80)}`);
+                return v;
+            } catch (e) {
+                out.rawDump.push(`${label}(${mname}): THREW ${String(e).slice(0, 60)}`);
+                return undefined;
+            }
+        };
+        out.bztd = tryGet("bztd", "Bool");
+        out.bztf = tryGet("bztf", "Int64-1");
+        out.bzth = tryGet("bzth", "Int64-2");
+        try {
+            const repField = (capturedIriClone as any).method("bztj").invoke();
+            const arr: number[] = [];
+            try {
+                const sz = Number((repField as any).field("_size").value);
+                const items = (repField as any).field("_items").value;
+                for (let i = 0; i < sz; i++) {
+                    const v = items.read("Int32", i * 4);
+                    arr.push(Number(v));
+                }
+            } catch (e) {
+                out.rawDump.push(`bztj iter failed: ${String(e).slice(0, 60)}`);
+            }
+            out.bztj = arr;
+            out.rawDump.push(`Int32[] (bztj): size=${arr.length}, sample=[${arr.slice(0, 12).join(",")}${arr.length > 12 ? "..." : ""}]`);
+        } catch (e) {
+            out.rawDump.push(`bztj method failed: ${String(e).slice(0, 60)}`);
+        }
+        return out;
+    });
+}
+
+export function replayCapturedIri(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => new Promise((resolve) => {
+        if (!capturedIriClone) { resolve({ ok: false, reason: "no captured iri yet — call armCaptureIri then move once in-game" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                (ecu as any).method("xbe").invoke(capturedIriClone);
+                console.log(`[replay-iri] sent captured iri`);
+                settle({ ok: true });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Fast read of the current dvi (interactive cache) — uses cachedLiveDvi to
+// skip the ~500ms Il2Cpp.gc.choose heap scan, and skips the per-entry name
+// resolution via GetInteractiveById which costs another N×method.invoke. The
+// caller resolves typeId→name from data/catalog/interactives.json client-side.
+export function getInteractivesFast(): Promise<Array<{ elementId: string; cell: number; typeId: number }>> {
+    return inVm(() => {
+        let dvi: any = cachedLiveDvi;
+        if (!dvi) {
+            const dviKlass = getClass("dvi");
+            if (!dviKlass) return [];
+            const arr = Il2Cpp.gc.choose(dviKlass);
+            if (!arr.length) return [];
+            dvi = arr[arr.length - 1];
+            cachedLiveDvi = dvi;
+        }
+
+        let dict: any;
+        try { dict = (dvi as any).field("<dexl>k__BackingField").value; }
+        catch { return []; }
+        if (!dict) return [];
+
+        const out: Array<{ elementId: string; cell: number; typeId: number }> = [];
+        try {
+            const entries = (dict as any).field("_entries").value;
+            const count = Number((dict as any).field("_count").value);
+            for (let i = 0; i < count; i++) {
+                try {
+                    const entry = (entries as any).get(i);
+                    if (Number(entry.field("hashCode").value) < 0) continue;
+                    const key = entry.field("key").value;
+                    const val = entry.field("value").value;
+                    if (!val) continue;
+                    const element = (val as any).field("element").value;
+                    const pos = (val as any).field("position").value;
+                    let typeId = 0;
+                    try { typeId = Number((element as any).field("cutn").value); } catch {}
+                    if (!typeId) {
+                        try { typeId = Number((element as any).field("cutm").value); } catch {}
+                    }
+                    let cell = -1;
+                    try { cell = Number((pos as any).field("dphm").value); } catch {}
+                    out.push({ elementId: String(key), cell, typeId });
+                } catch {}
+            }
+        } catch {}
+        return out;
+    });
+}
+
+// Construct a fake `jrt` packet. Observed values are constant: elsl=0, elsn=true,
+// elsp=false. Sent by client between iri and isu in normal walks/transitions.
+export function sendFakeJrt(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => new Promise((resolve) => {
+        const jrtK = getClass("jrt");
+        if (!jrtK) { resolve({ ok: false, reason: "jrt class not found" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                const jrt = (jrtK as any).new();
+                jrt.field("elsl").value = 0;
+                jrt.field("elsn").value = true;
+                jrt.field("elsp").value = false;
+                (ecu as any).method("xbe").invoke(jrt);
+                console.log(`[fakeJrt] sent`);
+                settle({ ok: true });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Construct a fake `isl` packet matching captured natural transition values.
+// Fields: efka=0, efkc=null (nested isl.isk.isj), efke=mapId.
+export function sendFakeIsl(mapId: number | string): Promise<{ ok: boolean; reason?: string; mapId?: number }> {
+    return inVm(() => new Promise((resolve) => {
+        const mid = typeof mapId === "string" ? parseInt(mapId, 10) : mapId;
+        if (!Number.isFinite(mid) || mid <= 0) { resolve({ ok: false, reason: `invalid mapId ${mapId}` }); return; }
+        const islK = getClass("isl");
+        if (!islK) { resolve({ ok: false, reason: "isl class not found" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                const isl = (islK as any).new();
+                isl.field("efka").value = 0;
+                // efkc stays null
+                isl.field("efke").value = mid;
+                (ecu as any).method("xbe").invoke(isl);
+                console.log(`[fakeIsl] sent isl{efke=${mid}}`);
+                settle({ ok: true, mapId: mid });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Construct a fake `isu` (GameMapMovementConfirm — arrival packet, no observed
+// fields besides UnknownFieldSet). Sent normally by the client after walk
+// completes. Hypothesis: iri+isu chain might atomically update server-side
+// player position to the path's end cell, allowing instant teleport.
+export function sendFakeIsu(): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => new Promise((resolve) => {
+        const isuK = getClass("isu");
+        if (!isuK) { resolve({ ok: false, reason: "isu class not found" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                const isu = (isuK as any).new();
+                (ecu as any).method("xbe").invoke(isu);
+                console.log(`[fakeIsu] sent`);
+                settle({ ok: true });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Construct a fake `iri` (GameMapMovementRequest). Fields:
+//   efdg: Bool — flag (always false in observed manual walks)
+//   efdi: Int64 — unknown (always 0 observed)
+//   efdk: Int64 — semantics unclear (in capture it was a NEIGHBOR mapId, not destination)
+//   efdn: RepeatedField<Int32> — the cell PATH the player walked
+// Hypothesis to test: if server doesn't validate that path cells belong to the
+// player's current map, we could route to a remote map by passing its cells.
+export function sendFakeIri(
+    efdkMapId: number | string,
+    pathCells: number[],
+    efdg: boolean = false,
+    efdi: number = 0,
+): Promise<{ ok: boolean; reason?: string; sent?: any }> {
+    return inVm(() => new Promise((resolve) => {
+        const efdk = typeof efdkMapId === "string" ? parseInt(efdkMapId, 10) : efdkMapId;
+        if (!Number.isFinite(efdk)) { resolve({ ok: false, reason: `invalid efdk ${efdkMapId}` }); return; }
+
+        const iriK = getClass("iri");
+        if (!iriK) { resolve({ ok: false, reason: "iri class not found" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                const iri = (iriK as any).new();
+                iri.field("efdg").value = efdg;
+                iri.field("efdi").value = efdi;
+                iri.field("efdk").value = efdk;
+                // Build the RepeatedField<Int32> for path cells. We need to call
+                // the setter method (bztj returns the existing list, then we Add).
+                const pathList = (iri as any).method("bztj").invoke();
+                const addM = (pathList as any).method("Add");
+                for (const c of pathCells) {
+                    try { addM.invoke(c | 0); } catch (e) {
+                        console.log(`[fakeIri] Add cell ${c} threw: ${String(e).slice(0, 60)}`);
+                    }
+                }
+                (ecu as any).method("xbe").invoke(iri);
+                console.log(`[fakeIri] sent iri{efdk=${efdk}, path=[${pathCells.join(",")}]}`);
+                settle({ ok: true, sent: { efdk, pathCells } });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Construct a fake `isp` (likely `ChangeMapMessage` — observed at t=+541ms in
+// the transition sequence, BEFORE jmw at t=+1229ms, with efmi=destinationMapId).
+// Hypothesis: this is the explicit "I'm now transitioning to map X" signal,
+// which the server might respond to with MapComplementaryInformations push
+// (the data packet that fills dvi). Worth testing because jmw silently ignored.
+//
+// Fields:
+//   efmg: Bool — autopilot vs manual flag (existing hook hardcodes false)
+//   efmi: Int32 — destination mapId
+//   efml: String — null on manual walks
+export function sendFakeIsp(mapId: number | string, autopilotFlag: boolean = false): Promise<{
+    ok: boolean; reason?: string; mapId?: number;
+}> {
+    return inVm(() => new Promise((resolve) => {
+        const mid = typeof mapId === "string" ? parseInt(mapId, 10) : mapId;
+        if (!Number.isFinite(mid) || mid <= 0) { resolve({ ok: false, reason: `invalid mapId ${mapId}` }); return; }
+
+        const ispK = getClass("isp");
+        if (!ispK) { resolve({ ok: false, reason: "isp class not found" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                const isp = (ispK as any).new();
+                isp.field("efmg").value = autopilotFlag;
+                isp.field("efmi").value = mid;  // Int32
+                // efml left default (null/empty string)
+                (ecu as any).method("xbe").invoke(isp);
+                console.log(`[fakeIsp] sent isp{efmi=${mid}, efmg=${autopilotFlag}}`);
+                settle({ ok: true, mapId: mid });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
+            }
+        };
+        setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
+    }));
+}
+
+// Construct a fake `jmw` protobuf message (`MapInformationsResponse` per docs,
+// but observed OUTGOING during real map transitions — likely "client confirms
+// I'm now on map X" announcement) and send it to the server via `ecu.xbe`.
+//
+// Hypothesis: this tricks the server into pushing `dd` interactives for the
+// arbitrary mapId, which would then populate dvi + give us iid→typeId data
+// for any map without travelling. Worst case: server ignores or disconnects.
+export function sendFakeJmw(mapId: number | string): Promise<{
+    ok: boolean; reason?: string; mapId?: number;
+}> {
+    return inVm(() => new Promise((resolve) => {
+        const mid = typeof mapId === "string" ? parseInt(mapId, 10) : mapId;
+        if (!Number.isFinite(mid) || mid <= 0) { resolve({ ok: false, reason: `invalid mapId ${mapId}` }); return; }
+
+        const jmwK = getClass("jmw");
+        if (!jmwK) { resolve({ ok: false, reason: "jmw class not found" }); return; }
+        const ecuK = getClass("ecu");
+        if (!ecuK) { resolve({ ok: false, reason: "ecu class not found" }); return; }
+        const ecuInsts = Il2Cpp.gc.choose(ecuK);
+        if (!ecuInsts.length) { resolve({ ok: false, reason: "no live ecu" }); return; }
+        const ecu = ecuInsts[ecuInsts.length - 1]!;
+
+        if (!ensureMainThreadDispatcher()) { resolve({ ok: false, reason: "dispatcher fail" }); return; }
+
+        let settled = false;
+        const settle = (r: any) => { if (!settled) { settled = true; resolve(r); } };
+        pendingMainWork = () => {
+            try {
+                const jmw = (jmwK as any).new();
+                jmw.field("ekry").value = mid;
+                (ecu as any).method("xbe").invoke(jmw);
+                console.log(`[fakeJmw] sent jmw{ekry=${mid}}`);
+                settle({ ok: true, mapId: mid });
+            } catch (e) {
+                settle({ ok: false, reason: String(e).slice(0, 200) });
             }
         };
         setTimeout(() => settle({ ok: false, reason: "dispatch timeout" }), 3000);
@@ -3296,7 +4284,8 @@ export function resolveAddress(addrHex: string): Promise<{
     targetNormalized?: string;
 }> {
     return inVm(() => {
-        if (!methodTable.length) buildIl2cppMethodTable();
+        buildMethodTable();
+        const methodTable = getMethodTable();
         let target = addrHex.toLowerCase();
         if (target.startsWith("0x")) target = target.slice(2);
         target = target.padStart(16, "0");
@@ -3340,20 +4329,15 @@ export function hookBbdEntry(maxFrames: number = 30): Promise<{ ok: boolean; rea
         for (const m of dttKlass.methods) { if (m.name === "bbd") { bbd = m; break; } }
         if (!bbd) return { ok: false, reason: "dtt.bbd not found" };
         // Need the method-address table for resolveFrame to give Cls.method+0xN names.
-        if (!methodTable.length) buildIl2cppMethodTable();
+        buildMethodTable();
 
         try {
             bbd.implementation = function (this: any, dch: any): any {
                 let mapId = -1, dbkl = "?";
                 try { mapId = Number((dch as any).field("dbkk").value); } catch {}
                 try { dbkl = String((dch as any).field("dbkl").value); } catch {}
-                const frames: string[] = [];
-                try {
-                    const bt = Thread.backtrace(this.context, Backtracer.ACCURATE);
-                    for (let i = 0; i < Math.min(bt.length, maxFrames); i++) {
-                        frames.push(resolveFrame(bt[i]));
-                    }
-                } catch {}
+                let frames: string[] = [];
+                try { frames = getStackFrames(this.context, maxFrames); } catch {}
                 bbdEntries.push({ ts: Date.now(), mapId, dbkl, frames });
                 if (bbdEntries.length > 50) bbdEntries.shift();
                 // Re-invoke original — re-entrant via Frida's bypass of the wrapper.
