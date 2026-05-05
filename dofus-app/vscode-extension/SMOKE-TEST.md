@@ -83,3 +83,20 @@ running on `localhost:3001/api/call` attached to any IL2CPP process
 
 - [ ] All commands accessible via `Ctrl+Shift+P` → typing `Frida`
 - [ ] Status bar updates within 10s of Frida disconnect/reconnect
+
+## Plugin Hooks (v1.1)
+
+Pre-req : direct Frida mode (HTTP mode disables this plugin).
+
+1. Attach to the target. The "Hooks" view appears in the Frida sidebar (empty).
+2. Open Process Explorer → expand any class → right-click a method → "Frida: Hook this method..." → pick `log`. The hook appears in the Hooks tree with a filled circle (installed).
+3. Open the Hook Log via Command Palette → "Frida: Hooks — Open Log". Trigger the method in-game; events scroll in the Stream tab. Switch to Summary — the hook shows a hit count.
+4. Filter: type a substring of the class name in the filter input — only matching events stay.
+5. Pause / Clear: pause halts new events from displaying (they keep being buffered in the bus); clear empties both stream + ring buffer.
+6. Export JSON: click Export → save dialog → confirm a file is written with the buffered events.
+7. Edit: right-click the hook in the tree → Edit → change template to `noop`. Verify hits in Stream now have empty args + null retval.
+8. Toggle: click the inline toggle → tree icon goes hollow → no more events stream.
+9. Detach (or restart the game) → re-attach → the Hooks tree shows the hook DISARMED (hollow circle). Click the toggle to install it again — events resume.
+10. Switch builds: open a different Unity build of the game (or fake via gameNameOverride). The Hooks tree should be empty (per-profile isolation).
+11. Clear all: command "Frida: Hooks — Uninstall all" → tree icons all go hollow.
+12. Delete: right-click → Delete → confirm → the hook disappears from the tree and from disk (verify with `cat ~/.frida-toolkit/profiles/<game>/<build>/plugins/hooks/storage.json`).
