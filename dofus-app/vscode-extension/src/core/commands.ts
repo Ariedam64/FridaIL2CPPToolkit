@@ -21,6 +21,8 @@ export interface CommandsDeps {
     fridaDirect?: FridaDirectClient;
     /** Called after a successful attach to trigger profile init. */
     onAttachedReinit?: () => Promise<void>;
+    /** Called after a successful detach so plugins can react (e.g. fire profileDetachEmitter). */
+    onDetach?: () => void;
 }
 
 let showObfNames = false;
@@ -273,6 +275,7 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
 
         cmds.push(vscode.commands.registerCommand("frida.detach", async () => {
             await direct.detach();
+            deps.onDetach?.();
             vscode.window.showInformationMessage("Detached from Frida");
             deps.refresh();
         }));

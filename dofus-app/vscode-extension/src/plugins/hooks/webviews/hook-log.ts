@@ -53,7 +53,13 @@ export class HookLogPanel {
         }
         this.panel.reveal();
         if (focusHookId) {
-            this.panel.webview.postMessage({ type: "focus", hookId: focusHookId });
+            const stored = this.store.list().find((h) => h.id === focusHookId);
+            this.panel.webview.postMessage({
+                type: "focus",
+                hookId: focusHookId,
+                className: stored?.spec.className,
+                methodName: stored?.spec.methodName,
+            });
         }
     }
 
@@ -232,7 +238,7 @@ export class HookLogPanel {
                     while (stream.children.length > HARD_LIMIT) {
                         stream.removeChild(stream.firstChild);
                     }
-                    if (!paused) stream.scrollIntoView({ block: "end" });
+                    if (!paused) stream.lastElementChild?.scrollIntoView({ block: "nearest" });
                     updateCount();
                     if (summaryEl.style.display !== "none") renderSummary();
                 }
@@ -300,6 +306,14 @@ export class HookLogPanel {
                         __lastSnapshot.push(m.event);
                         if (__lastSnapshot.length > 10000) __lastSnapshot.shift();
                         append(m.event);
+                    } else if (m.type === "focus") {
+                        const filter = m.className && m.methodName
+                            ? (m.className + "." + m.methodName)
+                            : (m.hookId || "");
+                        filterInput.value = filter;
+                        filterText = filter.toLowerCase();
+                        rerenderAll(__lastSnapshot);
+                        showStream();
                     }
                 });
             </script>

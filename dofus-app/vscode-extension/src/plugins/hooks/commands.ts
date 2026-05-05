@@ -117,7 +117,17 @@ export function registerHookCommands(deps: HooksCommandDeps): vscode.Disposable[
         }
     }));
 
+    let httpModeWarned = false;
     cmds.push(vscode.commands.registerCommand("frida.hooks.openLog", (hookIdFocus?: string) => {
+        if (!httpModeWarned) {
+            const useDirect = vscode.workspace.getConfiguration("fridaToolkit").get<boolean>("useDirectMode", true);
+            if (!useDirect) {
+                vscode.window.showWarningMessage(
+                    "Hooks plugin: live event stream requires direct Frida mode. Hooks install but log will stay empty in HTTP mode.",
+                );
+                httpModeWarned = true;
+            }
+        }
         openLog(hookIdFocus);
     }));
 

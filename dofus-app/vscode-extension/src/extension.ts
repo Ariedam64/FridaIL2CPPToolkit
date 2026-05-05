@@ -237,6 +237,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             currentProfile = null;
             await initSession(true);
         },
+        onDetach: () => {
+            currentProfile = null;
+            profileDetachEmitter.fire();
+            void vscode.commands.executeCommand("setContext", "fridaToolkit.connected", false);
+            refreshAll();
+        },
     }));
 
     if (useDirect) {
