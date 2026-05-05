@@ -158,6 +158,23 @@ function installNoopTemplate(hookId: string, entry: ManagedEntry): void {
     };
 }
 
+function installForceReturnTemplate(hookId: string, entry: ManagedEntry): void {
+    const { method, spec } = entry;
+    const retTypeName = method.returnType.name;
+
+    method.implementation = function (this: any, ..._args: any[]): any {
+        entry.hitCount++;
+        let coercedReturn: any;
+        try {
+            coercedReturn = coerce(spec.forceReturnValue, retTypeName);
+        } catch {
+            coercedReturn = spec.forceReturnValue;
+        }
+        emit({ hookId, self: safeSelf(this), args: [], retval: safeRetval(coercedReturn) });
+        return coercedReturn;
+    };
+}
+
 export function installHook(spec: HookSpec): Promise<{ hookId: string }> {
     return inVm(() => {
         const klass = findClassExact(spec.className);
@@ -173,7 +190,11 @@ export function installHook(spec: HookSpec): Promise<{ hookId: string }> {
             case "log-stack":  installLogTemplate(hookId, entry, true); break;
             case "noop":       installNoopTemplate(hookId, entry); break;
             case "force-return":
-                throw new Error(`force-return not yet implemented (added in Task 11)`);
+                if (!("forceReturnValue" in spec)) {
+                    throw new Error("force-return requires spec.forceReturnValue");
+                }
+                installForceReturnTemplate(hookId, entry);
+                break;
             default:
                 throw new Error(`unknown template: ${(spec as { template: string }).template}`);
         }
