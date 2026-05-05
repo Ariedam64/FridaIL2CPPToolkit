@@ -21,6 +21,7 @@ import {
 import { UniversalSearch } from "./core/search";
 import { registerCommands } from "./core/commands";
 import { createCoreApi, type CoreApi } from "./core/api";
+import { activateHooksPlugin } from "./plugins/hooks";
 import { matchFingerprints } from "./core/migrations";
 import { FridaDirectClient, resolveDefaultAgentPath } from "./core/frida-direct";
 import type { ClassFingerprint, RpcClient } from "./core/types";
@@ -68,6 +69,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         rpc,
         onAgentMessage,
     });
+
+    context.subscriptions.push(activateHooksPlugin(coreApi, context));
 
     // Tree providers
     const explorerProvider = new ProcessExplorerProvider(rpc, profileSource);
