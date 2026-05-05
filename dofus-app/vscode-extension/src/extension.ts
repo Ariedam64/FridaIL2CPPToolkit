@@ -10,6 +10,7 @@ import * as path from "path";
 
 import { HttpRpcClient } from "./core/rpc";
 import { detectBuildId } from "./core/detect";
+import { expandHome } from "./core/paths";
 import { ProfileManager, type Profile } from "./core/profile";
 import { StatusBarController } from "./core/status-bar";
 import {
@@ -25,6 +26,7 @@ import { FridaDirectClient, resolveDefaultAgentPath } from "./core/frida-direct"
 import type { ClassFingerprint, RpcClient } from "./core/types";
 
 let coreApi: CoreApi | undefined;
+let activeProfileForShutdown: { current(): Profile | null } | undefined;
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
     const config = vscode.workspace.getConfiguration("fridaToolkit");
@@ -44,12 +46,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         });
     }
 
-    const profilesRoot = config.get<string>("profileRoot", "")
+    const profilesRoot = expandHome(config.get<string>("profileRoot", ""))
         || path.join(os.homedir(), ".frida-toolkit", "profiles");
     const profileManager = new ProfileManager(profilesRoot);
 
     let currentProfile: Profile | null = null;
     const profileSource = { current: () => currentProfile };
+    activeProfileForShutdown = profileSource;
 
     const profileEmitter = new vscode.EventEmitter<Profile>();
     const profileDetachEmitter = new vscode.EventEmitter<void>();
@@ -142,7 +145,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     }
                     await currentProfile.labels.flush();
 
-                    migrationsProvider.setMigrations(result);
+                    migrationsProvider.setMigrations(result, { old: oldFps, current: currentFps });
                     vscode.window.showInformationMessage(
                         `Migrations: ${result.auto.length} auto-migrated, ${result.review.length} to review, ${result.lost.length} lost. See Migrations panel.`,
                     );
@@ -160,6 +163,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                     console.warn("saveFingerprints failed:", e);
                 }
             }
+
+            // Subscribe to label/annotation changes for this profile so
+            // manifest.stats stays in sync. Debounced to avoid I/O storms.
+            const profileForListener = currentProfile;
+            let statsTimer: ReturnType<typeof setTimeout> | null = null;
+            const scheduleStatsUpdate = (): void => {
+                if (statsTimer) clearTimeout(statsTimer);
+                statsTimer = setTimeout(() => {
+                    statsTimer = null;
+                    void profileManager.updateStats(profileForListener).catch((e) => {
+                        console.warn("updateStats failed:", e);
+                    });
+                }, 600);
+            };
+            profileForListener.labels.onChange(scheduleStatsUpdate);
+            profileForListener.annotations.onChange(scheduleStatsUpdate);
+            // Also flush stats once at attach so the manifest reflects whatever
+            // labels were already on disk (e.g. just-migrated entries).
+            await profileManager.updateStats(profileForListener).catch((e) => {
+                console.warn("initial updateStats failed:", e);
+            });
 
             await vscode.commands.executeCommand("setContext", "fridaToolkit.connected", true);
             profileEmitter.fire(currentProfile);
@@ -199,6 +223,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             search.invalidate();
         },
         showSearch: () => search.show(),
+        migrationsProvider,
         fridaDirect,
         onAttachedReinit: async () => {
             currentProfile = null;
@@ -241,7 +266,14 @@ async function deriveGameName(rpc: RpcClient): Promise<string> {
     }
 }
 
-export function deactivate() {
+export async function deactivate(): Promise<void> {
+    // Drain any pending debounced writes so we don't lose unsaved labels/notes.
+    const profile = activeProfileForShutdown?.current();
+    if (profile) {
+        try { await profile.labels.flush(); } catch (e) { console.warn("labels flush on deactivate failed:", e); }
+        try { await profile.annotations.flush(); } catch (e) { console.warn("annotations flush on deactivate failed:", e); }
+    }
+    activeProfileForShutdown = undefined;
     coreApi = undefined;
 }
 

@@ -48,6 +48,7 @@ export class AnnotationStore {
     private listeners: Array<Listener<AnnotationChangeEvent>> = [];
     private filePath: string;
     private dirty = false;
+    private scheduledTimer: ReturnType<typeof setTimeout> | null = null;
     private onCorruption?: (backupPath: string) => void;
 
     constructor(filePath: string, onCorruption?: (backupPath: string) => void) {
@@ -59,6 +60,10 @@ export class AnnotationStore {
     isBookmarked(key: LabelKey): boolean {
         return this.bookmarks.has(keyId(key));
     }
+
+    bookmarkCount(): number { return this.bookmarks.size; }
+
+    noteCount(): number { return this.notes.size; }
 
     toggleBookmark(key: LabelKey): void {
         const id = keyId(key);
@@ -120,6 +125,10 @@ export class AnnotationStore {
     }
 
     async flush(): Promise<void> {
+        if (this.scheduledTimer) {
+            clearTimeout(this.scheduledTimer);
+            this.scheduledTimer = null;
+        }
         if (!this.dirty) return;
         this.dirty = false;
         const data: AnnotationsFileV1 = {
@@ -131,6 +140,17 @@ export class AnnotationStore {
         await fs.promises.mkdir(path.dirname(this.filePath), { recursive: true });
         await fs.promises.writeFile(tmp, JSON.stringify(data, null, 2), "utf-8");
         await fs.promises.rename(tmp, this.filePath);
+    }
+
+    /** Same contract as LabelStore.scheduleFlush — debounce repeated edits. */
+    scheduleFlush(delayMs: number = 500): void {
+        if (this.scheduledTimer) clearTimeout(this.scheduledTimer);
+        this.scheduledTimer = setTimeout(() => {
+            this.scheduledTimer = null;
+            void this.flush().catch((err) => {
+                console.warn("AnnotationStore scheduled flush failed:", err);
+            });
+        }, delayMs);
     }
 
     private markDirty(): void { this.dirty = true; }

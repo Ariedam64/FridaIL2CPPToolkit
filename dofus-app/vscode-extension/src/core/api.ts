@@ -5,6 +5,7 @@
 
 import * as vscode from "vscode";
 
+import { DiskPluginStorage } from "./plugin-storage";
 import type { LabelStore } from "./labels";
 import type { AnnotationStore } from "./annotations";
 import type { Profile } from "./profile";
@@ -44,17 +45,7 @@ export interface CoreApi {
     };
 }
 
-/**
- * In-memory storage backing for plugins until the per-plugin profile
- * directory is wired (post-v1). Swap implementation in profile.ts later.
- */
-class InMemoryStorage implements PluginStorage {
-    private store = new Map<string, unknown>();
-    get<T>(key: string): T | null { return (this.store.get(key) as T) ?? null; }
-    set<T>(key: string, value: T): void { this.store.set(key, value); }
-    delete(key: string): void { this.store.delete(key); }
-    list(): string[] { return Array.from(this.store.keys()); }
-}
+// DiskPluginStorage now lives in plugin-storage.ts (vscode-free, testable).
 
 export interface CoreApiDeps {
     profileEmitter: vscode.EventEmitter<Profile>;
@@ -64,7 +55,10 @@ export interface CoreApiDeps {
 }
 
 export function createCoreApi(deps: CoreApiDeps): CoreApi {
-    const storages = new Map<string, InMemoryStorage>();
+    // Storage is keyed by `${profileId}::${pluginId}` so when the user attaches
+    // to a different build, plugins read/write fresh state — no cross-profile
+    // bleed.
+    const storages = new Map<string, DiskPluginStorage>();
 
     function getCurrentLabels(): LabelStore {
         const p = deps.profileSource.current();
@@ -86,8 +80,16 @@ export function createCoreApi(deps: CoreApiDeps): CoreApi {
         get labels() { return getCurrentLabels(); },
         get annotations() { return getCurrentAnnotations(); },
         storage(pluginId: string) {
-            let s = storages.get(pluginId);
-            if (!s) { s = new InMemoryStorage(); storages.set(pluginId, s); }
+            const profile = deps.profileSource.current();
+            if (!profile) {
+                throw new Error("no profile attached — plugin storage unavailable");
+            }
+            const cacheKey = `${profile.manifest.profileId}::${pluginId}`;
+            let s = storages.get(cacheKey);
+            if (!s) {
+                s = new DiskPluginStorage(profile.rootPath, pluginId);
+                storages.set(cacheKey, s);
+            }
             return s;
         },
         rpc: {

@@ -131,6 +131,31 @@ export class ProfileManager {
         }
     }
 
+    /**
+     * Recompute manifest stats from the in-memory stores and atomically rewrite
+     * `<profile>/manifest.json`. Idempotent — safe to call after every change
+     * and after debounced flushes.
+     */
+    async updateStats(profile: Profile): Promise<void> {
+        const stats = {
+            totalLabels: profile.labels.totalCount(),
+            totalBookmarks: profile.annotations.bookmarkCount(),
+            totalNotes: profile.annotations.noteCount(),
+        };
+        if (
+            profile.manifest.stats.totalLabels === stats.totalLabels &&
+            profile.manifest.stats.totalBookmarks === stats.totalBookmarks &&
+            profile.manifest.stats.totalNotes === stats.totalNotes
+        ) {
+            return;
+        }
+        profile.manifest.stats = stats;
+        const manifestPath = path.join(profile.rootPath, "manifest.json");
+        const tmp = manifestPath + ".tmp";
+        await fs.promises.writeFile(tmp, JSON.stringify(profile.manifest, null, 2), "utf-8");
+        await fs.promises.rename(tmp, manifestPath);
+    }
+
     async loadProfileLabels(gameName: string, buildId: string): Promise<Record<string, string>> {
         const labelsPath = path.join(this.profilesRoot, gameName, buildId, "labels.json");
         if (!fs.existsSync(labelsPath)) return {};

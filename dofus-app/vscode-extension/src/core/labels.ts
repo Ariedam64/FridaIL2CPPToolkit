@@ -31,6 +31,7 @@ export class LabelStore {
     private filePath: string;
     private dirty = false;
     private flushPromise: Promise<void> = Promise.resolve();
+    private scheduledTimer: ReturnType<typeof setTimeout> | null = null;
     private undoStack: UndoFrame[] = [];
     private redoStack: UndoFrame[] = [];
     private onCorruption?: (backupPath: string) => void;
@@ -54,6 +55,11 @@ export class LabelStore {
             case "method": return key.methodName;
             case "field":  return key.fieldName;
         }
+    }
+
+    /** Total number of labels across all kinds. Cheap. */
+    totalCount(): number {
+        return this.classes.size + this.methods.size + this.fields.size;
     }
 
     isObfuscated(key: LabelKey): boolean {
@@ -182,6 +188,10 @@ export class LabelStore {
     }
 
     async flush(): Promise<void> {
+        if (this.scheduledTimer) {
+            clearTimeout(this.scheduledTimer);
+            this.scheduledTimer = null;
+        }
         if (!this.dirty) return this.flushPromise;
         this.dirty = false;
         const data = JSON.stringify(this.bulkExport(), null, 2);
@@ -192,6 +202,21 @@ export class LabelStore {
             await fs.promises.rename(tmp, this.filePath);
         })();
         return this.flushPromise;
+    }
+
+    /**
+     * Coalesce multiple in-flight changes into a single disk write. Call after
+     * each mutation when the user is actively editing — replaces the previous
+     * scheduled flush. Explicit `flush()` drains immediately.
+     */
+    scheduleFlush(delayMs: number = 500): void {
+        if (this.scheduledTimer) clearTimeout(this.scheduledTimer);
+        this.scheduledTimer = setTimeout(() => {
+            this.scheduledTimer = null;
+            void this.flush().catch((err) => {
+                console.warn("LabelStore scheduled flush failed:", err);
+            });
+        }, delayMs);
     }
 
     private markDirty(): void {

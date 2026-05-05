@@ -66,6 +66,26 @@ describe("ProfileManager", () => {
         expect(fresh.labels.get({ kind: "class", className: "egq" })).toBeNull();
     });
 
+    it("updateStats recomputes manifest counters and writes to disk", async () => {
+        const mgr = new ProfileManager(tmpRoot);
+        const p = await mgr.createProfile({
+            gameName: "dofus", buildId: "abc", buildIdSource: "binary-hash",
+        });
+        p.labels.set({ kind: "class", className: "egq" }, "HaapiService");
+        p.labels.set({ kind: "method", className: "egq", methodName: "ywp" }, "Consume");
+        p.annotations.toggleBookmark({ kind: "class", className: "egq" });
+        p.annotations.setNote({ kind: "class", className: "egq" }, "important");
+
+        await mgr.updateStats(p);
+
+        // In-memory manifest reflects the new counts
+        expect(p.manifest.stats).toEqual({ totalLabels: 2, totalBookmarks: 1, totalNotes: 1 });
+
+        // On-disk manifest also updated
+        const reloaded = await mgr.loadProfile("dofus", "abc");
+        expect(reloaded.manifest.stats).toEqual({ totalLabels: 2, totalBookmarks: 1, totalNotes: 1 });
+    });
+
     it("returns the most recent previous build (for derive)", async () => {
         const mgr = new ProfileManager(tmpRoot);
         const a = await mgr.createProfile({ gameName: "dofus", buildId: "a", buildIdSource: "binary-hash" });

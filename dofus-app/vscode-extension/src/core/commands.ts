@@ -4,6 +4,8 @@
 import * as vscode from "vscode";
 
 import { openClassDetail } from "./webviews/class-detail";
+import { openMigrationReview } from "./webviews/migration-review";
+import type { MigrationsProvider } from "./explorer";
 import type { Profile } from "./profile";
 import type { LabelKey, RpcClient } from "./types";
 import type { FridaDirectClient } from "./frida-direct";
@@ -14,6 +16,7 @@ export interface CommandsDeps {
     refresh: () => void;
     onShowObfNamesToggled: (showing: boolean) => void;
     showSearch: () => Promise<void>;
+    migrationsProvider: MigrationsProvider;
     /** Optional — present when running in direct-Frida mode. */
     fridaDirect?: FridaDirectClient;
     /** Called after a successful attach to trigger profile init. */
@@ -56,7 +59,7 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
         if (next === undefined) return;
         if (next === "") p.labels.remove(key);
         else p.labels.set(key, next);
-        await p.labels.flush();
+        p.labels.scheduleFlush();
         deps.refresh();
     })));
 
@@ -71,7 +74,7 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
         if (next === undefined) return;
         if (next === "") p.labels.remove(key);
         else p.labels.set(key, next);
-        await p.labels.flush();
+        p.labels.scheduleFlush();
         deps.refresh();
     })));
 
@@ -86,7 +89,7 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
         if (next === undefined) return;
         if (next === "") p.labels.remove(key);
         else p.labels.set(key, next);
-        await p.labels.flush();
+        p.labels.scheduleFlush();
         deps.refresh();
     })));
 
@@ -95,7 +98,7 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
         if (!obf) return;
         const key: LabelKey = { kind: "class", className: obf };
         p.annotations.toggleBookmark(key);
-        await p.annotations.flush();
+        p.annotations.scheduleFlush();
         deps.refresh();
     })));
 
@@ -111,7 +114,7 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
         if (next === undefined) return;
         if (next === "") p.annotations.removeNote(key);
         else p.annotations.setNote(key, next);
-        await p.annotations.flush();
+        p.annotations.scheduleFlush();
         deps.refresh();
     })));
 
@@ -126,14 +129,14 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
 
     cmds.push(vscode.commands.registerCommand("frida.undoRename", profileNeeded(async (p) => {
         if (p.labels.undo()) {
-            await p.labels.flush();
+            p.labels.scheduleFlush();
             deps.refresh();
         }
     })));
 
     cmds.push(vscode.commands.registerCommand("frida.redoRename", profileNeeded(async (p) => {
         if (p.labels.redo()) {
-            await p.labels.flush();
+            p.labels.scheduleFlush();
             deps.refresh();
         }
     })));
@@ -159,6 +162,56 @@ export function registerCommands(deps: CommandsDeps): vscode.Disposable[] {
         } catch (e) {
             vscode.window.showErrorMessage(`Import failed: ${e instanceof Error ? e.message : String(e)}`);
         }
+    })));
+
+    cmds.push(vscode.commands.registerCommand("frida.openMigrationReview", profileNeeded(async (p, oldObfArg) => {
+        const oldObf = (oldObfArg as string | undefined)
+            ?? await vscode.window.showInputBox({ prompt: "Old obf class name to review" });
+        if (!oldObf) return;
+
+        const result = deps.migrationsProvider.getResult();
+        const entry = result.review.find((m) => m.oldObf === oldObf);
+        if (!entry) {
+            vscode.window.showWarningMessage(`No pending review for ${oldObf}`);
+            return;
+        }
+        const fps = deps.migrationsProvider.getFingerprints();
+        const oldFp = fps.oldByObf.get(oldObf);
+        if (!oldFp) {
+            vscode.window.showErrorMessage(`Missing old fingerprint for ${oldObf} — cannot review`);
+            return;
+        }
+
+        const candidates = entry.candidates
+            .map((c) => {
+                const fp = fps.newByObf.get(c.newObf);
+                return fp ? { newObf: c.newObf, score: c.score, fingerprint: fp, reason: c.reason } : null;
+            })
+            .filter((c): c is NonNullable<typeof c> => c !== null);
+        if (candidates.length === 0) {
+            vscode.window.showErrorMessage(`No candidate fingerprints available for ${oldObf}`);
+            return;
+        }
+
+        await openMigrationReview(
+            { oldObf, label: entry.label, oldFingerprint: oldFp, candidates },
+            async (newObf) => {
+                p.labels.set({ kind: "class", className: newObf }, entry.label);
+                await p.labels.flush();
+                deps.migrationsProvider.acceptReview(oldObf, newObf);
+                deps.refresh();
+                vscode.window.showInformationMessage(
+                    `Accepted: ${entry.label} → ${newObf}`,
+                );
+            },
+            () => {
+                deps.migrationsProvider.rejectReview(oldObf);
+                deps.refresh();
+                vscode.window.showInformationMessage(
+                    `Rejected: ${entry.label} marked as lost`,
+                );
+            },
+        );
     })));
 
     cmds.push(vscode.commands.registerCommand("frida.showProfileInfo", () => {

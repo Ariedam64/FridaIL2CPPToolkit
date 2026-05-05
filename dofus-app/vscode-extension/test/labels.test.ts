@@ -60,6 +60,34 @@ describe("LabelStore", () => {
         ]);
     });
 
+    it("scheduleFlush coalesces multiple edits into one write", async () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("a"), "A");
+        store.scheduleFlush(20);
+        store.set(classKey("b"), "B");
+        store.scheduleFlush(20);
+        store.set(classKey("c"), "C");
+        store.scheduleFlush(20);
+        // No file written yet — timer hasn't fired
+        expect(fs.existsSync(labelsPath)).toBe(false);
+        await new Promise((r) => setTimeout(r, 60));
+        expect(fs.existsSync(labelsPath)).toBe(true);
+        const reloaded = new LabelStore(labelsPath);
+        expect(reloaded.get(classKey("a"))).toBe("A");
+        expect(reloaded.get(classKey("b"))).toBe("B");
+        expect(reloaded.get(classKey("c"))).toBe("C");
+    });
+
+    it("explicit flush() drains a pending scheduleFlush immediately", async () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.scheduleFlush(10_000); // would normally fire much later
+        await store.flush();
+        expect(fs.existsSync(labelsPath)).toBe(true);
+        const reloaded = new LabelStore(labelsPath);
+        expect(reloaded.get(classKey("egq"))).toBe("HaapiService");
+    });
+
     it("persists to disk and reloads", async () => {
         const store = new LabelStore(labelsPath);
         store.set(classKey("egq"), "HaapiService");

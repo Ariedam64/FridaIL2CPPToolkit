@@ -14,8 +14,8 @@ export interface MigrationReviewInput {
 
 export async function openMigrationReview(
     input: MigrationReviewInput,
-    onAccept: (newObf: string) => void,
-    onReject: () => void,
+    onAccept: (newObf: string) => void | Promise<void>,
+    onReject: () => void | Promise<void>,
 ): Promise<void> {
     const panel = vscode.window.createWebviewPanel(
         "fridaMigrationReview",
@@ -25,13 +25,18 @@ export async function openMigrationReview(
     );
     panel.webview.html = render(input);
 
-    panel.webview.onDidReceiveMessage((msg: { type: string; newObf?: string }) => {
-        if (msg.type === "accept" && msg.newObf) {
-            onAccept(msg.newObf);
-            panel.dispose();
-        } else if (msg.type === "reject") {
-            onReject();
-            panel.dispose();
+    panel.webview.onDidReceiveMessage(async (msg: { type: string; newObf?: string }) => {
+        try {
+            if (msg.type === "accept" && msg.newObf) {
+                await onAccept(msg.newObf);
+                panel.dispose();
+            } else if (msg.type === "reject") {
+                await onReject();
+                panel.dispose();
+            }
+        } catch (err) {
+            const m = err instanceof Error ? err.message : String(err);
+            vscode.window.showErrorMessage(`Migration action failed: ${m}`);
         }
     });
 }

@@ -7,6 +7,7 @@ import * as vscode from "vscode";
 
 import type { Profile } from "./profile";
 import type {
+    ClassFingerprint,
     LabelKey,
     MigrationResult,
     RpcClient,
@@ -167,15 +168,68 @@ type MigrationNode =
     | { kind: "review"; oldObf: string; label: string; topScore: number }
     | { kind: "lost"; oldObf: string; label: string; reason: string };
 
+export interface MigrationFingerprints {
+    oldByObf: Map<string, ClassFingerprint>;
+    newByObf: Map<string, ClassFingerprint>;
+}
+
 export class MigrationsProvider implements vscode.TreeDataProvider<MigrationNode> {
     private _changed = new vscode.EventEmitter<void>();
     readonly onDidChangeTreeData = this._changed.event;
     private current: MigrationResult = { auto: [], review: [], lost: [] };
+    private fingerprints: MigrationFingerprints = {
+        oldByObf: new Map(),
+        newByObf: new Map(),
+    };
 
     refresh(): void { this._changed.fire(); }
 
-    setMigrations(result: MigrationResult): void {
+    setMigrations(result: MigrationResult, fps?: { old: ClassFingerprint[]; current: ClassFingerprint[] }): void {
         this.current = result;
+        if (fps) {
+            this.fingerprints = {
+                oldByObf: new Map(fps.old.map((fp) => [fp.obfName, fp])),
+                newByObf: new Map(fps.current.map((fp) => [fp.obfName, fp])),
+            };
+        }
+        this.refresh();
+    }
+
+    getResult(): MigrationResult { return this.current; }
+
+    getFingerprints(): MigrationFingerprints { return this.fingerprints; }
+
+    /** Move a review entry into the auto bucket after the user accepted a candidate. */
+    acceptReview(oldObf: string, newObf: string): void {
+        const idx = this.current.review.findIndex((m) => m.oldObf === oldObf);
+        if (idx < 0) return;
+        const entry = this.current.review[idx];
+        const candidate = entry.candidates.find((c) => c.newObf === newObf);
+        this.current.review.splice(idx, 1);
+        this.current.auto.push({
+            key: entry.key,
+            label: entry.label,
+            oldObf: entry.oldObf,
+            newObf,
+            reason: candidate
+                ? `user accepted (score=${candidate.score.toFixed(3)})`
+                : "user accepted",
+        });
+        this.refresh();
+    }
+
+    /** Move a review entry into the lost bucket after the user rejected all candidates. */
+    rejectReview(oldObf: string): void {
+        const idx = this.current.review.findIndex((m) => m.oldObf === oldObf);
+        if (idx < 0) return;
+        const entry = this.current.review[idx];
+        this.current.review.splice(idx, 1);
+        this.current.lost.push({
+            key: entry.key,
+            label: entry.label,
+            oldObf: entry.oldObf,
+            reason: "user rejected all candidates",
+        });
         this.refresh();
     }
 
