@@ -6,6 +6,7 @@ import { HookStore } from "./hook-store";
 import { HookEventBus } from "./hook-event-bus";
 import { HooksTreeProvider } from "./hooks-tree";
 import { registerHookCommands } from "./commands";
+import { HookLogPanel } from "./webviews/hook-log";
 
 export function activateHooksPlugin(coreApi: CoreApi, _ctx: vscode.ExtensionContext): vscode.Disposable {
     const disposables: vscode.Disposable[] = [];
@@ -39,10 +40,9 @@ export function activateHooksPlugin(coreApi: CoreApi, _ctx: vscode.ExtensionCont
         disposables.push(coreApi.profile.onDetach.event(() => s.markAllDisarmed()));
         disposables.push(coreApi.profile.onAttach.event(() => s.reload()));
 
-        const openLog = (_focusHookId?: string): void => {
-            // Implemented in Task 10 — placeholder for now.
-            coreApi.ui.notify("Hook Log webview coming in Task 10", "info");
-        };
+        const logPanel = new HookLogPanel(eventBus, s);
+        disposables.push({ dispose: () => logPanel.dispose() });
+        const openLog = (focusHookId?: string): void => logPanel.show(focusHookId);
 
         disposables.push(...registerHookCommands({ store: s, coreApi, openLog }));
     };
