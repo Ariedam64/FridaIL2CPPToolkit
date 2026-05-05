@@ -138,6 +138,10 @@
       {
         "command": "frida.hooks.clearAll",
         "title": "Frida: Hooks — Uninstall all"
+      },
+      {
+        "command": "frida.hooks.addFromMember",
+        "title": "Frida: Hook this method..."
       }
     ],
     "menus": {
@@ -173,6 +177,11 @@
           "command": "frida.hooks.delete",
           "when": "view == fridaHooks && viewItem =~ /^frida\\.hook\\./",
           "group": "9_destroy"
+        },
+        {
+          "command": "frida.hooks.addFromMember",
+          "when": "view == fridaProcessExplorer && viewItem == frida.method",
+          "group": "9_frida"
         }
       ]
     },

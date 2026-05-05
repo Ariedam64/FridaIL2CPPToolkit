@@ -136,6 +136,47 @@ export function registerHookCommands(deps: HooksCommandDeps): vscode.Disposable[
         }
     }));
 
+    cmds.push(vscode.commands.registerCommand("frida.hooks.addFromMember",
+        async (arg1?: any, arg2?: any) => {
+            let className: string | undefined;
+            let methodName: string | undefined;
+            // Two call shapes:
+            // 1. Programmatic: (className, methodName) — used when invoked from a different code path.
+            // 2. Tree context-menu: (memberNode) — VSCode passes the tree node.
+            if (typeof arg1 === "string") {
+                className = arg1;
+                methodName = typeof arg2 === "string" ? arg2 : undefined;
+            } else if (arg1 && typeof arg1 === "object") {
+                const node = arg1 as { kind?: string; container?: { className?: string }; obfName?: string; memberKind?: string };
+                if (node.kind === "member" && node.memberKind === "method"
+                    && node.container?.className && node.obfName) {
+                    className = node.container.className;
+                    methodName = node.obfName;
+                }
+            }
+            if (!className || !methodName) {
+                vscode.window.showWarningMessage("frida.hooks.addFromMember: missing className/methodName");
+                return;
+            }
+
+            const template = await vscode.window.showQuickPick(
+                ["log", "log-stack", "noop"] as const,
+                { placeHolder: `Hook ${className}.${methodName} as` },
+            );
+            if (!template) return;
+            const spec = { template, className, methodName } as HookSpec;
+            const stored = store.add(spec);
+            try {
+                await store.install(stored.id);
+                vscode.window.showInformationMessage(`Hook installed: ${className}.${methodName}`);
+            } catch (err) {
+                vscode.window.showWarningMessage(
+                    `Hook saved disarmed (install failed): ${err instanceof Error ? err.message : String(err)}`,
+                );
+            }
+        },
+    ));
+
     return cmds;
 }
 
