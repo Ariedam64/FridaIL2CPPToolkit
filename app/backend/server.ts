@@ -11,6 +11,8 @@ import { mountLabels } from "./routes/labels.js";
 import { mountAnnotations } from "./routes/annotations.js";
 import { mountHooks } from "./routes/hooks.js";
 import { mountMigrations } from "./routes/migrations.js";
+import { mountNetwork } from "./routes/network.js";
+import { mountNetworkEventBus } from "./core/network/event-bus.js";
 import { mountWsBridge } from "./ws-bridge.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
@@ -32,6 +34,8 @@ mountLabels(app, { session });
 mountAnnotations(app, { session });
 mountHooks(app, { session });
 mountMigrations(app, { session });
+mountNetwork(app, { session });
+mountNetworkEventBus(session);
 
 const server = http.createServer(app);
 mountWsBridge(server, session);
