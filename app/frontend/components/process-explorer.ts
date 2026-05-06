@@ -56,7 +56,6 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
                 tree.appendChild(renderAsmNode(a));
             }
             meta.textContent = `${(total / 1000).toFixed(1)}k cls`;
-            applyFilter();
         } catch (e) {
             tree.innerHTML = `<div style="color:var(--danger);padding:1em">${escape(String(e))}</div>`;
         }
@@ -101,7 +100,6 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         el.after(frag);
         el.dataset.expanded = "true";
         el.querySelector(".chevron")!.textContent = "▼";
-        applyFilter();
     }
 
     function renderNsNode(asm: string, n: NamespaceInfo): HTMLElement {
@@ -161,7 +159,6 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         el.after(frag);
         el.dataset.expanded = "true";
         el.querySelector(".chevron")!.textContent = "▼";
-        applyFilter();
     }
 
     function renderClsNode(asm: string, ns: string, c: ClassEnriched): HTMLElement {
@@ -186,19 +183,88 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         onSelect(fullName);
     }
 
-    function applyFilter(): void {
-        const q = filter.value.toLowerCase();
-        if (!q) {
-            tree.querySelectorAll<HTMLElement>(".tree-node").forEach((n) => { (n as HTMLElement).style.display = ""; });
-            return;
+    // ---- Search mode state ----
+    let searchMode = false;
+    let searchTimer: ReturnType<typeof setTimeout> | null = null;
+    let labelsCacheForSearch: any = null;
+    let annotationsCacheForSearch: any = null;
+
+    async function ensureLabelsCacheForSearch(): Promise<void> {
+        if (!labelsCacheForSearch) {
+            try { labelsCacheForSearch = await api.getLabels(); }
+            catch { labelsCacheForSearch = { classes: {} }; }
         }
-        tree.querySelectorAll<HTMLElement>(".tree-node").forEach((n) => {
-            const lbl = n.querySelector<HTMLElement>(".label")?.textContent?.toLowerCase() ?? "";
-            (n as HTMLElement).style.display = lbl.includes(q) ? "" : "none";
-        });
+        if (!annotationsCacheForSearch) {
+            try { annotationsCacheForSearch = await api.getAnnotations(); }
+            catch { annotationsCacheForSearch = { bookmarks: [], notes: [] }; }
+        }
     }
 
-    filter.addEventListener("input", applyFilter);
+    function renderSearchResults(results: Array<{ shortName: string; fullName: string; assembly: string; ns: string }>): void {
+        if (results.length === 0) {
+            tree.innerHTML = `<div style="color:var(--text-faint);padding:1em">No matches.</div>`;
+            return;
+        }
+        const labels = labelsCacheForSearch ?? { classes: {} };
+        const annotations = annotationsCacheForSearch ?? { bookmarks: [], notes: [] };
+        const bookmarked = new Set<string>(
+            (annotations.bookmarks as any[]).filter((k: any) => k.kind === "class").map((k: any) => k.className as string)
+        );
+        const noted = new Set<string>(
+            (annotations.notes as any[]).filter((n: any) => n.key.kind === "class").map((n: any) => n.key.className as string)
+        );
+        const frag = document.createDocumentFragment();
+        for (const r of results) {
+            const label = (labels.classes as any)[r.shortName]?.label ?? null;
+            const enriched: ClassEnriched = {
+                obfName: r.shortName,
+                fullName: r.fullName,
+                label,
+                bookmarked: bookmarked.has(r.shortName),
+                hasNote: noted.has(r.shortName),
+            };
+            const el = renderClsNode(r.assembly, r.ns, enriched);
+            // Prepend namespace prefix in search mode for disambiguation
+            const labelEl = el.querySelector<HTMLElement>(".label")!;
+            const nsTag = r.ns ? `<span style="color:var(--text-faint);font-size:10px;margin-right:4px">${escape(r.ns)}.</span>` : "";
+            labelEl.innerHTML = nsTag + labelEl.innerHTML;
+            // Flat list — reset depth so indentation is uniform
+            el.dataset.depth = "0";
+            frag.appendChild(el);
+        }
+        tree.innerHTML = "";
+        tree.appendChild(frag);
+    }
+
+    async function performSearch(query: string): Promise<void> {
+        try {
+            const { result } = await api.rpc<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>(
+                "searchClasses", [query, 100]
+            );
+            renderSearchResults(result);
+        } catch (e) {
+            tree.innerHTML = `<div style="color:var(--danger);padding:1em">${escape(String(e))}</div>`;
+        }
+    }
+
+    function onFilterChange(value: string): void {
+        if (searchTimer) clearTimeout(searchTimer);
+        if (value.length === 0) {
+            searchMode = false;
+            labelsCacheForSearch = null;
+            annotationsCacheForSearch = null;
+            void loadAssemblies();
+            return;
+        }
+        if (value.length < 2) return; // Wait for ≥2 chars
+        searchMode = true;
+        searchTimer = setTimeout(async () => {
+            await ensureLabelsCacheForSearch();
+            await performSearch(value);
+        }, 200);
+    }
+
+    filter.addEventListener("input", () => onFilterChange(filter.value));
 
     // Subscribe to label/annotation changes — refresh visible class nodes
     subscribe("label-change", (evt: any) => {
@@ -246,7 +312,13 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         });
     });
 
-    subscribe("profile-attached", () => { nsCache.clear(); clsCache.clear(); void loadAssemblies(); });
+    subscribe("profile-attached", () => {
+        nsCache.clear();
+        clsCache.clear();
+        labelsCacheForSearch = null;
+        annotationsCacheForSearch = null;
+        void loadAssemblies();
+    });
     subscribe("profile-detached", () => {
         nsCache.clear();
         clsCache.clear();

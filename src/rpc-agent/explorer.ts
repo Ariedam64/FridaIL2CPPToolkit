@@ -88,6 +88,39 @@ function ensureInheritanceCache(): void {
 }
 
 /**
+ * Search for classes across all assemblies/namespaces without requiring the
+ * tree to be expanded. Walks the cached _asmIndex and returns up to `limit`
+ * matches where shortName OR fullName contains `query` (case-insensitive).
+ * The returned `ns` field uses the real namespace string ("" for root-level
+ * classes, NOT the internal "(root)" sentinel).
+ */
+export function searchClasses(
+    query: string,
+    limit: number = 100,
+): Promise<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>> {
+    return inVm(() => {
+        buildExplorerIndex();
+        const out: Array<{ shortName: string; fullName: string; assembly: string; ns: string }> = [];
+        if (!query || query.length < 1) return out;
+        const q = query.toLowerCase();
+        for (const asm of _asmIndex!) {
+            for (const [nsKey, classes] of asm.namespaces) {
+                // Convert internal "(root)" sentinel back to empty string for callers
+                const ns = nsKey === "(root)" ? "" : nsKey;
+                for (const shortName of classes) {
+                    const fullName = ns ? `${ns}.${shortName}` : shortName;
+                    if (shortName.toLowerCase().includes(q) || fullName.toLowerCase().includes(q)) {
+                        out.push({ shortName, fullName, assembly: asm.name, ns });
+                        if (out.length >= limit) return out;
+                    }
+                }
+            }
+        }
+        return out;
+    }) as unknown as Promise<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>;
+}
+
+/**
  * Pre-warm the explorer index during attach so the first user click is instant.
  * Safe to call multiple times — buildExplorerIndex() is idempotent.
  */
