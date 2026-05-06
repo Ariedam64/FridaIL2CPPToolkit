@@ -4,6 +4,7 @@ import * as path from "node:path";
 
 import { Session } from "./session.js";
 import { mountApiCall } from "./routes/api-call.js";
+import { mountProfile } from "./routes/profile.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const HOST = "127.0.0.1";
@@ -18,6 +19,7 @@ const app = express();
 app.use(express.json({ limit: "5mb" }));
 
 mountApiCall(app, { fridaClient: session.fridaClient });
+mountProfile(app, { session });
 
 app.listen(PORT, HOST, () => {
     console.log(`[frida-toolkit] backend listening on http://${HOST}:${PORT}`);
