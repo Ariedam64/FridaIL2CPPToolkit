@@ -19,10 +19,11 @@ import * as gbeProbeRpc from "./gbe-probe";
 import * as attributesRpc from "./attributes";
 import * as dataCenterRpc from "./datacenter";
 import * as protoDescriptorCaptureRpc from "./proto-descriptor-capture";
+import * as networkMonitorRpc from "./network-monitor";
 import * as filesystemRpc from "./filesystem";
 import * as fingerprintsRpc from "./fingerprints";
 
-type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc & typeof sentryRpc & typeof gbeRouterRpc & typeof gbeProbeRpc & typeof attributesRpc & typeof dataCenterRpc & typeof protoDescriptorCaptureRpc & typeof filesystemRpc & typeof fingerprintsRpc;
+type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc & typeof sentryRpc & typeof gbeRouterRpc & typeof gbeProbeRpc & typeof attributesRpc & typeof dataCenterRpc & typeof protoDescriptorCaptureRpc & typeof networkMonitorRpc & typeof filesystemRpc & typeof fingerprintsRpc;
 
 export function getRpcMethods(): AllRpc {
     return {
@@ -45,6 +46,7 @@ export function getRpcMethods(): AllRpc {
         ...attributesRpc,
         ...dataCenterRpc,
         ...protoDescriptorCaptureRpc,
+        ...networkMonitorRpc,
         ...filesystemRpc,
         ...fingerprintsRpc,
     } as AllRpc;
