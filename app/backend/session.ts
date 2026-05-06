@@ -1,0 +1,196 @@
+// app/backend/session.ts
+//
+// Process-wide singleton holding the current Frida session + profile
+// + per-profile stores (labels, annotations, hooks). Routes import this
+// to read/mutate state. Profile lifecycle: created on attach, replaced
+// on re-attach to a different process/build, cleared on detach.
+
+import { EventEmitter } from "node:events";
+import * as os from "node:os";
+import * as path from "node:path";
+
+import { FridaClient } from "./frida-client.js";
+import { ProfileManager, type Profile } from "./core/profile.js";
+import { detectBuildId } from "./core/detect.js";
+import { matchFingerprints } from "./core/migrations.js";
+import { HookStore } from "./core/hooks/hook-store.js";
+import { DiskPluginStorage } from "./core/plugin-storage.js";
+import { expandHome } from "./core/paths.js";
+import type { ClassFingerprint, MigrationResult } from "./core/types.js";
+
+const PROFILE_ROOT =
+    expandHome(process.env.FRIDA_TOOLKIT_PROFILE_ROOT ?? "") ||
+    path.join(os.homedir(), ".frida-toolkit", "profiles");
+
+export class Session extends EventEmitter {
+    readonly fridaClient: FridaClient;
+    readonly profileManager: ProfileManager;
+    private currentProfile: Profile | null = null;
+    private currentHookStore: HookStore | null = null;
+    private currentMigrations: {
+        result: MigrationResult;
+        oldFps: ClassFingerprint[];
+        currentFps: ClassFingerprint[];
+    } | null = null;
+    private disposeListeners: Array<() => void> = [];
+    private attachInFlight: Promise<Profile> | null = null;
+
+    constructor(agentScriptPath: string) {
+        super();
+        this.fridaClient = new FridaClient(agentScriptPath);
+        this.profileManager = new ProfileManager(PROFILE_ROOT);
+        this.fridaClient.on("agent-message", (payload) => this.emit("agent-message", payload));
+        this.fridaClient.on("detached", () => this.handleDetach());
+    }
+
+    profile(): Profile | null {
+        return this.currentProfile;
+    }
+
+    hookStore(): HookStore | null {
+        return this.currentHookStore;
+    }
+
+    migrations(): { result: MigrationResult } | null {
+        return this.currentMigrations ? { result: this.currentMigrations.result } : null;
+    }
+
+    async attach(pid: number): Promise<Profile> {
+        if (this.attachInFlight) {
+            // A previous attach is still in flight. Wait for it to finish or fail,
+            // then proceed (the user wants the LATEST pid attached).
+            try { await this.attachInFlight; } catch { /* previous failed; we'll retry */ }
+        }
+        this.attachInFlight = this._doAttach(pid);
+        try {
+            return await this.attachInFlight;
+        } finally {
+            this.attachInFlight = null;
+        }
+    }
+
+    private async _doAttach(pid: number): Promise<Profile> {
+        await this.fridaClient.attach(pid);
+
+        const detected = await detectBuildId(this.fridaClient);
+
+        const gameName = await this.deriveGameName();
+        let profile: Profile;
+        let isNewProfile = false;
+        try {
+            profile = await this.profileManager.loadProfile(gameName, detected.buildId);
+        } catch {
+            const previous = await this.profileManager.findMostRecentBuild(gameName, detected.buildId);
+            profile = await this.profileManager.createProfile({
+                gameName,
+                buildId: detected.buildId,
+                buildIdSource: detected.source,
+                derivedFromBuildId: previous ?? undefined,
+            });
+            isNewProfile = true;
+        }
+
+        // Gather current fingerprints from the agent.
+        let currentFps: ClassFingerprint[] = [];
+        try {
+            currentFps = await this.fridaClient.call<ClassFingerprint[]>("listClassFingerprints");
+        } catch (e) {
+            console.warn("listClassFingerprints failed:", e);
+        }
+
+        // Run migrations when the profile was freshly derived from a previous build.
+        if (isNewProfile && profile.manifest.derivedFrom) {
+            const previousBuildId = profile.manifest.derivedFrom.split("/")[1];
+            const oldFps = await this.profileManager.loadFingerprints(gameName, previousBuildId);
+            if (oldFps && currentFps.length > 0) {
+                const oldLabels = await this.profileManager.loadProfileLabels(
+                    gameName,
+                    previousBuildId,
+                );
+                const result = matchFingerprints({ oldFps, newFps: currentFps, oldLabels });
+                for (const m of result.auto) {
+                    profile.labels.set({ kind: "class", className: m.newObf }, m.label);
+                }
+                await profile.labels.flush();
+                this.currentMigrations = { result, oldFps, currentFps };
+            }
+        }
+
+        // Persist fingerprints for the current build.
+        if (currentFps.length > 0) {
+            try {
+                await this.profileManager.saveFingerprints(profile, currentFps);
+            } catch (e) {
+                console.warn("saveFingerprints failed:", e);
+            }
+        }
+
+        this.currentProfile = profile;
+
+        const storage = new DiskPluginStorage(profile.rootPath, "hooks");
+        this.currentHookStore = new HookStore(storage, {
+            call: <T>(m: string, a?: unknown[]) => this.fridaClient.call<T>(m, a),
+        });
+
+        // Forward label/annotation events so the WS bridge can broadcast them.
+        // Capture disposers so they can be cleaned up on detach.
+        this.disposeListeners.push(
+            profile.labels.onChange((evt) => this.emit("label-change", evt)),
+        );
+        this.disposeListeners.push(
+            profile.annotations.onChange((evt) => this.emit("annotation-change", evt)),
+        );
+        this.disposeListeners.push(
+            this.currentHookStore.onChange(() => this.emit("hook-store-change")),
+        );
+
+        // Update manifest stats (idempotent, best-effort).
+        await this.profileManager
+            .updateStats(profile)
+            .catch((e) => console.warn("updateStats failed:", e));
+
+        // Pre-warm the agent's explorer index so the first user click is instant.
+        try {
+            await this.fridaClient.call<{ assemblies: number; classes: number }>(
+                "prewarmExplorerIndex",
+            );
+        } catch (e) {
+            console.warn("prewarmExplorerIndex failed:", e);
+        }
+
+        this.emit("profile-attached", profile);
+        return profile;
+    }
+
+    async detach(): Promise<void> {
+        // fridaClient.detach() emits "detached" → handleDetach() clears state.
+        await this.fridaClient.detach();
+    }
+
+    private handleDetach(): void {
+        if (this.currentProfile) {
+            // Drain pending writes before clearing.
+            void this.currentProfile.labels.flush().catch(() => {});
+            void this.currentProfile.annotations.flush().catch(() => {});
+        }
+        for (const dispose of this.disposeListeners) {
+            try { dispose(); } catch { /* swallow */ }
+        }
+        this.disposeListeners = [];
+        this.currentProfile = null;
+        this.currentHookStore = null;
+        this.currentMigrations = null;
+        this.emit("profile-detached");
+    }
+
+    private async deriveGameName(): Promise<string> {
+        try {
+            const dataPath = await this.fridaClient.call<string>("getDataPath");
+            if (!dataPath) return "unknown-process";
+            const seg = dataPath.split(/[\\/]/).filter(Boolean).pop() ?? "";
+            return seg.replace(/_Data$/i, "").toLowerCase() || "unknown-process";
+        } catch {
+            return "unknown-process";
+        }
+    }
+}
