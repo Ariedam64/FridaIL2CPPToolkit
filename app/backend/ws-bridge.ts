@@ -42,6 +42,39 @@ export function mountWsBridge(server: HttpServer, session: Session): void {
     session.on("label-change", (evt) => broadcast({ type: "label-change", ...evt }));
     session.on("annotation-change", (evt) => broadcast({ type: "annotation-change", ...evt }));
     session.on("hook-store-change", () => broadcast({ type: "hook-store-change" }));
+
+    // ---- network plugin events ----
+    let lastFrameBroadcast = 0;
+    let pendingFrame: import("./core/network/types.js").NetworkFrame | null = null;
+    let pendingTimer: NodeJS.Timeout | null = null;
+    const FRAME_BROADCAST_THROTTLE_MS = 20;
+
+    function flushFrame(): void {
+        if (!pendingFrame) return;
+        broadcast({ type: "network-frame-added", frame: pendingFrame });
+        pendingFrame = null;
+        lastFrameBroadcast = Date.now();
+        pendingTimer = null;
+    }
+
+    session.on("network-frame-added", (frame: import("./core/network/types.js").NetworkFrame) => {
+        const now = Date.now();
+        if (now - lastFrameBroadcast >= FRAME_BROADCAST_THROTTLE_MS) {
+            broadcast({ type: "network-frame-added", frame });
+            lastFrameBroadcast = now;
+            pendingFrame = null;
+            if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+        } else {
+            pendingFrame = frame;
+            if (!pendingTimer) {
+                const delay = FRAME_BROADCAST_THROTTLE_MS - (now - lastFrameBroadcast);
+                pendingTimer = setTimeout(flushFrame, Math.max(1, delay));
+            }
+        }
+    });
+    session.on("network-frames-cleared", () => broadcast({ type: "network-frames-cleared" }));
+    session.on("serializer-config-change", () => broadcast({ type: "serializer-config-change" }));
+
     session.on("profile-attached", (profile) => broadcast({
         type: "profile-attached",
         profile: { manifest: profile.manifest, rootPath: profile.rootPath },
