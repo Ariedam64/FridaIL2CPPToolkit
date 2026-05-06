@@ -1,0 +1,170 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+
+import { LabelStore } from "../../../backend/core/labels";
+import type { LabelKey } from "../../../backend/core/types";
+
+let tmpDir: string;
+let labelsPath: string;
+
+beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "labels-test-"));
+    labelsPath = path.join(tmpDir, "labels.json");
+});
+
+const classKey = (className: string): LabelKey => ({ kind: "class", className });
+const methodKey = (className: string, methodName: string): LabelKey => ({ kind: "method", className, methodName });
+const fieldKey = (className: string, fieldName: string): LabelKey => ({ kind: "field", className, fieldName });
+
+describe("LabelStore", () => {
+    it("returns null for unset labels", () => {
+        const store = new LabelStore(labelsPath);
+        expect(store.get(classKey("egq"))).toBeNull();
+    });
+
+    it("stores and retrieves a class label", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        expect(store.get(classKey("egq"))).toBe("HaapiService");
+    });
+
+    it("stores method and field labels independently", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(methodKey("egq", "ywp"), "ConsumeKardByCode");
+        store.set(fieldKey("egq", "dwm"), "_kardCache");
+        expect(store.get(methodKey("egq", "ywp"))).toBe("ConsumeKardByCode");
+        expect(store.get(fieldKey("egq", "dwm"))).toBe("_kardCache");
+        expect(store.get(classKey("egq"))).toBeNull();
+    });
+
+    it("removes a label", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.remove(classKey("egq"));
+        expect(store.get(classKey("egq"))).toBeNull();
+    });
+
+    it("emits change events with old and new values", () => {
+        const store = new LabelStore(labelsPath);
+        const events: Array<{ old: string | null; next: string | null }> = [];
+        store.onChange((e) => events.push({ old: e.oldLabel, next: e.newLabel }));
+        store.set(classKey("egq"), "HaapiService");
+        store.set(classKey("egq"), "HaapiClient");
+        store.remove(classKey("egq"));
+        expect(events).toEqual([
+            { old: null, next: "HaapiService" },
+            { old: "HaapiService", next: "HaapiClient" },
+            { old: "HaapiClient", next: null },
+        ]);
+    });
+
+    it("scheduleFlush coalesces multiple edits into one write", async () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("a"), "A");
+        store.scheduleFlush(20);
+        store.set(classKey("b"), "B");
+        store.scheduleFlush(20);
+        store.set(classKey("c"), "C");
+        store.scheduleFlush(20);
+        // No file written yet — timer hasn't fired
+        expect(fs.existsSync(labelsPath)).toBe(false);
+        await new Promise((r) => setTimeout(r, 60));
+        expect(fs.existsSync(labelsPath)).toBe(true);
+        const reloaded = new LabelStore(labelsPath);
+        expect(reloaded.get(classKey("a"))).toBe("A");
+        expect(reloaded.get(classKey("b"))).toBe("B");
+        expect(reloaded.get(classKey("c"))).toBe("C");
+    });
+
+    it("explicit flush() drains a pending scheduleFlush immediately", async () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.scheduleFlush(10_000); // would normally fire much later
+        await store.flush();
+        expect(fs.existsSync(labelsPath)).toBe(true);
+        const reloaded = new LabelStore(labelsPath);
+        expect(reloaded.get(classKey("egq"))).toBe("HaapiService");
+    });
+
+    it("persists to disk and reloads", async () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.set(methodKey("egq", "ywp"), "ConsumeKardByCode");
+        await store.flush();
+
+        expect(fs.existsSync(labelsPath)).toBe(true);
+
+        const reloaded = new LabelStore(labelsPath);
+        expect(reloaded.get(classKey("egq"))).toBe("HaapiService");
+        expect(reloaded.get(methodKey("egq", "ywp"))).toBe("ConsumeKardByCode");
+    });
+
+    it("undo reverts the last change", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.undo();
+        expect(store.get(classKey("egq"))).toBeNull();
+    });
+
+    it("redo replays an undone change", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.undo();
+        store.redo();
+        expect(store.get(classKey("egq"))).toBe("HaapiService");
+    });
+
+    it("display() returns label when set, obf otherwise", () => {
+        const store = new LabelStore(labelsPath);
+        expect(store.display(classKey("egq"))).toBe("egq");
+        store.set(classKey("egq"), "HaapiService");
+        expect(store.display(classKey("egq"))).toBe("HaapiService");
+    });
+
+    it("bulk import merges new labels", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("eat"), "MapView");
+        const result = store.bulkImport({
+            schemaVersion: 1,
+            classes: { "egq": { label: "HaapiService", createdAt: "2026-04-30T00:00:00Z", updatedAt: "2026-04-30T00:00:00Z" } },
+            methods: {},
+            fields: {},
+        });
+        expect(result.imported).toBe(1);
+        expect(store.get(classKey("egq"))).toBe("HaapiService");
+        expect(store.get(classKey("eat"))).toBe("MapView");
+    });
+
+    it("bulk export round-trips", () => {
+        const store = new LabelStore(labelsPath);
+        store.set(classKey("egq"), "HaapiService");
+        store.set(methodKey("egq", "ywp"), "ConsumeKardByCode");
+        const exported = store.bulkExport();
+
+        const reimport = new LabelStore(path.join(tmpDir, "other.json"));
+        reimport.bulkImport(exported);
+        expect(reimport.get(classKey("egq"))).toBe("HaapiService");
+        expect(reimport.get(methodKey("egq", "ywp"))).toBe("ConsumeKardByCode");
+    });
+
+    it("backs up a corrupted JSON file and starts fresh", () => {
+        fs.writeFileSync(labelsPath, "this is not valid json {{{", "utf-8");
+        const backups: string[] = [];
+        const store = new LabelStore(labelsPath, (backup) => backups.push(backup));
+
+        // Original file is gone, replaced by .corrupted.<ts>.json
+        expect(fs.existsSync(labelsPath)).toBe(false);
+        expect(backups).toHaveLength(1);
+        expect(backups[0]).toMatch(/\.corrupted\.\d+\.json$/);
+        expect(fs.existsSync(backups[0])).toBe(true);
+
+        // Store starts empty
+        expect(store.get(classKey("egq"))).toBeNull();
+
+        // Can still set + flush new data
+        store.set(classKey("egq"), "Fresh");
+        expect(store.get(classKey("egq"))).toBe("Fresh");
+    });
+});
