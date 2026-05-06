@@ -41,7 +41,8 @@ export function activateHooksPlugin(coreApi: CoreApi, _ctx: vscode.ExtensionCont
         const updated = s.markDisarmedByHookId(evt.hookId);
         if (updated) {
             vscode.window.showWarningMessage(
-                `Hook auto-reverted (${evt.reason})${evt.detail ? `: ${evt.detail}` : ""}`,
+                `Hook auto-reverted (${evt.reason})${evt.detail ? `: ${evt.detail}` : ""}. ` +
+                `Re-install from the Process Explorer tree to use the fully-qualified class name.`,
             );
         }
     });

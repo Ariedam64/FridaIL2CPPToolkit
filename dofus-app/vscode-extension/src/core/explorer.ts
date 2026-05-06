@@ -148,6 +148,9 @@ export class BookmarksProvider implements vscode.TreeDataProvider<LabelKey> {
         item.contextValue = "frida.bookmark";
         item.tooltip = labelKeyTooltip(key);
         if (key.kind === "class") {
+            // TODO bookmarks: key.className may be a short obf if bookmarked before
+            // the fullName migration. Lookup may resolve to a wrong class; auto-revert
+            // protects but the user should re-bookmark from the webview.
             item.command = { command: "frida.openClassDetail", title: "Open", arguments: [key.className] };
         }
         return item;

@@ -89,13 +89,14 @@ export class UniversalSearch {
                 for (const n of namespaces) {
                     const classes = await this.rpc.call<string[]>("listClassesIn", [a.name, n.ns]);
                     for (const obf of classes) {
+                        const fullName = n.ns ? `${n.ns}.${obf}` : obf;
                         const friendly = profile?.labels.get({ kind: "class", className: obf }) ?? null;
                         out.push({
                             kind: "class",
                             label: friendly ?? obf,
-                            description: friendly ? `[${obf}]` : "",
+                            description: friendly ? `[${fullName}]` : (n.ns ? n.ns : ""),
                             detail: `${a.name} / ${n.ns || "(root)"}`,
-                            target: { command: "frida.openClassDetail", args: [obf] },
+                            target: { command: "frida.openClassDetail", args: [fullName] },
                         });
                     }
                 }
