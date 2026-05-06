@@ -3,6 +3,8 @@
 //  - side-panel slide-in from Stream click
 //  - modal from Inspector cell click
 
+import { api } from "../core/api.js";
+import { subscribe } from "../core/ws.js";
 import type { NetField, NetFrame } from "../core/types.js";
 
 const KIND_COLORS: Record<NetField["kind"], string> = {
@@ -23,21 +25,46 @@ function escape(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function renderField(f: NetField, expanded: Set<string>, path: string): string {
+interface LabelsShape {
+    classes: Record<string, { label: string }>;
+    methods: Record<string, { label: string }>;
+    fields: Record<string, { label: string }>;
+}
+
+function lookupFieldLabel(labels: LabelsShape | null, className: string, fieldName: string): string | null {
+    if (!labels) return null;
+    return labels.fields?.[`${className}.${fieldName}`]?.label ?? null;
+}
+
+function renderField(
+    f: NetField,
+    expanded: Set<string>,
+    path: string,
+    className: string,
+    labels: LabelsShape | null,
+    isTopLevel: boolean,
+): string {
     const childPath = `${path}.${f.name}`;
     const hasChildren = !!f.children?.length;
     const open = hasChildren && expanded.has(childPath);
     const caret = hasChildren ? `<span class="net-caret" data-path="${childPath}">${open ? "▼" : "▶"}</span>` : `<span class="net-caret-spacer"></span>`;
+    // Resolve label for top-level fields only — children belong to nested classes
+    // whose className we don't currently track on the FrameField.
+    const label = isTopLevel ? lookupFieldLabel(labels, className, f.name) : null;
+    const nameDisplay = label
+        ? `<strong style="color:var(--syntax-name)">${escape(label)}</strong> <span style="color:var(--text-faint);font-size:10px">[${escape(f.name)}]</span>`
+        : `${escape(f.name)}`;
+    const renamableAttr = isTopLevel ? `data-rename-field="${escape(f.name)}"` : "";
     const html = `
-        <div class="net-field-line">
+        <div class="net-field-line" ${renamableAttr} ${isTopLevel ? 'title="Right-click to rename"' : ""}>
             ${caret}
-            <span class="net-field-name">${escape(f.name)}</span>
+            <span class="net-field-name">${nameDisplay}</span>
             <span class="net-field-kind">${escape(f.kind)}</span>
             <span class="net-field-value" style="color:${KIND_COLORS[f.kind]}">${escape(f.preview)}</span>
         </div>
     `;
     if (open && hasChildren) {
-        const inner = (f.children ?? []).map((c) => renderField(c, expanded, childPath)).join("");
+        const inner = (f.children ?? []).map((c) => renderField(c, expanded, childPath, className, labels, false)).join("");
         return html + `<div class="net-nested">${inner}</div>`;
     }
     return html;
@@ -50,10 +77,10 @@ export interface DetailMountOptions {
 
 export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: DetailMountOptions = {}): void {
     const expanded = new Set<string>();
-    // Auto-expand top-level nested/array nodes for at-a-glance readability.
     for (const f of frame.fields) {
         if (f.children?.length) expanded.add(`.${f.name}`);
     }
+    let labels: LabelsShape | null = null;
 
     function rerender(): void {
         host.innerHTML = `
@@ -66,6 +93,8 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                 .net-direction-pill.out { background: rgba(239,68,68,0.15); color: var(--danger); }
                 .net-obf { color: var(--text-faint); font-size: 10px; }
                 .net-field-line { display: flex; align-items: baseline; gap: 8px; }
+                .net-field-line[data-rename-field] { cursor: context-menu; }
+                .net-field-line[data-rename-field]:hover { background: rgba(99,102,241,0.07); }
                 .net-field-name { color: var(--text-strong); min-width: 140px; }
                 .net-field-kind { color: var(--syntax-type); font-size: 10px; min-width: 50px; }
                 .net-field-value { flex: 1; word-break: break-word; }
@@ -77,12 +106,12 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
             <div class="net-detail-header">
                 <div>
                     <div class="net-detail-title">${escape(frame.typeKey.className)}<span class="net-direction-pill ${frame.direction}" style="margin-left:8px">${frame.direction === "in" ? "← S2C" : "→ C2S"}</span></div>
-                    <div class="net-obf">${escape(frame.typeKey.ns ?? "")} @ ${new Date(frame.timestamp).toISOString().slice(11, 23)}</div>
+                    <div class="net-obf">${escape(frame.typeKey.ns ?? "")} @ ${new Date(frame.timestamp).toISOString().slice(11, 23)} <span style="color:var(--text-faint)">· right-click a field to rename</span></div>
                 </div>
                 ${opts.onClose ? `<button class="icon-btn-mini" id="net-detail-close">✕</button>` : ""}
             </div>
             <div class="net-detail">
-                ${frame.fields.map((f) => renderField(f, expanded, "")).join("")}
+                ${frame.fields.map((f) => renderField(f, expanded, "", frame.typeKey.className, labels, true)).join("")}
                 ${frame.truncated ? `<div style="color:var(--warning);margin-top:8px">… truncated (frame too large)</div>` : ""}
             </div>
             <div class="net-detail-toolbar">
@@ -100,6 +129,27 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                 rerender();
             });
         });
+        // Right-click on a top-level field → rename via labels.ts
+        host.querySelectorAll<HTMLElement>(".net-field-line[data-rename-field]").forEach((row) => {
+            row.addEventListener("contextmenu", async (ev) => {
+                ev.preventDefault();
+                const fieldName = row.dataset.renameField!;
+                const className = frame.typeKey.className;
+                const current = lookupFieldLabel(labels, className, fieldName) ?? "";
+                const next = window.prompt(`Rename field ${className}.${fieldName} →\n(empty to remove the rename)`, current);
+                if (next === null) return;
+                try {
+                    if (next === "") {
+                        await api.removeLabel("field", { kind: "field", className, fieldName });
+                    } else {
+                        await api.setLabel("field", { kind: "field", className, fieldName }, next);
+                    }
+                    // No need to refetch; the WS label-change subscriber updates state and rerenders.
+                } catch (err) {
+                    alert(`Rename failed: ${err instanceof Error ? err.message : String(err)}`);
+                }
+            });
+        });
         host.querySelector<HTMLButtonElement>("#net-detail-close")?.addEventListener("click", () => opts.onClose?.());
         host.querySelector<HTMLButtonElement>("#net-detail-rename")?.addEventListener("click", () => opts.onRename?.(frame.typeKey));
         host.querySelector<HTMLButtonElement>("#net-detail-copy")?.addEventListener("click", () => {
@@ -115,7 +165,40 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
         });
     }
 
+    // Fetch labels asynchronously and rerender once available.
+    void api.getLabels().then((l) => {
+        labels = l as LabelsShape;
+        rerender();
+    }).catch(() => { /* offline / not attached: stay with obf names */ });
+
+    // Live-update on label-change events from any source (other components,
+    // Process Explorer, etc.). Patches local labels state and rerenders.
+    const offLabelChange = subscribe("label-change", (evt: { key: { kind: string; className: string; fieldName?: string }; newLabel: string | null }) => {
+        if (!labels) return;
+        const k = evt.key;
+        if (k.kind === "field" && k.fieldName) {
+            const id = `${k.className}.${k.fieldName}`;
+            if (evt.newLabel === null) delete labels.fields[id];
+            else labels.fields[id] = { label: evt.newLabel };
+            rerender();
+        } else if (k.kind === "class") {
+            if (evt.newLabel === null) delete labels.classes[k.className];
+            else labels.classes[k.className] = { label: evt.newLabel };
+            // Class rename doesn't affect field display in this view, but rerender for consistency.
+        }
+    });
+
+    // First synchronous render with no labels (replaced when fetch resolves).
     rerender();
+
+    // Cleanup on host removal: detach WS subscription. Best-effort —
+    // MutationObserver could be more rigorous, but the parent currently
+    // sets innerHTML="" which removes the listener anchor.
+    const origCleanup = (host as { __netDetailCleanup?: () => void }).__netDetailCleanup;
+    (host as { __netDetailCleanup?: () => void }).__netDetailCleanup = () => {
+        offLabelChange();
+        if (origCleanup) origCleanup();
+    };
 }
 
 function collectAllPaths(fields: NetField[], prefix: string, into: Set<string>): void {
