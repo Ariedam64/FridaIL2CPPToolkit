@@ -78,3 +78,35 @@
     width: 6px; height: 6px; border-radius: 50%;
     background: var(--success); box-shadow: 0 0 6px var(--success);
 }
+
+.nav-icons {
+    width: 48px;
+    background: var(--bg-base);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.nav-icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-lg);
+    color: var(--text-faint);
+    transition: all var(--transition);
+    position: relative;
+}
+.nav-icon:hover { background: var(--bg-tile); color: var(--text-secondary); }
+.nav-icon.active {
+    color: white;
+    background: linear-gradient(135deg, var(--indigo), var(--indigo-deep));
+    box-shadow: var(--indigo-glow);
+}
+.badge-count {
+    position: absolute; top: 2px; right: 2px;
+    background: var(--danger); color: white;
+    font-size: 8px; padding: 0 4px; border-radius: 8px;
+    min-width: 14px; text-align: center; font-weight: 700;
+}
