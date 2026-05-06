@@ -81,12 +81,17 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                 </select>
                 <label>Param index</label>
                 <input id="add-param" type="number" value="0" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px;width:60px">
-                <label>Namespace</label>
-                <input id="add-ns" placeholder="(empty for root)" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
                 <label>Class</label>
-                <input id="add-class" placeholder="ecu" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
+                <div style="position:relative">
+                    <input id="add-class" placeholder="search by name (e.g. Socket, Sender, IMessage)…" style="width:100%;font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
+                    <div id="add-class-dropdown" style="position:absolute;top:100%;left:0;right:0;background:var(--bg-elevated);border:1px solid var(--border-strong);border-top:none;border-radius:0 0 4px 4px;max-height:200px;overflow-y:auto;display:none;z-index:10"></div>
+                </div>
                 <label>Method</label>
-                <input id="add-method" placeholder="xbe" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
+                <select id="add-method" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
+                    <option value="">— pick a class first —</option>
+                </select>
+                <label>Namespace</label>
+                <input id="add-ns" placeholder="(filled when you pick a class)" readonly style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-faint);border:1px solid var(--border-strong);border-radius:4px">
                 <label>Signature</label>
                 <input id="add-sig" placeholder="(IMessage):Void" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
             </div>
@@ -97,6 +102,103 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
             </div>
         `;
 
+        const classInput = host.querySelector<HTMLInputElement>("#add-class")!;
+        const classDropdown = host.querySelector<HTMLElement>("#add-class-dropdown")!;
+        const nsInput = host.querySelector<HTMLInputElement>("#add-ns")!;
+        const methodSelect = host.querySelector<HTMLSelectElement>("#add-method")!;
+
+        let searchDebounce: ReturnType<typeof setTimeout> | null = null;
+
+        async function searchAndShow(query: string): Promise<void> {
+            if (query.length < 2) { classDropdown.style.display = "none"; return; }
+            try {
+                const r = await api.rpc<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>(
+                    "searchClasses", [query, 30],
+                );
+                const results = r.result;
+                if (!results || results.length === 0) {
+                    classDropdown.innerHTML = `<div style="padding:6px 10px;color:var(--text-faint);font-size:11px">no match</div>`;
+                } else {
+                    classDropdown.innerHTML = results.map((c) => `
+                        <div class="add-class-row" data-short="${escape(c.shortName)}" data-ns="${escape(c.ns ?? "")}" style="padding:5px 10px;cursor:pointer;font-family:var(--font-code);font-size:11px;border-bottom:1px solid var(--border-strong)">
+                            <strong>${escape(c.shortName)}</strong>
+                            <span style="color:var(--text-faint)"> · ${escape(c.ns || "(root)")}</span>
+                        </div>
+                    `).join("");
+                    classDropdown.querySelectorAll<HTMLElement>(".add-class-row").forEach((row) => {
+                        row.addEventListener("click", async () => {
+                            const shortName = row.dataset.short!;
+                            const ns = row.dataset.ns!;
+                            classInput.value = shortName;
+                            nsInput.value = ns;
+                            classDropdown.style.display = "none";
+                            await loadMethodsFor(ns ? `${ns}.${shortName}` : shortName);
+                        });
+                    });
+                }
+                classDropdown.style.display = "block";
+            } catch (err) {
+                console.warn("searchClasses failed:", err);
+                classDropdown.style.display = "none";
+            }
+        }
+
+        async function loadMethodsFor(fullName: string): Promise<void> {
+            methodSelect.innerHTML = `<option value="">loading…</option>`;
+            try {
+                const r = await api.rpc<{ methods: string[]; fields: string[] }>(
+                    "listClassMembers", [fullName],
+                );
+                const methods = r.result.methods ?? [];
+                if (methods.length === 0) {
+                    methodSelect.innerHTML = `<option value="">— no methods —</option>`;
+                    return;
+                }
+                methodSelect.innerHTML = `<option value="">— pick a method —</option>` +
+                    methods.map((m) => `<option value="${escape(m)}">${escape(m)}</option>`).join("");
+            } catch (err) {
+                methodSelect.innerHTML = `<option value="">error: ${escape(String(err).slice(0, 60))}</option>`;
+            }
+        }
+
+        classInput.addEventListener("input", () => {
+            const q = classInput.value.trim();
+            if (searchDebounce) clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => searchAndShow(q), 200);
+        });
+        classInput.addEventListener("blur", () => {
+            // Hide on blur, but with a delay so click on dropdown row registers first.
+            setTimeout(() => { classDropdown.style.display = "none"; }, 200);
+        });
+        classInput.addEventListener("focus", () => {
+            const q = classInput.value.trim();
+            if (q.length >= 2) void searchAndShow(q);
+        });
+
+        // Fix C — auto-fill signature when method is picked
+        methodSelect.addEventListener("change", async () => {
+            if (!methodSelect.value) return;
+            // Probe with empty signature — agent's findMethodOnClass falls back to first match.
+            const entry: NetSerializerEntry = {
+                source: "manual",
+                direction: (host.querySelector<HTMLSelectElement>("#add-dir")!.value === "recv") ? "recv" : "send",
+                ns: nsInput.value.trim() || null,
+                className: classInput.value.trim(),
+                methodName: methodSelect.value,
+                methodSignature: "",
+                paramIndex: Number(host.querySelector<HTMLInputElement>("#add-param")!.value),
+                addedAt: new Date().toISOString(),
+            };
+            try {
+                const r = await api.rpc<{ valid: boolean; reason?: string; actualSignature?: string }>(
+                    "validateSerializerEntry", [entry],
+                );
+                if (r.result.valid && r.result.actualSignature) {
+                    host.querySelector<HTMLInputElement>("#add-sig")!.value = r.result.actualSignature;
+                }
+            } catch { /* ignore — user can fill manually */ }
+        });
+
         function readForm(): NetSerializerEntry {
             const dir = (host.querySelector<HTMLSelectElement>("#add-dir")!.value === "recv") ? "recv" : "send";
             const ns = host.querySelector<HTMLInputElement>("#add-ns")!.value.trim();
@@ -105,7 +207,7 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                 direction: dir,
                 ns: ns === "" ? null : ns,
                 className: host.querySelector<HTMLInputElement>("#add-class")!.value.trim(),
-                methodName: host.querySelector<HTMLInputElement>("#add-method")!.value.trim(),
+                methodName: host.querySelector<HTMLSelectElement>("#add-method")!.value.trim(),
                 methodSignature: host.querySelector<HTMLInputElement>("#add-sig")!.value.trim(),
                 paramIndex: Number(host.querySelector<HTMLInputElement>("#add-param")!.value),
                 addedAt: new Date().toISOString(),

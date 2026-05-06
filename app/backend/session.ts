@@ -21,6 +21,7 @@ import type { NetworkFrame } from "./core/network/types.js";
 import { DiskPluginStorage } from "./core/plugin-storage.js";
 import { expandHome } from "./core/paths.js";
 import type { ClassFingerprint, MigrationResult } from "./core/types.js";
+import { detectSerializers } from "./core/network/serializer-detector.js";
 
 const PROFILE_ROOT =
     expandHome(process.env.FRIDA_TOOLKIT_PROFILE_ROOT ?? "") ||
@@ -149,6 +150,23 @@ export class Session extends EventEmitter {
         this.currentFrameStore = new FrameStore(RING_BUFFER_SIZE);
         const networkStorage = new DiskPluginStorage(profile.rootPath, "network");
         this.currentSerializerConfig = new SerializerConfigStore(networkStorage);
+
+        // Auto-detect serializer patterns ONLY when the config is empty for this profile
+        // (i.e. first attach of a fresh profile, or one the user emptied). This preserves
+        // any user customization across re-attaches.
+        if (this.currentSerializerConfig.get().entries.length === 0) {
+            try {
+                const proposed = await detectSerializers({
+                    call: <T>(m: string, a?: unknown[]) => this.fridaClient.call<T>(m, a),
+                });
+                if (proposed.length > 0) {
+                    this.currentSerializerConfig.replace(proposed);
+                    console.log(`[network] auto-detected ${proposed.length} serializer entries`);
+                }
+            } catch (e) {
+                console.warn("detectSerializers failed:", e);
+            }
+        }
 
         const frameAddedHandler = (f: NetworkFrame) => this.emit("network-frame-added", f);
         const clearedHandler = () => this.emit("network-frames-cleared");

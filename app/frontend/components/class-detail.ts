@@ -90,6 +90,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                 <div class="actions">
                     <button class="icon-btn-mini hook-btn" data-method="${escape(m.name)}">🪝 Hook</button>
                     <button class="icon-btn-mini trace-btn" data-method="${escape(m.name)}">🎯 Trace</button>
+                    <button class="icon-btn-mini netadd-btn" data-method="${escape(m.name)}" title="Add to Network plugin">⇄ Net</button>
                     <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(m.name)}(${escape(m.params)})">📋</button>
                 </div>
             </div>
@@ -152,6 +153,50 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                     await api.installHook(stored.id);
                 } catch (e) {
                     alert(`Trace install failed: ${e instanceof Error ? e.message : String(e)}`);
+                }
+            });
+        });
+        host.querySelectorAll<HTMLButtonElement>(".netadd-btn").forEach((b) => {
+            b.addEventListener("click", async (ev) => {
+                ev.stopPropagation();
+                const methodName = b.dataset.method!;
+                const dir = window.prompt("Direction (send / recv)?", "send");
+                if (!dir || (dir !== "send" && dir !== "recv")) return;
+                try {
+                    // Validate first to get the canonical signature.
+                    const validation = await api.rpc<{ valid: boolean; reason?: string; actualSignature?: string }>(
+                        "validateSerializerEntry",
+                        [{
+                            source: "manual",
+                            direction: dir as "send" | "recv",
+                            ns: ns || null,
+                            className: shortName,
+                            methodName,
+                            methodSignature: "",
+                            paramIndex: 0,
+                            addedAt: new Date().toISOString(),
+                        }],
+                    );
+                    if (!validation.result.valid) {
+                        alert(`Cannot add to Network: ${validation.result.reason ?? "unknown"}`);
+                        return;
+                    }
+                    // Fetch existing config, append, save.
+                    const cfg = await api.getSerializerConfig();
+                    const newEntry = {
+                        source: "manual" as const,
+                        direction: dir as "send" | "recv",
+                        ns: ns || null,
+                        className: shortName,
+                        methodName,
+                        methodSignature: validation.result.actualSignature ?? "",
+                        paramIndex: 0,
+                        addedAt: new Date().toISOString(),
+                    };
+                    await api.putSerializerConfig([...cfg.config.entries, newEntry]);
+                    alert(`Added to Network plugin: ${dir} ${shortName}.${methodName}\nGo to ⇄ Network → Configure to enable & start.`);
+                } catch (e) {
+                    alert(`Add to Network failed: ${e instanceof Error ? e.message : String(e)}`);
                 }
             });
         });
