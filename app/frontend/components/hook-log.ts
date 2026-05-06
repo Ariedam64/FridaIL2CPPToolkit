@@ -177,6 +177,24 @@ export function renderHookLog(host: HTMLElement): void {
         if (ring.length > RING_LIMIT) ring.splice(0, ring.length - RING_LIMIT);
         if (!paused) rerender();
     });
+    subscribe("hook-auto-revert", (e: any) => {
+        // Synthesize a HookEvent-shaped row so the Stream tab shows the revert.
+        const synthetic: HookEvent = {
+            type: "hook-event",
+            hookId: e.hookId,
+            ts: e.ts,
+            self: null,
+            args: [],
+            retval: null,
+            error: `auto-reverted (${e.reason})${e.detail ? ": " + e.detail : ""}`,
+            stackFrames: undefined,
+        };
+        ring.push(synthetic);
+        if (ring.length > RING_LIMIT) ring.splice(0, ring.length - RING_LIMIT);
+        if (!paused) rerender();
+        // Console hint for the user
+        console.warn(`[hook-auto-revert] hookId=${e.hookId} reason=${e.reason}`, e.detail);
+    });
     subscribe("hook-store-change", () => refreshHooks());
     subscribe("profile-attached", () => { ring.length = 0; refreshHooks(); rerender(); });
     subscribe("profile-detached", () => { ring.length = 0; hooksMap.clear(); rerender(); });

@@ -19,7 +19,7 @@ Then open http://localhost:5173 in a browser. Walk through:
 9. **Command palette ⌘K** — Ctrl+K (or Cmd+K) → palette opens. Type a class name (label or obf), Enter to navigate.
 10. **Bookmarks page** — bookmark a class via class detail (⭐ button), then navigate to Bookmarks page → entry visible.
 11. **Migrations page** — empty unless current build was derived from a previous one.
-12. **Auto-revert** — install a hook on a method that doesn't exist (manual: type a bogus name in the Hooks "Add hook" prompt). Wrapper auto-reverts on lookup error; a warning toast appears in the browser console.
+12. **Auto-revert** — try hooking a property getter on a class that shares a vtable slot with System.Reflection types (e.g., `get_kamas` on a class with such inheritance). The wrapper auto-reverts on lookup error; a synthetic event appears in the Hook Log Stream tab as a red row "auto-reverted (lookup-error): ...", and a `console.warn` is logged to the browser DevTools.
 
 ## Persistence
 

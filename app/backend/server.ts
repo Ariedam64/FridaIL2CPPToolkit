@@ -1,6 +1,7 @@
 // app/backend/server.ts
 import express from "express";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import * as http from "node:http";
 
 import { Session } from "./session.js";
@@ -34,6 +35,17 @@ mountMigrations(app, { session });
 
 const server = http.createServer(app);
 mountWsBridge(server, session);
+
+// Serve the built frontend in production. In dev, vite serves it on port 5173
+// and proxies /api/ + /events to this backend. The static path matches vite's
+// build output (vite.config.ts sets outDir to "../dist/frontend").
+const frontendDist = path.resolve(process.cwd(), "dist/frontend");
+if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist));
+    app.get("*", (_req, res) => {
+        res.sendFile(path.join(frontendDist, "index.html"));
+    });
+}
 
 server.listen(PORT, HOST, () => {
     console.log(`[frida-toolkit] backend listening on http://${HOST}:${PORT}`);
