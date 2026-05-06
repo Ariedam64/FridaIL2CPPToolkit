@@ -50,6 +50,11 @@ export class FrameStore extends EventEmitter {
                 if (!hay.includes(needle)) continue;
             }
             if (opts.sinceId !== undefined) {
+                // id format is "f-<seq>" (decimal). Lexicographic comparison
+                // would break at seq >= 10 ("f-9" > "f-10"), so we extract and
+                // compare the numeric sequence. A malformed sinceId yields NaN,
+                // which makes `fSeq > NaN` always false → all frames skipped
+                // (defensible silent degradation; routes never produce malformed ids).
                 const sinceSeq = parseInt(opts.sinceId.replace(/^f-/, ""), 10);
                 const fSeq = parseInt(f.id.replace(/^f-/, ""), 10);
                 if (!(fSeq > sinceSeq)) continue;
