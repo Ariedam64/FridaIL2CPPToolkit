@@ -16,7 +16,6 @@ import { StatusBarController } from "./core/status-bar";
 import {
     BookmarksProvider,
     MigrationsProvider,
-    ProcessExplorerProvider,
 } from "./core/explorer";
 import { UniversalSearch } from "./core/search";
 import { registerCommands } from "./core/commands";
@@ -24,6 +23,7 @@ import { createCoreApi, type CoreApi } from "./core/api";
 import { activateHooksPlugin } from "./plugins/hooks";
 import { matchFingerprints } from "./core/migrations";
 import { FridaDirectClient, resolveDefaultAgentPath } from "./core/frida-direct";
+import { ProcessExplorerPanel } from "./core/webviews/process-explorer";
 import type { ClassFingerprint, RpcClient } from "./core/types";
 
 let coreApi: CoreApi | undefined;
@@ -72,22 +72,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     context.subscriptions.push(activateHooksPlugin(coreApi, context));
 
-    // Tree providers
-    const explorerProvider = new ProcessExplorerProvider(rpc, profileSource);
+    // Tree providers (ProcessExplorerProvider replaced by webview)
     const bookmarksProvider = new BookmarksProvider(profileSource);
     const migrationsProvider = new MigrationsProvider();
 
     context.subscriptions.push(
-        vscode.window.registerTreeDataProvider("fridaProcessExplorer", explorerProvider),
         vscode.window.registerTreeDataProvider("fridaBookmarks", bookmarksProvider),
         vscode.window.registerTreeDataProvider("fridaMigrations", migrationsProvider),
+    );
+
+    // Process Explorer webview panel
+    const processExplorerPanel = new ProcessExplorerPanel(rpc, profileSource, { onAttach: profileEmitter });
+    context.subscriptions.push({ dispose: () => processExplorerPanel.dispose() });
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand("frida.openProcessExplorer", () => processExplorerPanel.show()),
     );
 
     // Universal search
     const search = new UniversalSearch(rpc, profileSource);
 
     const refreshAll = (): void => {
-        explorerProvider.refresh();
         bookmarksProvider.refresh();
         migrationsProvider.refresh();
         search.invalidate();
@@ -204,6 +209,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             await vscode.commands.executeCommand("setContext", "fridaToolkit.connected", true);
             profileEmitter.fire(currentProfile);
             refreshAll();
+            processExplorerPanel.show();
 
             if (notify) {
                 vscode.window.showInformationMessage(
@@ -234,8 +240,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
                 void initSession(true);
             }
         },
-        onShowObfNamesToggled: (show) => {
-            explorerProvider.setShowObfNames(show);
+        onShowObfNamesToggled: (_show) => {
             search.invalidate();
         },
         showSearch: () => search.show(),

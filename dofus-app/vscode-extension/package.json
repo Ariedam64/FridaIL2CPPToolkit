@@ -27,10 +27,6 @@
     "views": {
       "fridaToolkit": [
         {
-          "id": "fridaProcessExplorer",
-          "name": "Process Explorer"
-        },
-        {
           "id": "fridaBookmarks",
           "name": "Bookmarks"
         },
@@ -146,26 +142,13 @@
       {
         "command": "frida.hooks.traceMember",
         "title": "Frida: Trace this method (log + stack)"
+      },
+      {
+        "command": "frida.openProcessExplorer",
+        "title": "Frida: Open Process Explorer"
       }
     ],
     "menus": {
-      "view/title": [
-        {
-          "command": "frida.attachToProcess",
-          "when": "view == fridaProcessExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "frida.refresh",
-          "when": "view == fridaProcessExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "frida.search",
-          "when": "view == fridaProcessExplorer",
-          "group": "navigation"
-        }
-      ],
       "view/item/context": [
         {
           "command": "frida.hooks.toggle",
@@ -181,11 +164,6 @@
           "command": "frida.hooks.delete",
           "when": "view == fridaHooks && viewItem =~ /^frida\\.hook\\./",
           "group": "9_destroy"
-        },
-        {
-          "command": "frida.hooks.addFromMember",
-          "when": "view == fridaProcessExplorer && viewItem == frida.method",
-          "group": "9_frida"
         }
       ]
     },
