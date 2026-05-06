@@ -325,6 +325,59 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         tree.innerHTML = `<div style="color:var(--text-faint);padding:1em">No process attached.</div>`;
     });
 
+    // Add resize handle
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "explorer-resize-handle";
+    host.appendChild(resizeHandle);
+
+    // Restore persisted width
+    const STORAGE_KEY = "frida.explorer.width";
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+        const w = parseInt(stored, 10);
+        if (Number.isFinite(w) && w >= 180 && w <= 600) {
+            host.style.width = `${w}px`;
+        }
+    }
+
+    // Drag-to-resize logic
+    let dragStartX = 0;
+    let dragStartWidth = 0;
+    let dragging = false;
+
+    function onPointerMove(ev: PointerEvent): void {
+        if (!dragging) return;
+        const dx = ev.clientX - dragStartX;
+        let newW = dragStartWidth + dx;
+        if (newW < 180) newW = 180;
+        if (newW > 600) newW = 600;
+        host.style.width = `${newW}px`;
+    }
+    function onPointerUp(): void {
+        if (!dragging) return;
+        dragging = false;
+        resizeHandle.classList.remove("active");
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+        // Persist
+        const finalW = host.getBoundingClientRect().width;
+        localStorage.setItem(STORAGE_KEY, String(Math.round(finalW)));
+    }
+
+    resizeHandle.addEventListener("pointerdown", (ev) => {
+        ev.preventDefault();
+        dragging = true;
+        dragStartX = ev.clientX;
+        dragStartWidth = host.getBoundingClientRect().width;
+        resizeHandle.classList.add("active");
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "col-resize";
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", onPointerUp);
+    });
+
     void loadAssemblies();
 
     return {
