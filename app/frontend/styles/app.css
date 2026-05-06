@@ -264,3 +264,65 @@
 .icon-btn-mini:hover { background: var(--bg-tile-hover); color: white; border-color: var(--indigo); }
 
 .member-filter-pill { margin: 12px 24px 0; }
+
+/* === Hook Log Panel === */
+
+.hook-log-panel {
+    width: 340px; background: var(--bg-panel);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    flex-shrink: 0;
+}
+.right-tabs {
+    display: flex; padding: 4px; gap: 2px; flex-shrink: 0;
+    border-bottom: 1px solid var(--border);
+}
+.right-tab {
+    flex: 1; padding: 6px 10px; text-align: center; font-size: 11px;
+    color: var(--text-faint); cursor: pointer; border-radius: var(--radius);
+    transition: all var(--transition);
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    background: transparent; border: 1px solid transparent;
+}
+.right-tab:hover { color: var(--text-secondary); background: var(--bg-tile); }
+.right-tab.active {
+    color: var(--text-primary); background: var(--bg-tile);
+    border-color: var(--indigo-border);
+}
+.right-tab .count-pill {
+    background: var(--indigo-bg); color: var(--indigo-hover);
+    padding: 0 5px; border-radius: 4px; font-size: 9px;
+    font-family: var(--font-code);
+}
+.right-tab .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--success);
+    box-shadow: 0 0 6px var(--success);
+}
+
+.log-toolbar {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 6px;
+}
+.log-toolbar .filter-mini {
+    flex: 1; background: var(--bg-tile); border: 1px solid var(--border-strong);
+    padding: 4px 8px; border-radius: var(--radius);
+    font-size: 10px; color: var(--text-secondary); outline: none;
+}
+.log-toolbar .filter-mini:focus { border-color: var(--indigo); }
+
+.events { flex: 1; overflow-y: auto; padding: 4px 0;
+    font-family: var(--font-code); font-size: 10px; }
+.event {
+    padding: 6px 12px; display: flex; flex-direction: column; gap: 2px;
+    border-bottom: 1px solid var(--border);
+    transition: background var(--transition-fast);
+}
+.event:hover { background: var(--bg-tile); }
+.event.error { background: rgba(239, 68, 68, 0.04); }
+.event-head { display: flex; align-items: center; gap: 6px; }
+.event-time { color: var(--text-faint); font-size: 9px; }
+.event-name { color: var(--indigo-hover); font-weight: 500; }
+.event.error .event-name { color: var(--danger); }
+.event-args { color: var(--text-muted); font-size: 10px; padding-left: 8px; }
+.event-ret { color: var(--success); }
+.event.error .event-ret { color: var(--danger); }
