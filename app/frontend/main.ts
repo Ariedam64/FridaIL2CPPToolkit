@@ -7,13 +7,15 @@ import { mountExplorerPage } from "./pages/explorer.js";
 import { mountBookmarksPage } from "./pages/bookmarks.js";
 import { mountMigrationsPage } from "./pages/migrations.js";
 import { mountHooksPage } from "./pages/hooks.js";
+import { showProcessPicker } from "./components/process-picker.js";
 
 const root = document.getElementById("app")!;
 root.innerHTML = `
     <div class="titlebar">
         <span class="title">Frida IL2CPP Toolkit</span>
         <span class="kbd">⌘K</span>
-        <span class="badge disconnected" id="conn-badge">disconnected</span>
+        <button class="pill" id="attach-btn" style="margin-left:auto">Attach…</button>
+        <span class="badge disconnected" id="conn-badge" style="margin-left:8px">disconnected</span>
     </div>
     <div class="main-row" id="main-row">
         <div id="nav-icons-host"></div>
@@ -73,3 +75,16 @@ void refreshProfile();
 const initialTab = (location.hash.replace(/^#\//, "") || "explorer") as NavTab;
 navHandle.setActive(initialTab);
 mountPage(initialTab);
+
+document.getElementById("attach-btn")!.addEventListener("click", () => {
+    void showProcessPicker();
+});
+
+// Show the picker if no profile attached at boot.
+async function ensureAttached(): Promise<void> {
+    try {
+        const { profile } = await api.getProfile();
+        if (!profile) await showProcessPicker();
+    } catch { /* no backend yet, skip */ }
+}
+void ensureAttached();
