@@ -32,4 +32,7 @@ export const icons = {
     chevronDown:  (s = 14) => svg(`<polyline points="6 9 12 15 18 9"/>`, s),
     arrowLeft:    (s = 12) => svg(`<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>`, s),
     arrowRight:   (s = 12) => svg(`<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>`, s),
+    eject:        (s = 14) => svg(`<path d="M5 17h14"/><path d="M12 4 4 14h16z"/>`, s),
+    folder:       (s = 14) => svg(`<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>`, s),
+    layers:       (s = 14) => svg(`<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>`, s),
 };

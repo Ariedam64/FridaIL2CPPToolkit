@@ -45,7 +45,7 @@ async function open(): Promise<void> {
         { label: "Open Bookmarks", icon: icons.star(), action: () => { location.hash = "#/bookmarks"; } },
         { label: "Open Migrations", icon: icons.refresh(), action: () => { location.hash = "#/migrations"; } },
         { label: "Open Process Explorer", icon: icons.box(), action: () => { location.hash = "#/explorer"; } },
-        { label: "Detach", icon: "⏏", action: async () => { await api.detach(); } },
+        { label: "Detach", icon: icons.eject(), action: async () => { await api.detach(); } },
     ];
 
     let labelsCache: any = null;
@@ -72,7 +72,7 @@ async function open(): Promise<void> {
                 classMatches.push({
                     label: entry.label,
                     meta: obf,
-                    icon: "🔷",
+                    icon: icons.layers(),
                     action: () => {
                         location.hash = "#/explorer";
                         setTimeout(() => window.dispatchEvent(new CustomEvent("frida:open-class", { detail: obf })), 100);

@@ -112,7 +112,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         el.dataset.expanded = "false";
         el.innerHTML = `
             <span class="chevron">${icons.chevronRight(10)}</span>
-            <span class="icon">📁</span>
+            <span class="icon">${icons.folder(12)}</span>
             <span class="label">${escape(n.ns || "(root)")}</span>
             <span class="count">${n.classes}</span>
         `;
@@ -171,7 +171,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         const labelHtml = renderClassLabel(c.obfName, c.label, c.bookmarked, c.hasNote);
         el.innerHTML = `
             <span class="chevron">·</span>
-            <span class="icon">🔷</span>
+            <span class="icon">${icons.layers(12)}</span>
             <span class="label">${labelHtml}</span>
         `;
         el.addEventListener("click", (ev) => { ev.stopPropagation(); selectClass(el, c.fullName); });
