@@ -101,6 +101,11 @@ function walkFields(obj: any, depth: number): FrameField[] {
         if (f.isStatic) continue;
         const name = f.name as string;
         const typeName = f.type?.name as string;
+        // Detect enum-typed fields up-front so they get classified as "enum"
+        // rather than falling through to "unknown" (preview will show the
+        // underlying numeric value or the symbol name when frida resolves it).
+        let isEnum = false;
+        try { isEnum = (f.type as any)?.class?.parent?.name === "Enum"; } catch {}
         let entry: FrameField;
         try {
             const v = obj.field(f.name).value;
@@ -111,7 +116,9 @@ function walkFields(obj: any, depth: number): FrameField[] {
             } else if (typeof v === "string") {
                 entry = { name, kind: "string", preview: clip(JSON.stringify(v)) };
             } else if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
-                entry = { name, kind: classifyType(typeName), preview: clip(String(v)) };
+                entry = { name, kind: isEnum ? "enum" : classifyType(typeName), preview: clip(String(v)) };
+            } else if (isEnum) {
+                entry = { name, kind: "enum", preview: clip(String(v)) };
             } else if (v.class) {
                 const cn = String(v.class.name);
                 if (cn.startsWith("RepeatedField") || cn.startsWith("List")
@@ -155,7 +162,14 @@ function walkFields(obj: any, depth: number): FrameField[] {
                 entry = { name, kind: classifyType(typeName), preview: clip(String(v)) };
             }
         } catch (err) {
-            entry = { name, kind: "unknown", preview: clip(`<err: ${String(err).slice(0, 60)}>`) };
+            const msg = String(err);
+            // A 0x0 access violation means the field stored a null reference and
+            // the bridge tried to dereference it. Treat as a legitimate null.
+            if (msg.includes("access violation") && msg.includes("0x0")) {
+                entry = { name, kind: "null", preview: "null" };
+            } else {
+                entry = { name, kind: "unknown", preview: clip(`<err: ${msg.slice(0, 60)}>`) };
+            }
         }
         out.push(entry);
         totalBytes += JSON.stringify(entry).length;
