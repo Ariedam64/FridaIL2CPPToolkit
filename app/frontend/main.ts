@@ -4,6 +4,9 @@ import { api } from "./core/api.js";
 import { renderNavIcons, type NavTab } from "./components/nav-icons.js";
 import { renderStatusBar } from "./components/status-bar.js";
 import { mountExplorerPage } from "./pages/explorer.js";
+import { mountBookmarksPage } from "./pages/bookmarks.js";
+import { mountMigrationsPage } from "./pages/migrations.js";
+import { mountHooksPage } from "./pages/hooks.js";
 
 const root = document.getElementById("app")!;
 root.innerHTML = `
@@ -28,11 +31,10 @@ pageHost.style.minHeight = "0";
 
 function mountPage(tab: NavTab): void {
     pageHost.innerHTML = "";
-    if (tab === "explorer") {
-        mountExplorerPage(pageHost);
-    } else {
-        pageHost.innerHTML = `<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-faint)">${tab} (coming next task)</div>`;
-    }
+    if (tab === "explorer") mountExplorerPage(pageHost);
+    else if (tab === "hooks") mountHooksPage(pageHost);
+    else if (tab === "bookmarks") mountBookmarksPage(pageHost);
+    else if (tab === "migrations") mountMigrationsPage(pageHost);
 }
 
 const navHandle = renderNavIcons(document.getElementById("nav-icons-host")!, {
