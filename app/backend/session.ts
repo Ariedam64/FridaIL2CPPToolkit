@@ -14,6 +14,10 @@ import { ProfileManager, type Profile } from "./core/profile.js";
 import { detectBuildId } from "./core/detect.js";
 import { matchFingerprints } from "./core/migrations.js";
 import { HookStore } from "./core/hooks/hook-store.js";
+import { FrameStore } from "./core/network/frame-store.js";
+import { SerializerConfigStore } from "./core/network/serializer-config.js";
+import { RING_BUFFER_SIZE } from "./core/network/types.js";
+import type { NetworkFrame } from "./core/network/types.js";
 import { DiskPluginStorage } from "./core/plugin-storage.js";
 import { expandHome } from "./core/paths.js";
 import type { ClassFingerprint, MigrationResult } from "./core/types.js";
@@ -27,6 +31,8 @@ export class Session extends EventEmitter {
     readonly profileManager: ProfileManager;
     private currentProfile: Profile | null = null;
     private currentHookStore: HookStore | null = null;
+    private currentFrameStore: FrameStore | null = null;
+    private currentSerializerConfig: SerializerConfigStore | null = null;
     private currentMigrations: {
         result: MigrationResult;
         oldFps: ClassFingerprint[];
@@ -49,6 +55,14 @@ export class Session extends EventEmitter {
 
     hookStore(): HookStore | null {
         return this.currentHookStore;
+    }
+
+    frameStore(): FrameStore | null {
+        return this.currentFrameStore;
+    }
+
+    serializerConfigStore(): SerializerConfigStore | null {
+        return this.currentSerializerConfig;
     }
 
     migrations(): { result: MigrationResult } | null {
@@ -132,6 +146,23 @@ export class Session extends EventEmitter {
             call: <T>(m: string, a?: unknown[]) => this.fridaClient.call<T>(m, a),
         });
 
+        this.currentFrameStore = new FrameStore(RING_BUFFER_SIZE);
+        const networkStorage = new DiskPluginStorage(profile.rootPath, "network");
+        this.currentSerializerConfig = new SerializerConfigStore(networkStorage);
+
+        const frameAddedHandler = (f: NetworkFrame) => this.emit("network-frame-added", f);
+        const clearedHandler = () => this.emit("network-frames-cleared");
+        this.currentFrameStore.on("frame-added", frameAddedHandler);
+        this.currentFrameStore.on("cleared", clearedHandler);
+        const fs = this.currentFrameStore;
+        this.disposeListeners.push(() => {
+            fs.off("frame-added", frameAddedHandler);
+            fs.off("cleared", clearedHandler);
+        });
+        this.disposeListeners.push(
+            this.currentSerializerConfig.onChange(() => this.emit("serializer-config-change")),
+        );
+
         // Forward label/annotation events so the WS bridge can broadcast them.
         // Capture disposers so they can be cleaned up on detach.
         this.disposeListeners.push(
@@ -179,6 +210,8 @@ export class Session extends EventEmitter {
         this.disposeListeners = [];
         this.currentProfile = null;
         this.currentHookStore = null;
+        this.currentFrameStore = null;
+        this.currentSerializerConfig = null;
         this.currentMigrations = null;
         this.emit("profile-detached");
     }
