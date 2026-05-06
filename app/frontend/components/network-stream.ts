@@ -2,6 +2,7 @@ import { api } from "../core/api.js";
 import { subscribe } from "../core/ws.js";
 import type { NetFrame } from "../core/types.js";
 import { mountNetworkDetail } from "./network-detail.js";
+import { resolveClass, hasClassLabel, onLabelsChange } from "../core/label-resolver.js";
 
 const RING_LIMIT = 5000;
 
@@ -55,6 +56,7 @@ export function mountNetworkStream(host: HTMLElement, opts: StreamMountOptions =
     const filterInput = host.querySelector<HTMLInputElement>("#net-stream-filter")!;
     const pauseBtn = host.querySelector<HTMLButtonElement>("#net-stream-pause")!;
     filterInput.value = filter;
+    const offLabels = onLabelsChange(() => rerender());
 
     function rerender(): void {
         const needle = filter.toLowerCase();
@@ -65,7 +67,7 @@ export function mountNetworkStream(host: HTMLElement, opts: StreamMountOptions =
             <div class="net-stream-row" data-id="${f.id}" style="display:flex;gap:10px;padding:2px 0;cursor:pointer">
                 <span style="color:var(--text-faint)">${new Date(f.timestamp).toISOString().slice(11, 23)}</span>
                 <span style="color:${f.direction === "in" ? "var(--success)" : "var(--danger)"}">${f.direction === "in" ? "←" : "→"}</span>
-                <span style="color:var(--text-strong);min-width:160px">${escape(f.typeKey.className)}</span>
+                <span style="color:var(--text-strong);min-width:160px">${escape(resolveClass(f.typeKey.className))}${hasClassLabel(f.typeKey.className) ? `<span style="color:var(--text-faint);font-size:9px"> [${escape(f.typeKey.className)}]</span>` : ""}</span>
                 <span style="color:var(--text-faint);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escape(previewFields(f))}</span>
             </div>
         `).join("");
@@ -140,5 +142,5 @@ export function mountNetworkStream(host: HTMLElement, opts: StreamMountOptions =
 
     void loadInitial();
 
-    return () => { offFrame(); offCleared(); offShared?.(); };
+    return () => { offFrame(); offCleared(); offShared?.(); offLabels(); };
 }

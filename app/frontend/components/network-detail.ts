@@ -4,7 +4,7 @@
 //  - modal from Inspector cell click
 
 import { api } from "../core/api.js";
-import { subscribe } from "../core/ws.js";
+import { resolveField, hasFieldLabel, onLabelsChange } from "../core/label-resolver.js";
 import type { NetField, NetFrame } from "../core/types.js";
 
 const KIND_COLORS: Record<NetField["kind"], string> = {
@@ -25,34 +25,20 @@ function escape(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-interface LabelsShape {
-    classes: Record<string, { label: string }>;
-    methods: Record<string, { label: string }>;
-    fields: Record<string, { label: string }>;
-}
-
-function lookupFieldLabel(labels: LabelsShape | null, className: string, fieldName: string): string | null {
-    if (!labels) return null;
-    return labels.fields?.[`${className}.${fieldName}`]?.label ?? null;
-}
-
 function renderField(
     f: NetField,
     expanded: Set<string>,
     path: string,
     className: string,
-    labels: LabelsShape | null,
     isTopLevel: boolean,
 ): string {
     const childPath = `${path}.${f.name}`;
     const hasChildren = !!f.children?.length;
     const open = hasChildren && expanded.has(childPath);
     const caret = hasChildren ? `<span class="net-caret" data-path="${childPath}">${open ? "▼" : "▶"}</span>` : `<span class="net-caret-spacer"></span>`;
-    // Resolve label for top-level fields only — children belong to nested classes
-    // whose className we don't currently track on the FrameField.
-    const label = isTopLevel ? lookupFieldLabel(labels, className, f.name) : null;
-    const nameDisplay = label
-        ? `<strong style="color:var(--syntax-name)">${escape(label)}</strong> <span style="color:var(--text-faint);font-size:10px">[${escape(f.name)}]</span>`
+    const renamed = isTopLevel && hasFieldLabel(className, f.name);
+    const nameDisplay = renamed
+        ? `<strong style="color:var(--syntax-name)">${escape(resolveField(className, f.name))}</strong> <span style="color:var(--text-faint);font-size:10px">[${escape(f.name)}]</span>`
         : `${escape(f.name)}`;
     const renamableAttr = isTopLevel ? `data-rename-field="${escape(f.name)}"` : "";
     const html = `
@@ -64,7 +50,7 @@ function renderField(
         </div>
     `;
     if (open && hasChildren) {
-        const inner = (f.children ?? []).map((c) => renderField(c, expanded, childPath, className, labels, false)).join("");
+        const inner = (f.children ?? []).map((c) => renderField(c, expanded, childPath, className, false)).join("");
         return html + `<div class="net-nested">${inner}</div>`;
     }
     return html;
@@ -80,7 +66,6 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
     for (const f of frame.fields) {
         if (f.children?.length) expanded.add(`.${f.name}`);
     }
-    let labels: LabelsShape | null = null;
 
     function rerender(): void {
         host.innerHTML = `
@@ -111,7 +96,7 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                 ${opts.onClose ? `<button class="icon-btn-mini" id="net-detail-close">✕</button>` : ""}
             </div>
             <div class="net-detail">
-                ${frame.fields.map((f) => renderField(f, expanded, "", frame.typeKey.className, labels, true)).join("")}
+                ${frame.fields.map((f) => renderField(f, expanded, "", frame.typeKey.className, true)).join("")}
                 ${frame.truncated ? `<div style="color:var(--warning);margin-top:8px">… truncated (frame too large)</div>` : ""}
             </div>
             <div class="net-detail-toolbar">
@@ -135,7 +120,7 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                 ev.preventDefault();
                 const fieldName = row.dataset.renameField!;
                 const className = frame.typeKey.className;
-                const current = lookupFieldLabel(labels, className, fieldName) ?? "";
+                const current = hasFieldLabel(className, fieldName) ? resolveField(className, fieldName) : "";
                 const next = window.prompt(`Rename field ${className}.${fieldName} →\n(empty to remove the rename)`, current);
                 if (next === null) return;
                 try {
@@ -165,38 +150,17 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
         });
     }
 
-    // Fetch labels asynchronously and rerender once available.
-    void api.getLabels().then((l) => {
-        labels = l as LabelsShape;
-        rerender();
-    }).catch(() => { /* offline / not attached: stay with obf names */ });
-
-    // Live-update on label-change events from any source (other components,
-    // Process Explorer, etc.). Patches local labels state and rerenders.
-    const offLabelChange = subscribe("label-change", (evt: { key: { kind: string; className: string; fieldName?: string }; newLabel: string | null }) => {
-        if (!labels) return;
-        const k = evt.key;
-        if (k.kind === "field" && k.fieldName) {
-            const id = `${k.className}.${k.fieldName}`;
-            if (evt.newLabel === null) delete labels.fields[id];
-            else labels.fields[id] = { label: evt.newLabel };
-            rerender();
-        } else if (k.kind === "class") {
-            if (evt.newLabel === null) delete labels.classes[k.className];
-            else labels.classes[k.className] = { label: evt.newLabel };
-            // Class rename doesn't affect field display in this view, but rerender for consistency.
-        }
-    });
-
-    // First synchronous render with no labels (replaced when fetch resolves).
+    // First synchronous render — resolver already has labels from its eager init.
     rerender();
 
-    // Cleanup on host removal: detach WS subscription. Best-effort —
+    const offLabels = onLabelsChange(() => rerender());
+
+    // Cleanup on host removal: detach resolver subscription. Best-effort —
     // MutationObserver could be more rigorous, but the parent currently
     // sets innerHTML="" which removes the listener anchor.
     const origCleanup = (host as { __netDetailCleanup?: () => void }).__netDetailCleanup;
     (host as { __netDetailCleanup?: () => void }).__netDetailCleanup = () => {
-        offLabelChange();
+        offLabels();
         if (origCleanup) origCleanup();
     };
 }

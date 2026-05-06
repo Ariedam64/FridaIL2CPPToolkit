@@ -1,6 +1,7 @@
 import { api } from "../core/api.js";
 import { subscribe } from "../core/ws.js";
 import type { NetMessageType, NetTypeKey } from "../core/types.js";
+import { resolveClass, hasClassLabel, resolveField, onLabelsChange } from "../core/label-resolver.js";
 
 function escape(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -48,12 +49,12 @@ export function mountNetworkSummary(host: HTMLElement, opts: SummaryMountOptions
         });
         body.innerHTML = filtered.map((t) => `
             <tr class="net-sum-row" data-ns="${escape(t.key.ns ?? "")}" data-cls="${escape(t.key.className)}" style="cursor:pointer;border-bottom:1px solid var(--border-strong)">
-                <td style="padding:4px 10px;color:var(--text-strong)">${escape(t.key.className)}</td>
+                <td style="padding:4px 10px;color:var(--text-strong)">${escape(resolveClass(t.key.className))}${hasClassLabel(t.key.className) ? `<span style="color:var(--text-faint);font-size:9px"> [${escape(t.key.className)}]</span>` : ""}</td>
                 <td style="padding:4px 10px">${t.count}</td>
                 <td style="padding:4px 10px;color:var(--success)">${t.countByDirection.in}</td>
                 <td style="padding:4px 10px;color:var(--danger)">${t.countByDirection.out}</td>
                 <td style="padding:4px 10px;color:var(--text-faint)">${new Date(t.lastSeenAt).toISOString().slice(11, 23)}</td>
-                <td style="padding:4px 10px;color:var(--text-faint);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escape(t.observedFields.slice(0, 8).join(", "))}${t.observedFields.length > 8 ? "…" : ""}</td>
+                <td style="padding:4px 10px;color:var(--text-faint);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escape(t.observedFields.slice(0, 8).map((fn) => resolveField(t.key.className, fn)).join(", "))}${t.observedFields.length > 8 ? "…" : ""}</td>
             </tr>
         `).join("");
         body.querySelectorAll<HTMLElement>(".net-sum-row").forEach((row) => {
@@ -81,7 +82,8 @@ export function mountNetworkSummary(host: HTMLElement, opts: SummaryMountOptions
     const offFrame = subscribe("network-frame-added", () => { void refresh(); });
     const offCleared = subscribe("network-frames-cleared", () => { void refresh(); });
     const offShared = opts.sharedFilter?.onChange((v) => { filter = v; rerender(); });
+    const offLabels = onLabelsChange(() => rerender());
 
     void refresh();
-    return () => { offFrame(); offCleared(); offShared?.(); };
+    return () => { offFrame(); offCleared(); offShared?.(); offLabels(); };
 }

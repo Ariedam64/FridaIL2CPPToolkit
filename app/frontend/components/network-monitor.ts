@@ -5,6 +5,7 @@ import { mountNetworkStream } from "./network-stream.js";
 import { mountNetworkSummary } from "./network-summary.js";
 import { mountNetworkInspector } from "./network-inspector.js";
 import { showNetworkConfig } from "./network-config.js";
+import { resolveClass, hasClassLabel, onLabelsChange } from "../core/label-resolver.js";
 
 const SIDEBAR_WIDTH_KEY = "frida.network.sidebar.width";
 
@@ -137,7 +138,11 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
         const outTypes = r.types.filter((t) => t.countByDirection.out > 0 && t.countByDirection.in === 0).sort((a, b) => b.count - a.count);
         const needle = sharedFilter.get().toLowerCase();
         const renderType = (t: NetMessageType): string => {
-            const display = `${t.key.ns ? escape(t.key.ns) + "." : ""}<strong>${escape(t.key.className)}</strong>`;
+            const labelOrObf = resolveClass(t.key.className);
+            const obfSuffix = hasClassLabel(t.key.className)
+                ? ` <span style="color:var(--text-faint);font-size:9px">[${escape(t.key.className)}]</span>`
+                : "";
+            const display = `${t.key.ns ? escape(t.key.ns) + "." : ""}<strong>${escape(labelOrObf)}</strong>${obfSuffix}`;
             const matches = !needle || `${t.key.ns ?? ""}.${t.key.className}`.toLowerCase().includes(needle);
             if (!matches) return "";
             const dot = t.countByDirection.in > 0 ? "var(--success)" : "var(--danger)";
@@ -198,6 +203,7 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
     const offTreeRefresh1 = subscribe("network-frame-added", () => { void refreshTree(); });
     const offTreeRefresh2 = subscribe("network-frames-cleared", () => { void refreshTree(); });
     const offCfgChange = subscribe("serializer-config-change", () => { /* nothing visible to do here */ });
+    const offLabels = onLabelsChange(() => { void refreshTree(); });
 
     void refreshTree();
     mountTab("stream");
@@ -206,6 +212,7 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
         offTreeRefresh1();
         offTreeRefresh2();
         offCfgChange();
+        offLabels();
         if (disposeTab) disposeTab();
         if (inspectorHandle) inspectorHandle.dispose();
     };

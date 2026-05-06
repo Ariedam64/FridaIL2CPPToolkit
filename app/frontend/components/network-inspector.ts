@@ -2,6 +2,7 @@ import { api } from "../core/api.js";
 import { subscribe } from "../core/ws.js";
 import type { NetField, NetFrame, NetMessageType, NetTypeKey } from "../core/types.js";
 import { mountNetworkDetail } from "./network-detail.js";
+import { resolveClass, resolveField, onLabelsChange } from "../core/label-resolver.js";
 
 function escape(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -44,7 +45,7 @@ export function mountNetworkInspector(host: HTMLElement, opts: InspectorMountOpt
     async function refreshTypeList(): Promise<void> {
         const types = await opts.listTypes();
         sel.innerHTML = types.map((t) => {
-            const display = t.key.className;
+            const display = resolveClass(t.key.className);
             const ns = t.key.ns ?? "";
             const value = `${ns}~${t.key.className}`;
             const isSelected = currentKey && currentKey.className === t.key.className && currentKey.ns === t.key.ns;
@@ -73,8 +74,9 @@ export function mountNetworkInspector(host: HTMLElement, opts: InspectorMountOpt
         html += `<thead><tr style="color:var(--text-faint);border-bottom:1px solid var(--border-strong)">`;
         html += `<th style="text-align:left;padding:4px 8px">Time</th>`;
         html += `<th style="text-align:left;padding:4px 8px">Dir</th>`;
+        const cls = currentKey.className;
         for (const fname of observedFields) {
-            html += `<th style="text-align:left;padding:4px 8px;cursor:pointer" data-field="${escape(fname)}">${escape(fname)}</th>`;
+            html += `<th style="text-align:left;padding:4px 8px;cursor:pointer" data-field="${escape(fname)}" title="${escape(fname)}">${escape(resolveField(cls, fname))}</th>`;
         }
         html += `</tr></thead><tbody>`;
 
@@ -138,6 +140,10 @@ export function mountNetworkInspector(host: HTMLElement, opts: InspectorMountOpt
     });
 
     void refreshTypeList().then(() => refreshTable());
+    const offLabels = onLabelsChange(() => {
+        // Refresh both the dropdown AND the table to pick up class + field renames.
+        void refreshTypeList().then(() => refreshTable());
+    });
 
     return {
         setType(key: NetTypeKey) {
@@ -147,6 +153,7 @@ export function mountNetworkInspector(host: HTMLElement, opts: InspectorMountOpt
         dispose() {
             offFrame();
             if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+            offLabels();
         },
     };
 }
