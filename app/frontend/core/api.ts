@@ -1,6 +1,6 @@
 // app/frontend/core/api.ts — fetch wrapper for /api/*
 
-async function call<T>(method: "GET" | "POST", url: string, body?: unknown): Promise<T> {
+async function call<T>(method: "GET" | "POST" | "PUT" | "DELETE", url: string, body?: unknown): Promise<T> {
     const res = await fetch(url, {
         method,
         headers: body ? { "Content-Type": "application/json" } : undefined,
@@ -48,4 +48,38 @@ export const api = {
     getMigrations() { return call<any>("GET", "/api/migrations"); },
     acceptMigration(oldObf: string, newObf: string) { return call("POST", "/api/migrations/accept", { oldObf, newObf }); },
     rejectMigration(oldObf: string) { return call("POST", "/api/migrations/reject", { oldObf }); },
+
+    getNetworkFrames(opts: { limit?: number; sinceId?: string; filter?: string; direction?: "in" | "out" } = {}) {
+        const q = new URLSearchParams();
+        if (opts.limit !== undefined) q.set("limit", String(opts.limit));
+        if (opts.sinceId) q.set("sinceId", opts.sinceId);
+        if (opts.filter) q.set("filter", opts.filter);
+        if (opts.direction) q.set("direction", opts.direction);
+        const qs = q.toString();
+        return call<{ frames: import("./types.js").NetFrame[] }>("GET", `/api/network/frames${qs ? "?" + qs : ""}`);
+    },
+    getNetworkTypes() {
+        return call<{ types: import("./types.js").NetMessageType[] }>("GET", "/api/network/types");
+    },
+    getNetworkInstances(typeKey: import("./types.js").NetTypeKey, limit = 50) {
+        const enc = encodeURIComponent(`${typeKey.ns ?? ""}~${typeKey.className}`);
+        return call<{ type: import("./types.js").NetMessageType; frames: import("./types.js").NetFrame[] }>(
+            "GET", `/api/network/types/${enc}/instances?limit=${limit}`,
+        );
+    },
+    clearNetworkFrames() {
+        return call("DELETE", "/api/network/frames");
+    },
+    getSerializerConfig() {
+        return call<{ config: import("./types.js").NetSerializerConfig }>("GET", "/api/network/serializer-config");
+    },
+    putSerializerConfig(entries: import("./types.js").NetSerializerEntry[]) {
+        return call("PUT", "/api/network/serializer-config", { entries });
+    },
+    startNetworkCapture() {
+        return call<{ installed: number; failed: import("./types.js").NetSerializerEntry[] }>("POST", "/api/network/start");
+    },
+    stopNetworkCapture() {
+        return call<{ reverted: number }>("POST", "/api/network/stop");
+    },
 };

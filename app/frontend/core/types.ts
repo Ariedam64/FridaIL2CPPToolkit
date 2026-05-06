@@ -48,3 +48,57 @@ export interface HookEvent {
 }
 
 export interface ProcessInfo { pid: number; name: string; }
+
+export interface NetTypeKey { ns: string | null; className: string; }
+
+export type NetFieldKind =
+    | "int" | "long" | "float" | "bool"
+    | "string" | "bytes" | "enum"
+    | "nested" | "array" | "null" | "unknown";
+
+export interface NetField {
+    name: string;
+    kind: NetFieldKind;
+    preview: string;
+    children?: NetField[];
+}
+
+export interface NetFrame {
+    id: string;
+    timestamp: number;
+    direction: "in" | "out";
+    typeKey: NetTypeKey;
+    fields: NetField[];
+    truncated?: boolean;
+}
+
+export interface NetMessageType {
+    key: NetTypeKey;
+    count: number;
+    countByDirection: { in: number; out: number };
+    lastSeenAt: number;
+    observedFields: string[];
+}
+
+export interface NetSerializerEntry {
+    source: "auto" | "manual";
+    direction: "send" | "recv";
+    className: string;
+    ns: string | null;
+    methodName: string;
+    methodSignature: string;
+    paramIndex?: number;
+    disabled?: boolean;
+    stale?: boolean;
+    addedAt: string;
+    lastValidatedAt?: string;
+}
+
+export interface NetSerializerConfig {
+    schemaVersion: 1;
+    entries: NetSerializerEntry[];
+}
+
+export function encodeNetTypeKey(k: NetTypeKey): string {
+    return `${k.ns ?? ""}~${k.className}`;
+}
