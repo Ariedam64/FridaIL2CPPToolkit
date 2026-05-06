@@ -347,4 +347,36 @@
     font-family: var(--font-code); font-size: 11px;
 }
 .modal .proc-row:hover { background: var(--bg-tile); }
+
+/* === Command Palette ⌘K === */
+
+.cmdk-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 15vh;
+}
+.cmdk {
+    background: var(--bg-elevated); border: 1px solid var(--indigo-border);
+    border-radius: var(--radius-xl);
+    width: 600px; max-height: 60vh;
+    display: flex; flex-direction: column;
+    box-shadow: var(--indigo-glow), 0 16px 40px rgba(0,0,0,0.5);
+}
+.cmdk-input {
+    background: transparent; border: none; outline: none;
+    padding: 16px 20px; font-size: 14px; color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+}
+.cmdk-results { overflow-y: auto; padding: 4px; }
+.cmdk-row {
+    padding: 8px 12px; border-radius: var(--radius);
+    display: flex; gap: 10px; align-items: center; cursor: pointer;
+    font-size: 12px;
+}
+.cmdk-row:hover, .cmdk-row.active {
+    background: linear-gradient(90deg, var(--indigo-bg), transparent);
+}
+.cmdk-row .icon { color: var(--text-faint); }
+.cmdk-row .label { flex: 1; }
+.cmdk-row .meta { color: var(--text-faint); font-size: 10px; font-family: var(--font-code); }
 .modal .proc-pid { color: var(--text-faint); width: 60px; }

@@ -8,6 +8,7 @@ import { mountBookmarksPage } from "./pages/bookmarks.js";
 import { mountMigrationsPage } from "./pages/migrations.js";
 import { mountHooksPage } from "./pages/hooks.js";
 import { showProcessPicker } from "./components/process-picker.js";
+import { bindPaletteShortcut } from "./components/command-palette.js";
 
 const root = document.getElementById("app")!;
 root.innerHTML = `
@@ -88,3 +89,5 @@ async function ensureAttached(): Promise<void> {
     } catch { /* no backend yet, skip */ }
 }
 void ensureAttached();
+
+bindPaletteShortcut();
