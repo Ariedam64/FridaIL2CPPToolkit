@@ -1,0 +1,624 @@
+<h2>Hybride — IDE Pro × palette indigo</h2>
+<p class="subtitle">Layout dense de l'option 1, accents indigo (#6366F1) + dégradés subtils + breathing room de l'option 2. Click pour valider, ou dis-moi ce qu'il manque.</p>
+
+<style>
+  .full-mock {
+    width: 100%;
+    height: 640px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #1f1f2a;
+    font-family: 'IBM Plex Sans', -apple-system, sans-serif;
+    font-size: 11px;
+    color: #e6edf3;
+    display: flex;
+    flex-direction: column;
+    background: #08080c;
+  }
+
+  .full-mock .titlebar {
+    height: 32px;
+    background: #08080c;
+    border-bottom: 1px solid #18181f;
+    display: flex; align-items: center; padding: 0 12px; gap: 6px;
+    flex-shrink: 0;
+  }
+  .full-mock .titlebar .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .full-mock .titlebar .dot.r { background: #ff5f57; }
+  .full-mock .titlebar .dot.y { background: #febc2e; }
+  .full-mock .titlebar .dot.g { background: #28c840; }
+  .full-mock .titlebar .title { margin-left: 8px; font-size: 11px; color: #6b7280; }
+  .full-mock .titlebar .badge {
+    margin-left: auto; padding: 3px 10px; border-radius: 999px; font-size: 10px;
+    font-weight: 500;
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .full-mock .titlebar .badge::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: #22c55e; box-shadow: 0 0 6px #22c55e;
+  }
+  .full-mock .titlebar .kbd {
+    padding: 2px 8px; border-radius: 4px; font-size: 10px;
+    background: #14141c; color: #818cf8;
+    border: 1px solid #1f1f2a; font-family: 'JetBrains Mono', monospace;
+    margin-left: 12px;
+  }
+
+  .full-mock .body { flex: 1; display: flex; min-height: 0; }
+
+  .full-mock .nav-icons {
+    width: 48px; background: #08080c; border-right: 1px solid #18181f;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 12px 0; gap: 4px;
+  }
+  .full-mock .nav-icons .icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; cursor: pointer; color: #6b7280;
+    transition: all 150ms;
+    position: relative;
+    font-size: 14px;
+  }
+  .full-mock .nav-icons .icon:hover { background: #14141c; color: #e6edf3; }
+  .full-mock .nav-icons .icon.active {
+    color: white;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  }
+  .full-mock .nav-icons .badge-count {
+    position: absolute; top: 2px; right: 2px;
+    background: #ef4444; color: white; font-size: 8px;
+    padding: 0 4px; border-radius: 8px; min-width: 14px; text-align: center;
+    font-weight: 700;
+  }
+  .full-mock .nav-icons .sep {
+    width: 24px; height: 1px; background: #18181f; margin: 6px 0;
+  }
+  .full-mock .nav-icons .icon.profile {
+    margin-top: auto;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    color: white; font-weight: 600;
+  }
+
+  .full-mock .sidebar {
+    width: 280px; background: #0a0a0f; border-right: 1px solid #18181f;
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .full-mock .sidebar-header {
+    padding: 12px 16px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .full-mock .sidebar-header h3 {
+    margin: 0; font-size: 13px; font-weight: 600; color: #f0f6fc;
+    letter-spacing: -0.2px;
+  }
+  .full-mock .sidebar-header .meta { font-size: 10px; color: #6b7280; }
+  .full-mock .filter-pill {
+    margin: 0 12px 12px;
+    display: flex; align-items: center; gap: 8px;
+    background: #14141c; padding: 7px 12px; border-radius: 8px;
+    border: 1px solid #1f1f2a;
+    transition: border-color 150ms;
+  }
+  .full-mock .filter-pill:focus-within { border-color: #6366f1; }
+  .full-mock .filter-pill input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: #e6edf3; font-size: 11px; font-family: inherit;
+  }
+  .full-mock .filter-pill .kbd-mini {
+    background: #1f1f2a; padding: 1px 6px; border-radius: 4px;
+    font-size: 9px; color: #6b7280; font-family: 'JetBrains Mono', monospace;
+  }
+  .full-mock .tree { flex: 1; overflow-y: auto; padding: 0 8px 12px; }
+  .full-mock .node {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 8px; border-radius: 6px;
+    cursor: pointer; white-space: nowrap;
+    transition: background 100ms;
+  }
+  .full-mock .node:hover { background: #14141c; }
+  .full-mock .node.selected {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.18), rgba(99, 102, 241, 0.04));
+    border-left: 2px solid #6366f1; padding-left: 6px;
+  }
+  .full-mock .node .chevron { width: 12px; color: #6b7280; font-size: 9px; }
+  .full-mock .node .icon-svg { font-size: 11px; }
+  .full-mock .node .label { flex: 1; color: #e6edf3; }
+  .full-mock .node .count { color: #6b7280; font-size: 10px; }
+  .full-mock .node.depth-1 { padding-left: 18px; }
+  .full-mock .node.depth-1.selected { padding-left: 16px; }
+  .full-mock .node.depth-2 { padding-left: 32px; }
+  .full-mock .node.depth-2.selected { padding-left: 30px; }
+  .full-mock .node.cls .label { font-weight: 500; }
+  .full-mock .node.cls .obf-tag { color: #6b7280; font-size: 10px; margin-left: 4px; font-family: 'JetBrains Mono', monospace; }
+  .full-mock .node .badge-mini {
+    background: #6366f1; color: white; font-size: 9px;
+    padding: 0 5px; border-radius: 4px; font-weight: 600;
+  }
+
+  .full-mock .main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: #0d0d12; }
+  .full-mock .tabs {
+    display: flex; background: #0a0a0f; border-bottom: 1px solid #18181f; flex-shrink: 0;
+    padding: 0 4px;
+  }
+  .full-mock .tab {
+    padding: 8px 14px; font-size: 11px; color: #6b7280;
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    border-bottom: 2px solid transparent; margin-bottom: -1px;
+    transition: all 150ms;
+  }
+  .full-mock .tab:hover { color: #e6edf3; }
+  .full-mock .tab.active {
+    color: #f0f6fc;
+    border-bottom-color: #6366f1;
+    background: linear-gradient(180deg, transparent, rgba(99, 102, 241, 0.08));
+  }
+  .full-mock .tab .close { color: #6b7280; opacity: 0; transition: opacity 100ms; }
+  .full-mock .tab:hover .close, .full-mock .tab.active .close { opacity: 1; }
+  .full-mock .tab.add { padding: 8px 12px; color: #6b7280; }
+
+  .full-mock .breadcrumb {
+    padding: 12px 24px 8px; display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #6b7280;
+  }
+  .full-mock .breadcrumb .crumb.last { color: #e6edf3; font-weight: 500; }
+  .full-mock .breadcrumb .sep { opacity: 0.4; }
+
+  .full-mock .class-header {
+    padding: 0 24px 14px; border-bottom: 1px solid #18181f;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .full-mock .class-header h1 {
+    margin: 0; font-size: 22px; font-weight: 700; color: #f0f6fc;
+    letter-spacing: -0.5px;
+  }
+  .full-mock .class-header .badge-tag {
+    background: rgba(99, 102, 241, 0.15); color: #818cf8;
+    padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 500;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+  }
+  .full-mock .class-header .actions { margin-left: auto; display: flex; gap: 6px; }
+  .full-mock .pill {
+    background: #14141c; border: 1px solid #1f1f2a; color: #e6edf3;
+    padding: 5px 12px; border-radius: 6px; font-size: 11px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px; transition: all 150ms;
+  }
+  .full-mock .pill:hover { border-color: #6366f1; background: #1a1a24; }
+  .full-mock .pill.primary {
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    border: none; color: white; font-weight: 500;
+  }
+  .full-mock .pill.primary:hover {
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  }
+
+  .full-mock .content { flex: 1; overflow-y: auto; padding: 16px 24px; min-height: 0; }
+  .full-mock .section-h {
+    font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px;
+    margin: 16px 0 8px; font-weight: 600;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .full-mock .section-h .count-badge {
+    background: #14141c; color: #9ca3af;
+    padding: 1px 7px; border-radius: 999px; font-size: 9px;
+    border: 1px solid #1f1f2a;
+  }
+
+  .full-mock .member-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    transition: all 150ms; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .full-mock .member-row:hover {
+    background: #14141c;
+    border-color: #1f1f2a;
+  }
+  .full-mock .member-row .kind-tag {
+    padding: 2px 7px; border-radius: 4px; font-size: 9px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px; font-family: 'IBM Plex Sans', sans-serif;
+    flex-shrink: 0;
+  }
+  .full-mock .member-row .kind-tag.method { background: rgba(167, 139, 250, 0.15); color: #a78bfa; }
+  .full-mock .member-row .kind-tag.field { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+  .full-mock .member-row .static-badge {
+    color: #f59e0b; font-style: italic; font-size: 10px;
+  }
+  .full-mock .member-row .ret { color: #7ee787; }
+  .full-mock .member-row .name { color: #f0f6fc; font-weight: 500; }
+  .full-mock .member-row .params { color: #9ca3af; }
+  .full-mock .member-row .type { color: #79c0ff; }
+  .full-mock .member-row .actions {
+    margin-left: auto; display: flex; gap: 4px;
+    opacity: 0; transition: opacity 100ms;
+  }
+  .full-mock .member-row:hover .actions { opacity: 1; }
+  .full-mock .member-row.always-show .actions { opacity: 1; }
+  .full-mock .icon-btn-mini {
+    background: transparent; border: 1px solid #1f1f2a; color: #9ca3af;
+    padding: 3px 9px; border-radius: 5px; font-size: 10px; cursor: pointer;
+    transition: all 150ms; display: inline-flex; align-items: center; gap: 4px;
+    font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .full-mock .icon-btn-mini:hover { background: #1a1a24; color: white; border-color: #6366f1; }
+  .full-mock .icon-btn-mini.live {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border-color: #6366f1;
+    font-weight: 600;
+  }
+  .full-mock .icon-btn-mini.live::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: #22c55e; box-shadow: 0 0 6px #22c55e;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse { 50% { opacity: 0.4; } }
+  .full-mock .member-row.hooked {
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.10), rgba(99, 102, 241, 0.02));
+    border-color: rgba(99, 102, 241, 0.4);
+  }
+
+  .full-mock .right-panel {
+    width: 340px; background: #0a0a0f; border-left: 1px solid #18181f;
+    display: flex; flex-direction: column;
+  }
+  .full-mock .right-tabs {
+    display: flex; padding: 4px; gap: 2px; flex-shrink: 0;
+    border-bottom: 1px solid #18181f;
+  }
+  .full-mock .right-tab {
+    flex: 1; padding: 6px 10px; text-align: center; font-size: 11px; color: #6b7280;
+    cursor: pointer; border-radius: 6px;
+    transition: all 150ms; display: flex; align-items: center; justify-content: center; gap: 5px;
+  }
+  .full-mock .right-tab:hover { color: #e6edf3; background: #14141c; }
+  .full-mock .right-tab.active {
+    color: #f0f6fc; background: #14141c;
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    box-shadow: inset 0 0 0 1px transparent;
+  }
+  .full-mock .right-tab .count-pill {
+    background: rgba(99, 102, 241, 0.2); color: #818cf8;
+    padding: 0 5px; border-radius: 4px; font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .full-mock .right-tab.active .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+  }
+
+  .full-mock .log-toolbar {
+    padding: 8px 12px; border-bottom: 1px solid #18181f;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .full-mock .log-toolbar .filter-mini {
+    flex: 1; background: #14141c; border: 1px solid #1f1f2a;
+    padding: 4px 8px; border-radius: 6px; font-size: 10px;
+    color: #e6edf3; outline: none;
+  }
+  .full-mock .log-toolbar .filter-mini:focus { border-color: #6366f1; }
+
+  .full-mock .events { flex: 1; overflow-y: auto; padding: 4px 0; font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .full-mock .event {
+    padding: 6px 12px; display: flex; flex-direction: column; gap: 2px;
+    border-bottom: 1px solid #18181f;
+    transition: background 100ms;
+  }
+  .full-mock .event:hover { background: #14141c; }
+  .full-mock .event.error { background: rgba(239, 68, 68, 0.04); }
+  .full-mock .event.error:hover { background: rgba(239, 68, 68, 0.08); }
+  .full-mock .event-head { display: flex; align-items: center; gap: 6px; }
+  .full-mock .event-time { color: #6b7280; font-size: 9px; }
+  .full-mock .event-name { color: #818cf8; font-weight: 500; }
+  .full-mock .event.error .event-name { color: #ef4444; }
+  .full-mock .event-args { color: #9ca3af; font-size: 10px; padding-left: 8px; }
+  .full-mock .event-ret { color: #22c55e; }
+  .full-mock .event.error .event-ret { color: #ef4444; }
+
+  .full-mock .summary-rows { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .full-mock .summary-row {
+    padding: 8px 12px; display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid #18181f; font-size: 11px;
+  }
+  .full-mock .summary-row:hover { background: #14141c; }
+  .full-mock .summary-row .name {
+    color: #f0f6fc; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    flex: 1; overflow: hidden; text-overflow: ellipsis;
+  }
+  .full-mock .summary-row .hits {
+    background: rgba(99, 102, 241, 0.15); color: #818cf8;
+    padding: 2px 8px; border-radius: 999px; font-size: 10px;
+    font-family: 'JetBrains Mono', monospace; font-weight: 600;
+  }
+
+  .full-mock .statusbar {
+    height: 26px; background: #0a0a0f; border-top: 1px solid #18181f;
+    display: flex; align-items: center; padding: 0 14px; gap: 14px;
+    font-size: 10px; color: #6b7280; flex-shrink: 0;
+  }
+  .full-mock .statusbar .status-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: #22c55e;
+    box-shadow: 0 0 6px #22c55e;
+  }
+  .full-mock .statusbar .status-item { display: flex; align-items: center; gap: 6px; }
+  .full-mock .statusbar .right { margin-left: auto; }
+</style>
+
+<div class="cards" style="grid-template-columns: 1fr;">
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image" style="height: auto; padding: 0;">
+      <div class="full-mock">
+        <div class="titlebar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="title">Frida IL2CPP Toolkit — dofus.exe (8fcf84277e7043a6)</span>
+          <span class="kbd">⌘K</span>
+          <span class="badge">connected</span>
+        </div>
+        <div class="body">
+          <div class="nav-icons">
+            <div class="icon active">📦</div>
+            <div class="icon" style="position:relative">🪝<span class="badge-count">3</span></div>
+            <div class="icon">⭐</div>
+            <div class="icon">🔄</div>
+            <div class="sep"></div>
+            <div class="icon">⌘</div>
+            <div class="icon">⚙</div>
+            <div class="icon profile">R</div>
+          </div>
+          <div class="sidebar">
+            <div class="sidebar-header">
+              <h3>Process Explorer</h3>
+              <span class="meta">13.2k cls</span>
+            </div>
+            <div class="filter-pill">
+              <span style="color:#6b7280">🔍</span>
+              <input placeholder="Filter assemblies, classes…" />
+              <span class="kbd-mini">/</span>
+            </div>
+            <div class="tree">
+              <div class="node">
+                <span class="chevron">▼</span><span class="icon-svg">📦</span>
+                <span class="label">Core</span><span class="count">8923</span>
+              </div>
+              <div class="node depth-1">
+                <span class="chevron">▼</span><span class="icon-svg">📁</span>
+                <span class="label">Core.UILogic.Inventory</span><span class="count">12</span>
+              </div>
+              <div class="node depth-2 cls selected">
+                <span class="chevron">·</span><span class="icon-svg">🔷</span>
+                <span class="label">Inventory <span class="badge-mini">2</span></span>
+              </div>
+              <div class="node depth-2 cls">
+                <span class="chevron">·</span><span class="icon-svg">🔷</span>
+                <span class="label">InventorySlot</span>
+              </div>
+              <div class="node depth-2 cls">
+                <span class="chevron">·</span><span class="icon-svg">🔷</span>
+                <span class="label">InventoryItem</span>
+              </div>
+              <div class="node depth-1">
+                <span class="chevron">▶</span><span class="icon-svg">📁</span>
+                <span class="label">Core.UILogic.Map</span><span class="count">28</span>
+              </div>
+              <div class="node depth-1">
+                <span class="chevron">▶</span><span class="icon-svg">📁</span>
+                <span class="label">Core.Network.Protocol</span><span class="count">147</span>
+              </div>
+              <div class="node">
+                <span class="chevron">▶</span><span class="icon-svg">📦</span>
+                <span class="label">Ankama.Dofus.Protocol</span><span class="count">2236</span>
+              </div>
+              <div class="node">
+                <span class="chevron">▶</span><span class="icon-svg">📦</span>
+                <span class="label">UnityEngine.UIElementsModule</span><span class="count">1708</span>
+              </div>
+              <div class="node">
+                <span class="chevron">▶</span><span class="icon-svg">📦</span>
+                <span class="label">mscorlib</span><span class="count">1954</span>
+              </div>
+            </div>
+          </div>
+          <div class="main">
+            <div class="tabs">
+              <div class="tab active">
+                <span style="color:#a78bfa">🔷</span>Inventory
+                <span class="close">×</span>
+              </div>
+              <div class="tab">
+                <span style="color:#a78bfa">🔷</span>MapRenderer
+                <span class="close">×</span>
+              </div>
+              <div class="tab add">+</div>
+            </div>
+            <div class="breadcrumb">
+              <span class="crumb">Core</span><span class="sep">›</span>
+              <span class="crumb">UILogic.Inventory</span><span class="sep">›</span>
+              <span class="crumb last">Inventory</span>
+            </div>
+            <div class="class-header">
+              <h1>Inventory</h1>
+              <span class="badge-tag">2 hooks · ecm</span>
+              <div class="actions">
+                <span class="pill">⭐</span>
+                <span class="pill">📝 Note</span>
+                <span class="pill">📋 Copy</span>
+                <span class="pill primary">✏ Rename</span>
+              </div>
+            </div>
+            <div class="content">
+              <div class="section-h">
+                Fields <span class="count-badge">4</span>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag field">field</span>
+                <span class="type">int</span>
+                <span class="name">_kamas</span>
+                <div class="actions"><span class="icon-btn-mini">📋</span></div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag field">field</span>
+                <span class="type">List&lt;Item&gt;</span>
+                <span class="name">_items</span>
+                <div class="actions"><span class="icon-btn-mini">📋</span></div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag field">field</span>
+                <span class="type">int</span>
+                <span class="name">_capacity</span>
+                <div class="actions"><span class="icon-btn-mini">📋</span></div>
+              </div>
+
+              <div class="section-h" style="margin-top:20px">
+                Methods <span class="count-badge">12</span>
+              </div>
+              <div class="member-row hooked always-show">
+                <span class="kind-tag method">method</span>
+                <span class="ret">int</span>
+                <span class="name">get_kamas</span>
+                <span class="params">()</span>
+                <div class="actions">
+                  <span class="icon-btn-mini live">142 hits</span>
+                  <span class="icon-btn-mini">⏸</span>
+                  <span class="icon-btn-mini">×</span>
+                </div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag method">method</span>
+                <span class="ret">void</span>
+                <span class="name">add_item</span>
+                <span class="params">(<span class="type">Item</span> item)</span>
+                <div class="actions">
+                  <span class="icon-btn-mini">🪝 Hook</span>
+                  <span class="icon-btn-mini">🎯 Trace</span>
+                  <span class="icon-btn-mini">📋</span>
+                </div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag method">method</span>
+                <span class="ret">bool</span>
+                <span class="name">remove_item</span>
+                <span class="params">(<span class="type">int</span> id)</span>
+                <div class="actions">
+                  <span class="icon-btn-mini">🪝</span>
+                  <span class="icon-btn-mini">🎯</span>
+                  <span class="icon-btn-mini">📋</span>
+                </div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag method">method</span>
+                <span class="static-badge">static</span>
+                <span class="ret">Inventory</span>
+                <span class="name">get_instance</span>
+                <span class="params">()</span>
+                <div class="actions">
+                  <span class="icon-btn-mini">🪝</span>
+                  <span class="icon-btn-mini">🎯</span>
+                </div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag method">method</span>
+                <span class="ret">void</span>
+                <span class="name">clear</span>
+                <span class="params">()</span>
+                <div class="actions">
+                  <span class="icon-btn-mini">🪝</span>
+                  <span class="icon-btn-mini">🎯</span>
+                </div>
+              </div>
+              <div class="member-row">
+                <span class="kind-tag method">method</span>
+                <span class="ret">int</span>
+                <span class="name">get_capacity</span>
+                <span class="params">()</span>
+              </div>
+            </div>
+          </div>
+          <div class="right-panel">
+            <div class="right-tabs">
+              <div class="right-tab active">
+                <span class="live-dot"></span>Stream
+              </div>
+              <div class="right-tab">Summary <span class="count-pill">3</span></div>
+              <div class="right-tab">Hooks <span class="count-pill">3</span></div>
+            </div>
+            <div class="log-toolbar">
+              <input class="filter-mini" placeholder="Filter events…" />
+              <span class="icon-btn-mini">⏸</span>
+              <span class="icon-btn-mini">🗑</span>
+              <span class="icon-btn-mini">⬇</span>
+            </div>
+            <div class="events">
+              <div class="event">
+                <div class="event-head">
+                  <span class="event-time">12:43:01.892</span>
+                  <span class="event-name">Inventory.get_kamas</span>
+                </div>
+                <div class="event-args">() → <span class="event-ret">4892</span></div>
+              </div>
+              <div class="event">
+                <div class="event-head">
+                  <span class="event-time">12:43:01.751</span>
+                  <span class="event-name">Inventory.get_kamas</span>
+                </div>
+                <div class="event-args">() → <span class="event-ret">4892</span></div>
+              </div>
+              <div class="event">
+                <div class="event-head">
+                  <span class="event-time">12:43:00.402</span>
+                  <span class="event-name">Inventory.add_item</span>
+                </div>
+                <div class="event-args">(Item#3823) → <span class="event-ret">void</span></div>
+              </div>
+              <div class="event">
+                <div class="event-head">
+                  <span class="event-time">12:43:00.398</span>
+                  <span class="event-name">Inventory.get_kamas</span>
+                </div>
+                <div class="event-args">() → <span class="event-ret">4892</span></div>
+              </div>
+              <div class="event error">
+                <div class="event-head">
+                  <span class="event-time">12:42:58.127</span>
+                  <span class="event-name">ecm.?</span>
+                </div>
+                <div class="event-args">() → <span class="event-ret">throw Il2CppError</span></div>
+              </div>
+              <div class="event">
+                <div class="event-head">
+                  <span class="event-time">12:42:55.881</span>
+                  <span class="event-name">MapRenderer.cywa</span>
+                </div>
+                <div class="event-args">() → <span class="event-ret">14826</span></div>
+              </div>
+              <div class="event">
+                <div class="event-head">
+                  <span class="event-time">12:42:55.234</span>
+                  <span class="event-name">MapRenderer.cywa</span>
+                </div>
+                <div class="event-args">() → <span class="event-ret">14826</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="statusbar">
+          <span class="status-item"><span class="status-dot"></span>dofus / 8fcf84277e7043a6</span>
+          <span class="status-item">3 hooks · 142 hits/min</span>
+          <span class="status-item">Index: 13247 classes</span>
+          <span class="right">JetBrains Mono · IBM Plex Sans · v1.1</span>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>Hybride final</h3>
+      <p>
+        <b>Layout #1</b> : sidebar étroite icons + Process Explorer panel + tabs multi-classes au center + right panel Hook Log avec tabs Stream/Summary/Hooks + statusbar bas.<br>
+        <b>Couleurs #2</b> : palette indigo (#6366F1) au lieu du bleu VSCode, dégradés subtils (active states + buttons primary), border-left accent sur les sélections, hover transitions douces 150ms, breadcrumb au-dessus de la classe, ⌘K au top.<br>
+        <b>Détails ajoutés</b> : hooks count badge sur les classes du tree, live indicator pulse sur Stream tab, count-pill JetBrains-mono dans les tabs, status-dot glowing dans la status bar.
+      </p>
+    </div>
+  </div>
+</div>
