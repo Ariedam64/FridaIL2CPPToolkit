@@ -1,6 +1,6 @@
 // app/frontend/components/nav-icons.ts
 
-export type NavTab = "explorer" | "hooks" | "bookmarks" | "migrations";
+export type NavTab = "explorer" | "hooks" | "network" | "bookmarks" | "migrations";
 
 export interface NavIconsConfig {
     onSelect(tab: NavTab): void;
@@ -12,6 +12,7 @@ export function renderNavIcons(host: HTMLElement, cfg: NavIconsConfig): { setAct
     host.innerHTML = `
         <div class="nav-icon" data-tab="explorer" title="Process Explorer">📦</div>
         <div class="nav-icon" data-tab="hooks" title="Hooks"><span class="badge-count" hidden></span>🪝</div>
+        <div class="nav-icon" data-tab="network" title="Network">⇄</div>
         <div class="nav-icon" data-tab="bookmarks" title="Bookmarks">⭐</div>
         <div class="nav-icon" data-tab="migrations" title="Migrations">🔄</div>
     `;

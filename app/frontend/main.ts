@@ -7,6 +7,7 @@ import { mountExplorerPage } from "./pages/explorer.js";
 import { mountBookmarksPage } from "./pages/bookmarks.js";
 import { mountMigrationsPage } from "./pages/migrations.js";
 import { mountHooksPage } from "./pages/hooks.js";
+import { mountNetworkPage } from "./pages/network.js";
 import { showProcessPicker } from "./components/process-picker.js";
 import { bindPaletteShortcut } from "./components/command-palette.js";
 
@@ -36,6 +37,7 @@ function mountPage(tab: NavTab): void {
     pageHost.innerHTML = "";
     if (tab === "explorer") mountExplorerPage(pageHost);
     else if (tab === "hooks") mountHooksPage(pageHost);
+    else if (tab === "network") mountNetworkPage(pageHost);
     else if (tab === "bookmarks") mountBookmarksPage(pageHost);
     else if (tab === "migrations") mountMigrationsPage(pageHost);
 }
