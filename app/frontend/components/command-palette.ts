@@ -1,5 +1,6 @@
 // app/frontend/components/command-palette.ts
 import { api } from "../core/api.js";
+import { icons } from "../core/icons.js";
 
 interface PaletteItem {
     label: string;
@@ -40,10 +41,10 @@ async function open(): Promise<void> {
     let items: PaletteItem[] = [];
 
     const commands: PaletteItem[] = [
-        { label: "Open Hooks", icon: "🪝", action: () => { location.hash = "#/hooks"; } },
-        { label: "Open Bookmarks", icon: "⭐", action: () => { location.hash = "#/bookmarks"; } },
-        { label: "Open Migrations", icon: "🔄", action: () => { location.hash = "#/migrations"; } },
-        { label: "Open Process Explorer", icon: "📦", action: () => { location.hash = "#/explorer"; } },
+        { label: "Open Hooks", icon: icons.hook(), action: () => { location.hash = "#/hooks"; } },
+        { label: "Open Bookmarks", icon: icons.star(), action: () => { location.hash = "#/bookmarks"; } },
+        { label: "Open Migrations", icon: icons.refresh(), action: () => { location.hash = "#/migrations"; } },
+        { label: "Open Process Explorer", icon: icons.box(), action: () => { location.hash = "#/explorer"; } },
         { label: "Detach", icon: "⏏", action: async () => { await api.detach(); } },
     ];
 

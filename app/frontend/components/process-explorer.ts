@@ -2,6 +2,7 @@
 
 import { api } from "../core/api.js";
 import { subscribe } from "../core/ws.js";
+import { icons } from "../core/icons.js";
 
 interface AssemblyInfo { name: string; classes: number; }
 interface NamespaceInfo { ns: string; classes: number; }
@@ -22,7 +23,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
             <span class="meta" id="exp-meta"></span>
         </div>
         <div class="filter-pill">
-            <span style="color:var(--text-faint)">🔍</span>
+            <span style="color:var(--text-faint)">${icons.search()}</span>
             <input id="exp-filter" placeholder="Filter…" />
             <span class="kbd-mini">/</span>
         </div>
@@ -41,8 +42,8 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         let html = label
             ? `<span class="friendly">${escape(label)}</span><span class="obf-tag">[${escape(obfName)}]</span>`
             : escape(obfName);
-        if (bookmarked) html += ' <span style="font-size:9px">⭐</span>';
-        if (hasNote) html += ' <span style="font-size:9px">📝</span>';
+        if (bookmarked) html += ` <span style="font-size:9px">${icons.star(10)}</span>`;
+        if (hasNote) html += ` <span style="font-size:9px">${icons.note(10)}</span>`;
         return html;
     }
 
@@ -68,8 +69,8 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         el.dataset.assembly = a.name;
         el.dataset.expanded = "false";
         el.innerHTML = `
-            <span class="chevron">▶</span>
-            <span class="icon">📦</span>
+            <span class="chevron">${icons.chevronRight(10)}</span>
+            <span class="icon">${icons.box(12)}</span>
             <span class="label">${escape(a.name)}</span>
             <span class="count">${a.classes}</span>
         `;
@@ -86,7 +87,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
                 const r = next; next = next.nextElementSibling; r.remove();
             }
             el.dataset.expanded = "false";
-            el.querySelector(".chevron")!.textContent = "▶";
+            el.querySelector(".chevron")!.innerHTML = icons.chevronRight(10);
             return;
         }
         let nsList = nsCache.get(asm);
@@ -99,7 +100,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         for (const n of nsList) frag.appendChild(renderNsNode(asm, n));
         el.after(frag);
         el.dataset.expanded = "true";
-        el.querySelector(".chevron")!.textContent = "▼";
+        el.querySelector(".chevron")!.innerHTML = icons.chevronDown(10);
     }
 
     function renderNsNode(asm: string, n: NamespaceInfo): HTMLElement {
@@ -110,7 +111,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         el.dataset.ns = n.ns;
         el.dataset.expanded = "false";
         el.innerHTML = `
-            <span class="chevron">▶</span>
+            <span class="chevron">${icons.chevronRight(10)}</span>
             <span class="icon">📁</span>
             <span class="label">${escape(n.ns || "(root)")}</span>
             <span class="count">${n.classes}</span>
@@ -128,7 +129,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
                 const r = next; next = next.nextElementSibling; r.remove();
             }
             el.dataset.expanded = "false";
-            el.querySelector(".chevron")!.textContent = "▶";
+            el.querySelector(".chevron")!.innerHTML = icons.chevronRight(10);
             return;
         }
         const key = `${asm}::${ns}`;
@@ -158,7 +159,7 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
         for (const c of list) frag.appendChild(renderClsNode(asm, ns, c));
         el.after(frag);
         el.dataset.expanded = "true";
-        el.querySelector(".chevron")!.textContent = "▼";
+        el.querySelector(".chevron")!.innerHTML = icons.chevronDown(10);
     }
 
     function renderClsNode(asm: string, ns: string, c: ClassEnriched): HTMLElement {

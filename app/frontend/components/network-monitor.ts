@@ -1,5 +1,6 @@
 import { api } from "../core/api.js";
 import { subscribe } from "../core/ws.js";
+import { icons } from "../core/icons.js";
 import type { NetMessageType, NetTypeKey } from "../core/types.js";
 import { mountNetworkStream } from "./network-stream.js";
 import { mountNetworkSummary } from "./network-summary.js";
@@ -43,9 +44,9 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
             </div>
             <div id="net-sidebar-tree" style="flex:1;overflow-y:auto;padding:6px 4px;font-family:var(--font-code);font-size:11px"></div>
             <div style="padding:8px 10px;border-top:1px solid var(--border-strong);display:flex;gap:6px;align-items:center">
-                <span id="net-status" style="font-size:10px;color:var(--text-faint);flex:1">⚪ Disarmed</span>
-                <button class="pill" id="net-cfg-btn" title="Configure">⚙</button>
-                <button class="pill" id="net-startstop-btn">▶ Start</button>
+                <span id="net-status" style="font-size:10px;color:var(--text-faint);flex:1">${icons.circle()} Disarmed</span>
+                <button class="pill" id="net-cfg-btn" title="Configure">${icons.settings()}</button>
+                <button class="pill" id="net-startstop-btn">${icons.play()} Start</button>
             </div>
         </div>
         <div id="net-resizer" style="width:4px;cursor:col-resize;background:var(--border-strong)"></div>
@@ -174,10 +175,10 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
     const startBtn = host.querySelector<HTMLButtonElement>("#net-startstop-btn")!;
     function setArmed(a: boolean, n?: number): void {
         armed = a;
-        statusEl.textContent = a
-            ? `🟢 Armed${n !== undefined ? ` (${n} hooks)` : ""}`
-            : `⚪ Disarmed`;
-        startBtn.textContent = a ? "⏸ Stop" : "▶ Start";
+        statusEl.innerHTML = a
+            ? `<span style="color:var(--success)">${icons.circleFill()}</span> Armed${n !== undefined ? ` (${n} hooks)` : ""}`
+            : `${icons.circle()} Disarmed`;
+        startBtn.innerHTML = a ? `${icons.pause()} Stop` : `${icons.play()} Start`;
     }
     startBtn.addEventListener("click", async () => {
         try {
@@ -189,7 +190,7 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
                 const r = await api.startNetworkCapture();
                 setArmed(true, r.installed);
                 if (r.failed && r.failed.length > 0) {
-                    alert(`${r.failed.length} entries failed to install. Check Configure for ❌ markers.`);
+                    alert(`${r.failed.length} entries failed to install. Check Configure for stale entries.`);
                 }
             }
         } catch (err) {

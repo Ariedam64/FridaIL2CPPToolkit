@@ -1,5 +1,6 @@
 // app/frontend/pages/migrations.ts
 import { api } from "../core/api.js";
+import { icons } from "../core/icons.js";
 
 export function mountMigrationsPage(host: HTMLElement): void {
     host.innerHTML = `
@@ -18,7 +19,7 @@ export function mountMigrationsPage(host: HTMLElement): void {
             const { result } = await api.getMigrations();
             content.innerHTML = `
                 <h3>Auto (${result.auto.length})</h3>
-                ${result.auto.map((m: any) => `<div style="padding:6px 10px;background:var(--bg-tile);border-radius:6px;margin-bottom:4px">✓ ${escape(m.label)}: ${escape(m.oldObf)} → ${escape(m.newObf)}</div>`).join("") || '<div style="color:var(--text-faint)">none</div>'}
+                ${result.auto.map((m: any) => `<div style="padding:6px 10px;background:var(--bg-tile);border-radius:6px;margin-bottom:4px">${icons.check()} ${escape(m.label)}: ${escape(m.oldObf)} → ${escape(m.newObf)}</div>`).join("") || '<div style="color:var(--text-faint)">none</div>'}
                 <h3>Review (${result.review.length})</h3>
                 ${result.review.map((m: any) => `
                     <div style="padding:8px 12px;background:var(--bg-tile);border-radius:6px;margin-bottom:4px">
@@ -30,7 +31,7 @@ export function mountMigrationsPage(host: HTMLElement): void {
                     </div>
                 `).join("") || '<div style="color:var(--text-faint)">none</div>'}
                 <h3>Lost (${result.lost.length})</h3>
-                ${result.lost.map((m: any) => `<div style="padding:6px 10px;color:var(--danger)">✗ ${escape(m.label)}: ${escape(m.oldObf)}</div>`).join("") || '<div style="color:var(--text-faint)">none</div>'}
+                ${result.lost.map((m: any) => `<div style="padding:6px 10px;color:var(--danger)">${icons.x()} ${escape(m.label)}: ${escape(m.oldObf)}</div>`).join("") || '<div style="color:var(--text-faint)">none</div>'}
             `;
             content.querySelectorAll<HTMLButtonElement>("[data-accept]").forEach((b) => {
                 b.addEventListener("click", async () => {

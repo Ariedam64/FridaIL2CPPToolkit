@@ -1,5 +1,6 @@
 // app/frontend/components/hook-log.ts
 import { api } from "../core/api.js";
+import { icons } from "../core/icons.js";
 import { subscribe } from "../core/ws.js";
 import type { HookEvent, StoredHook } from "../core/types.js";
 
@@ -19,8 +20,8 @@ export function renderHookLog(host: HTMLElement): void {
         </div>
         <div class="log-toolbar">
             <input class="filter-mini" id="hl-filter" placeholder="Filter events…">
-            <button class="icon-btn-mini" id="hl-pause">⏸</button>
-            <button class="icon-btn-mini" id="hl-clear">🗑</button>
+            <button class="icon-btn-mini" id="hl-pause">${icons.pause()}</button>
+            <button class="icon-btn-mini" id="hl-clear">${icons.trash()}</button>
             <button class="icon-btn-mini" id="hl-export">⬇</button>
         </div>
         <div id="hl-content" class="events"><div style="padding:1em;color:var(--text-faint)">No hits yet.</div></div>
@@ -125,8 +126,8 @@ export function renderHookLog(host: HTMLElement): void {
                     <span style="margin-left:auto;color:var(--text-faint);font-size:9px">[${h.spec.template}]</span>
                 </div>
                 <div class="event-args">
-                    <button class="icon-btn-mini" data-hook-uninstall="${h.id}">⏸ Uninstall</button>
-                    <button class="icon-btn-mini" data-hook-remove="${h.id}">🗑 Delete</button>
+                    <button class="icon-btn-mini" data-hook-uninstall="${h.id}">${icons.pause()} Uninstall</button>
+                    <button class="icon-btn-mini" data-hook-remove="${h.id}">${icons.trash()} Delete</button>
                 </div>
             </div>
         `).join("");
@@ -158,7 +159,7 @@ export function renderHookLog(host: HTMLElement): void {
     });
     host.querySelector<HTMLButtonElement>("#hl-pause")!.addEventListener("click", (ev) => {
         paused = !paused;
-        (ev.target as HTMLButtonElement).textContent = paused ? "▶" : "⏸";
+        (ev.target as HTMLButtonElement).innerHTML = paused ? icons.play() : icons.pause();
     });
     host.querySelector<HTMLButtonElement>("#hl-clear")!.addEventListener("click", () => {
         ring.length = 0; rerender();

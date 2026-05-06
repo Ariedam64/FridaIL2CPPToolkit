@@ -5,6 +5,7 @@
 
 import { api } from "../core/api.js";
 import { resolveField, hasFieldLabel, onLabelsChange } from "../core/label-resolver.js";
+import { icons } from "../core/icons.js";
 import type { NetField, NetFrame } from "../core/types.js";
 
 const KIND_COLORS: Record<NetField["kind"], string> = {
@@ -35,7 +36,7 @@ function renderField(
     const childPath = `${path}.${f.name}`;
     const hasChildren = !!f.children?.length;
     const open = hasChildren && expanded.has(childPath);
-    const caret = hasChildren ? `<span class="net-caret" data-path="${childPath}">${open ? "▼" : "▶"}</span>` : `<span class="net-caret-spacer"></span>`;
+    const caret = hasChildren ? `<span class="net-caret" data-path="${childPath}">${open ? icons.chevronDown(10) : icons.chevronRight(10)}</span>` : `<span class="net-caret-spacer"></span>`;
     const renamed = isTopLevel && hasFieldLabel(className, f.name);
     const nameDisplay = renamed
         ? `<strong style="color:var(--syntax-name)">${escape(resolveField(className, f.name))}</strong> <span style="color:var(--text-faint);font-size:10px">[${escape(f.name)}]</span>`
@@ -93,7 +94,7 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                     <div class="net-detail-title">${escape(frame.typeKey.className)}<span class="net-direction-pill ${frame.direction}" style="margin-left:8px">${frame.direction === "in" ? "← S2C" : "→ C2S"}</span></div>
                     <div class="net-obf">${escape(frame.typeKey.ns ?? "")} @ ${new Date(frame.timestamp).toISOString().slice(11, 23)} <span style="color:var(--text-faint)">· right-click a field to rename</span></div>
                 </div>
-                ${opts.onClose ? `<button class="icon-btn-mini" id="net-detail-close">✕</button>` : ""}
+                ${opts.onClose ? `<button class="icon-btn-mini" id="net-detail-close">${icons.x()}</button>` : ""}
             </div>
             <div class="net-detail">
                 ${frame.fields.map((f) => renderField(f, expanded, "", frame.typeKey.className, true)).join("")}

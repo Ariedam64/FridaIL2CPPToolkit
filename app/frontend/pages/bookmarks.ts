@@ -1,6 +1,7 @@
 // app/frontend/pages/bookmarks.ts
 import { api } from "../core/api.js";
 import { subscribe } from "../core/ws.js";
+import { icons } from "../core/icons.js";
 
 export function mountBookmarksPage(host: HTMLElement): void {
     host.innerHTML = `
@@ -29,10 +30,10 @@ export function mountBookmarksPage(host: HTMLElement): void {
                     : escape(k.className);
                 return `
                     <div style="padding:8px 12px;border-radius:8px;background:var(--bg-tile);margin-bottom:6px;display:flex;align-items:center;gap:8px">
-                        <span>⭐</span>
+                        <span>${icons.star()}</span>
                         <span style="flex:1">${display}</span>
                         <button class="icon-btn-mini" data-open="${escape(k.className)}">Open</button>
-                        <button class="icon-btn-mini" data-toggle='${JSON.stringify(k).replace(/'/g, "&#039;")}'>✗</button>
+                        <button class="icon-btn-mini" data-toggle='${JSON.stringify(k).replace(/'/g, "&#039;")}'>${icons.x()}</button>
                     </div>
                 `;
             }).join("");

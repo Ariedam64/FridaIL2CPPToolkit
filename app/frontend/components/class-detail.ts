@@ -1,5 +1,6 @@
 // app/frontend/components/class-detail.ts
 import { api } from "../core/api.js";
+import { icons } from "../core/icons.js";
 
 interface MethodEntry { isStatic: boolean; returnType: string; name: string; params: string; }
 interface FieldEntry { isStatic: boolean; type: string; name: string; }
@@ -75,7 +76,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                 <span class="type">${escape(f.type)}</span>
                 <span class="name">${escape(f.name)}</span>
                 <div class="actions">
-                    <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(f.name)}">📋</button>
+                    <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(f.name)}">${icons.clipboard()}</button>
                 </div>
             </div>
         `).join("");
@@ -88,10 +89,10 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                 <span class="name">${escape(m.name)}</span>
                 <span class="params">(${escape(m.params)})</span>
                 <div class="actions">
-                    <button class="icon-btn-mini hook-btn" data-method="${escape(m.name)}">🪝 Hook</button>
-                    <button class="icon-btn-mini trace-btn" data-method="${escape(m.name)}">🎯 Trace</button>
-                    <button class="icon-btn-mini netadd-btn" data-method="${escape(m.name)}" title="Add to Network plugin">⇄ Net</button>
-                    <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(m.name)}(${escape(m.params)})">📋</button>
+                    <button class="icon-btn-mini hook-btn" data-method="${escape(m.name)}">${icons.hook()} Hook</button>
+                    <button class="icon-btn-mini trace-btn" data-method="${escape(m.name)}">${icons.crosshair()} Trace</button>
+                    <button class="icon-btn-mini netadd-btn" data-method="${escape(m.name)}" title="Add to Network plugin">${icons.network()} Net</button>
+                    <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(m.name)}(${escape(m.params)})">${icons.clipboard()}</button>
                 </div>
             </div>
         `).join("");
@@ -106,14 +107,14 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                 <h1>${escape(shortName)}</h1>
                 <span class="badge-tag">${escape(fullName)}</span>
                 <div class="actions">
-                    <button class="pill" id="cd-bookmark">⭐</button>
-                    <button class="pill" id="cd-note">📝 Note</button>
-                    <button class="pill" id="cd-copy-obf">📋 Copy</button>
-                    <button class="pill primary" id="cd-rename">✏ Rename</button>
+                    <button class="pill" id="cd-bookmark">${icons.star()}</button>
+                    <button class="pill" id="cd-note">${icons.note()} Note</button>
+                    <button class="pill" id="cd-copy-obf">${icons.clipboard()} Copy</button>
+                    <button class="pill primary" id="cd-rename">${icons.pencil()} Rename</button>
                 </div>
             </div>
             <div class="member-filter-pill filter-pill">
-                <span style="color:var(--text-faint)">🔍</span>
+                <span style="color:var(--text-faint)">${icons.search()}</span>
                 <input id="cd-filter" placeholder="Filter members…">
             </div>
             <div class="class-content">
@@ -194,7 +195,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                         addedAt: new Date().toISOString(),
                     };
                     await api.putSerializerConfig([...cfg.config.entries, newEntry]);
-                    alert(`Added to Network plugin: ${dir} ${shortName}.${methodName}\nGo to ⇄ Network → Configure to enable & start.`);
+                    alert(`Added to Network plugin: ${dir} ${shortName}.${methodName}\nGo to Network → Configure to enable & start.`);
                 } catch (e) {
                     alert(`Add to Network failed: ${e instanceof Error ? e.message : String(e)}`);
                 }

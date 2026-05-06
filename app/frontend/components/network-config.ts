@@ -1,5 +1,6 @@
 import { api } from "../core/api.js";
 import type { NetSerializerEntry } from "../core/types.js";
+import { icons } from "../core/icons.js";
 
 function escape(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -19,13 +20,13 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
         modal.innerHTML = `
             <div style="padding:14px 18px;border-bottom:1px solid var(--border-strong);display:flex;justify-content:space-between;align-items:center">
                 <h3 style="margin:0">Configure network capture</h3>
-                <button class="icon-btn-mini" id="net-cfg-close">✕</button>
+                <button class="icon-btn-mini" id="net-cfg-close">${icons.x()}</button>
             </div>
             <div style="flex:1;overflow-y:auto;padding:14px 18px">
                 ${entries.length === 0 ? `<div style="color:var(--text-faint)">No entries yet — click "Add manual" to designate a serializer method.</div>` : ""}
                 ${entries.map((e, i) => `
                     <div style="padding:10px;background:var(--bg-tile);border:1px solid var(--border-strong);border-radius:6px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
-                        <span style="color:${e.disabled ? "var(--text-faint)" : (e.stale ? "var(--danger)" : "var(--success)")}">${e.disabled ? "○" : (e.stale ? "❌" : "●")}</span>
+                        <span style="color:${e.disabled ? "var(--text-faint)" : (e.stale ? "var(--danger)" : "var(--success)")}">${e.disabled ? icons.circle() : (e.stale ? icons.xCircle() : icons.circleFill())}</span>
                         <span style="font-family:var(--font-code);font-size:11px;flex:1">
                             <span style="color:${e.direction === "send" ? "var(--danger)" : "var(--success)"}">${e.direction.toUpperCase()}</span>
                             ${escape(e.ns ? e.ns + "." : "")}<strong>${escape(e.className)}</strong>.${escape(e.methodName)}
@@ -228,10 +229,10 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                     "validateSerializerEntry", [entry],
                 );
                 if (r.result.valid) {
-                    status.textContent = `✓ valid (signature: ${r.result.actualSignature ?? "?"})`;
+                    status.innerHTML = `${icons.check()} valid (signature: ${escape(r.result.actualSignature ?? "?")})`;
                     status.style.color = "var(--success)";
                 } else {
-                    status.textContent = `✗ ${r.result.reason}`;
+                    status.innerHTML = `${icons.x()} ${escape(r.result.reason ?? "")}`;
                     status.style.color = "var(--danger)";
                 }
             } catch (err) {

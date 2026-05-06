@@ -1,4 +1,5 @@
 // app/frontend/components/nav-icons.ts
+import { icons } from "../core/icons.js";
 
 export type NavTab = "explorer" | "hooks" | "network" | "bookmarks" | "migrations";
 
@@ -10,11 +11,11 @@ export interface NavIconsConfig {
 export function renderNavIcons(host: HTMLElement, cfg: NavIconsConfig): { setActive(t: NavTab): void; setBadge(t: NavTab, n: number): void } {
     host.className = "nav-icons";
     host.innerHTML = `
-        <div class="nav-icon" data-tab="explorer" title="Process Explorer">📦</div>
-        <div class="nav-icon" data-tab="hooks" title="Hooks"><span class="badge-count" hidden></span>🪝</div>
-        <div class="nav-icon" data-tab="network" title="Network">⇄</div>
-        <div class="nav-icon" data-tab="bookmarks" title="Bookmarks">⭐</div>
-        <div class="nav-icon" data-tab="migrations" title="Migrations">🔄</div>
+        <div class="nav-icon" data-tab="explorer" title="Process Explorer">${icons.box(18)}</div>
+        <div class="nav-icon" data-tab="hooks" title="Hooks"><span class="badge-count" hidden></span>${icons.hook(18)}</div>
+        <div class="nav-icon" data-tab="network" title="Network">${icons.network(18)}</div>
+        <div class="nav-icon" data-tab="bookmarks" title="Bookmarks">${icons.star(18)}</div>
+        <div class="nav-icon" data-tab="migrations" title="Migrations">${icons.refresh(18)}</div>
     `;
     let activeTab: NavTab = "explorer";
 
