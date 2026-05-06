@@ -88,6 +88,7 @@ export interface NetSerializerEntry {
     methodName: string;
     methodSignature: string;
     paramIndex?: number;
+    outputListIndex?: number;
     disabled?: boolean;
     stale?: boolean;
     addedAt: string;

@@ -34,6 +34,7 @@ interface SerializerEntry {
     methodName: string;
     methodSignature: string;
     paramIndex?: number;
+    outputListIndex?: number;
     disabled?: boolean;
     addedAt: string;
 }
@@ -219,8 +220,19 @@ function installEntryHook(entry: SerializerEntry, method: Il2Cpp.Method): void {
     const klass = method.class;
     const methodName = entry.methodName;
     const sendIndex = entry.paramIndex ?? 0;
+    const outListIdx = entry.outputListIndex;
 
     method.implementation = function (this: any, ...args: any[]): any {
+        // Snapshot output list count BEFORE the original call (recv-output-list mode).
+        let beforeCount = -1;
+        let outputList: any = null;
+        if (outListIdx !== undefined && entry.direction === "recv") {
+            outputList = args[outListIdx];
+            try {
+                if (outputList) beforeCount = Number(outputList.method("get_Count").invoke());
+            } catch {}
+        }
+
         let result: any;
         try {
             result = isStatic
@@ -230,23 +242,69 @@ function installEntryHook(entry: SerializerEntry, method: Il2Cpp.Method): void {
             captureThrow(entry, String(err));
             throw err;
         }
+
         try {
-            const messageObj = entry.direction === "send" ? args[sendIndex] : result;
-            if (messageObj && typeof messageObj === "object" && messageObj.class) {
-                const fields = walkFields(messageObj, MAX_FRAME_DEPTH);
-                const truncated = fields.length > 0 && fields[fields.length - 1].preview === TRUNCATED_MARKER;
-                const typeKey: TypeKey = {
-                    ns: messageObj.class.namespace || null,
-                    className: messageObj.class.name,
-                };
-                send({
-                    type: "network-frame",
-                    direction: entry.direction === "send" ? "out" : "in",
-                    timestamp: Date.now(),
-                    typeKey,
-                    fields,
-                    truncated,
-                });
+            if (outListIdx !== undefined && entry.direction === "recv") {
+                // Output-list pattern: walk each newly appended element.
+                if (outputList && beforeCount >= 0) {
+                    let afterCount = beforeCount;
+                    try { afterCount = Number(outputList.method("get_Count").invoke()); } catch {}
+                    for (let i = beforeCount; i < afterCount; i++) {
+                        try {
+                            let elem = outputList.method("get_Item").invoke(i) as any;
+                            if (!elem || !elem.class) continue;
+                            // Auto-unwrap GameMessage/GameRequest if present (heuristic —
+                            // generic wrapper detection: if the elem has exactly one
+                            // IMessage-typed field, dereference it).
+                            const cls = String(elem.class.name);
+                            if (cls === "GameMessage" || cls === "GameRequest") {
+                                for (const f of elem.class.fields) {
+                                    if (f.isStatic) continue;
+                                    if (f.type.name !== "Google.Protobuf.IMessage") continue;
+                                    try {
+                                        const inner = elem.field(f.name).value;
+                                        if (inner && inner.class) { elem = inner; break; }
+                                    } catch {}
+                                }
+                            }
+                            const fields = walkFields(elem, MAX_FRAME_DEPTH);
+                            const truncated = fields.length > 0 && fields[fields.length - 1].preview === TRUNCATED_MARKER;
+                            const typeKey: TypeKey = {
+                                ns: elem.class.namespace || null,
+                                className: elem.class.name,
+                            };
+                            send({
+                                type: "network-frame",
+                                direction: "in",
+                                timestamp: Date.now(),
+                                typeKey,
+                                fields,
+                                truncated,
+                            });
+                        } catch (err) {
+                            captureWalkError(entry, String(err));
+                        }
+                    }
+                }
+            } else {
+                // Default extraction: args[paramIndex] for send, result for recv.
+                const messageObj = entry.direction === "send" ? args[sendIndex] : result;
+                if (messageObj && typeof messageObj === "object" && messageObj.class) {
+                    const fields = walkFields(messageObj, MAX_FRAME_DEPTH);
+                    const truncated = fields.length > 0 && fields[fields.length - 1].preview === TRUNCATED_MARKER;
+                    const typeKey: TypeKey = {
+                        ns: messageObj.class.namespace || null,
+                        className: messageObj.class.name,
+                    };
+                    send({
+                        type: "network-frame",
+                        direction: entry.direction === "send" ? "out" : "in",
+                        timestamp: Date.now(),
+                        typeKey,
+                        fields,
+                        truncated,
+                    });
+                }
             }
         } catch (err) {
             captureWalkError(entry, String(err));

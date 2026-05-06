@@ -29,7 +29,7 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                         <span style="font-family:var(--font-code);font-size:11px;flex:1">
                             <span style="color:${e.direction === "send" ? "var(--danger)" : "var(--success)"}">${e.direction.toUpperCase()}</span>
                             ${escape(e.ns ? e.ns + "." : "")}<strong>${escape(e.className)}</strong>.${escape(e.methodName)}
-                            <span style="color:var(--text-faint)">${escape(e.methodSignature)}</span>
+                            <span style="color:var(--text-faint)">${escape(e.methodSignature)}${e.outputListIndex !== undefined ? ` [outList=${e.outputListIndex}]` : ""}</span>
                         </span>
                         <span style="color:var(--text-faint);font-size:10px">${e.source}</span>
                         <button class="icon-btn-mini" data-toggle="${i}">${e.disabled ? "Enable" : "Disable"}</button>
@@ -79,8 +79,8 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                     <option value="send">send (out)</option>
                     <option value="recv">recv (in)</option>
                 </select>
-                <label>Param index</label>
-                <input id="add-param" type="number" value="0" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px;width:60px">
+                <label>Param idx</label>
+                <input id="add-param" type="number" value="0" title="For SEND: index of the IMessage arg. For RECV-output-list: index of the source param (often unused)." style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px;width:60px">
                 <label>Class</label>
                 <div style="position:relative">
                     <input id="add-class" placeholder="search by name (e.g. Socket, Sender, IMessage)…" style="width:100%;font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
@@ -94,6 +94,9 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                 <input id="add-ns" placeholder="(filled when you pick a class)" readonly style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-faint);border:1px solid var(--border-strong);border-radius:4px">
                 <label>Signature</label>
                 <input id="add-sig" placeholder="(IMessage):Void" style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px">
+                <label>Out list idx</label>
+                <input id="add-outlist" type="number" placeholder="(optional)" title="For decoders that APPEND messages to a List&lt;Object&gt; output param, set the arg index of that list. Leave empty for the default extract-from-result path." style="font-family:var(--font-code);padding:3px 6px;background:var(--bg-tile);color:var(--text-strong);border:1px solid var(--border-strong);border-radius:4px;width:60px">
+                <label></label><span style="color:var(--text-faint);font-size:10px">DotNetty/decoder pattern: leave empty for normal recv via return value</span>
             </div>
             <div style="margin-top:10px;display:flex;gap:8px">
                 <button class="pill" id="add-validate">Validate</button>
@@ -202,6 +205,7 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
         function readForm(): NetSerializerEntry {
             const dir = (host.querySelector<HTMLSelectElement>("#add-dir")!.value === "recv") ? "recv" : "send";
             const ns = host.querySelector<HTMLInputElement>("#add-ns")!.value.trim();
+            const outListVal = host.querySelector<HTMLInputElement>("#add-outlist")!.value.trim();
             return {
                 source: "manual",
                 direction: dir,
@@ -210,6 +214,7 @@ export function showNetworkConfig(opts: { onSaved?(): void } = {}): void {
                 methodName: host.querySelector<HTMLSelectElement>("#add-method")!.value.trim(),
                 methodSignature: host.querySelector<HTMLInputElement>("#add-sig")!.value.trim(),
                 paramIndex: Number(host.querySelector<HTMLInputElement>("#add-param")!.value),
+                outputListIndex: outListVal === "" ? undefined : Number(outListVal),
                 addedAt: new Date().toISOString(),
             };
         }

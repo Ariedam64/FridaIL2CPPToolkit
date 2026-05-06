@@ -105,6 +105,7 @@ function sanitize(e: SerializerEntry): SerializerEntry {
         methodName: String(e.methodName ?? ""),
         methodSignature: String(e.methodSignature ?? ""),
         paramIndex: typeof e.paramIndex === "number" ? e.paramIndex : undefined,
+        outputListIndex: typeof e.outputListIndex === "number" ? e.outputListIndex : undefined,
         disabled: e.disabled === true ? true : undefined,
         stale: e.stale === true ? true : undefined,
         addedAt: typeof e.addedAt === "string" ? e.addedAt : new Date().toISOString(),

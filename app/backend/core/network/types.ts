@@ -51,6 +51,15 @@ export interface SerializerEntry {
     methodName: string;
     methodSignature: string;
     paramIndex?: number;
+    /**
+     * For decoders that APPEND decoded messages to a `List<Object>` output
+     * parameter (DotNetty pattern: `Decode(ctx, input, List<Object> output)`).
+     * When set, the agent compares the list's Count before/after the original
+     * call and walks each newly added element as a separate frame.
+     * Only meaningful when direction === "recv". Mutually exclusive with the
+     * default "extract from result" path.
+     */
+    outputListIndex?: number;
     disabled?: boolean;
     addedAt: string;
     lastValidatedAt?: string;
