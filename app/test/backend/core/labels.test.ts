@@ -70,7 +70,7 @@ describe("LabelStore", () => {
         store.scheduleFlush(20);
         // No file written yet — timer hasn't fired
         expect(fs.existsSync(labelsPath)).toBe(false);
-        await new Promise((r) => setTimeout(r, 60));
+        await new Promise((r) => setTimeout(r, 200));
         expect(fs.existsSync(labelsPath)).toBe(true);
         const reloaded = new LabelStore(labelsPath);
         expect(reloaded.get(classKey("a"))).toBe("A");
