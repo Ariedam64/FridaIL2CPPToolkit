@@ -47,16 +47,53 @@ export function mountNetworkStream(host: HTMLElement, opts: StreamMountOptions =
             <span id="net-stream-count" style="color:var(--text-faint);font-size:11px">0 / ${RING_LIMIT}</span>
         </div>
         <div id="net-stream-list" style="flex:1;overflow-y:auto;padding:6px 12px;font-family:var(--font-code);font-size:11px"></div>
+        <div id="net-stream-side-resizer" style="position:absolute;top:0;bottom:0;width:5px;cursor:col-resize;background:var(--border-strong);display:none;z-index:11"></div>
         <div id="net-stream-side" style="position:absolute;right:0;top:0;bottom:0;width:0;background:var(--bg-elevated);border-left:1px solid var(--border-strong);overflow-y:auto;transition:width 0.18s"></div>
     `;
 
     const list = host.querySelector<HTMLElement>("#net-stream-list")!;
     const countEl = host.querySelector<HTMLElement>("#net-stream-count")!;
     const sidePane = host.querySelector<HTMLElement>("#net-stream-side")!;
+    const sideResizer = host.querySelector<HTMLElement>("#net-stream-side-resizer")!;
     const filterInput = host.querySelector<HTMLInputElement>("#net-stream-filter")!;
     const pauseBtn = host.querySelector<HTMLButtonElement>("#net-stream-pause")!;
     filterInput.value = filter;
     const offLabels = onLabelsChange(() => rerender());
+
+    // Side-panel width: persisted, resizable via the left-edge handle.
+    const SIDE_WIDTH_KEY = "frida.network.stream.side.width";
+    let sideWidth = parseInt(localStorage.getItem(SIDE_WIDTH_KEY) ?? "400", 10);
+    sideWidth = Math.max(280, Math.min(1200, sideWidth));
+
+    function placeSideResizer(): void {
+        // Resizer sits flush against the left edge of the side-panel.
+        const w = parseFloat(sidePane.style.width || "0");
+        if (w <= 0) { sideResizer.style.display = "none"; return; }
+        sideResizer.style.display = "block";
+        sideResizer.style.right = `${w}px`;
+    }
+    let dragging = false;
+    sideResizer.addEventListener("pointerdown", (e) => {
+        dragging = true;
+        sideResizer.setPointerCapture(e.pointerId);
+        // Disable the panel's transition during drag for smooth tracking.
+        sidePane.style.transition = "none";
+    });
+    sideResizer.addEventListener("pointermove", (e) => {
+        if (!dragging) return;
+        const rect = host.getBoundingClientRect();
+        // Width = distance from pointer to the right edge of the host.
+        const w = Math.max(280, Math.min(1200, rect.right - e.clientX));
+        sideWidth = w;
+        sidePane.style.width = w + "px";
+        placeSideResizer();
+    });
+    sideResizer.addEventListener("pointerup", (e) => {
+        dragging = false;
+        sideResizer.releasePointerCapture(e.pointerId);
+        sidePane.style.transition = "width 0.18s";
+        localStorage.setItem(SIDE_WIDTH_KEY, String(sideWidth));
+    });
 
     function rerender(): void {
         const needle = filter.toLowerCase();
@@ -85,10 +122,15 @@ export function mountNetworkStream(host: HTMLElement, opts: StreamMountOptions =
     }
 
     function openDetail(frame: NetFrame): void {
-        sidePane.style.width = "400px";
+        sidePane.style.width = sideWidth + "px";
+        placeSideResizer();
         mountNetworkDetail(sidePane, frame, {
             onRename: opts.onRename,
-            onClose: () => { sidePane.style.width = "0"; sidePane.innerHTML = ""; },
+            onClose: () => {
+                sidePane.style.width = "0";
+                sidePane.innerHTML = "";
+                placeSideResizer();
+            },
         });
     }
 
