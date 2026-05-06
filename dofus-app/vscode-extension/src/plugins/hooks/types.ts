@@ -28,6 +28,14 @@ export interface HookEvent {
     stackFrames?: string[];
 }
 
+export interface HookAutoRevertEvent {
+    type: "hook-auto-revert";
+    hookId: string;
+    ts: number;
+    reason: string;
+    detail?: string;
+}
+
 /** Disk shape — what HookStore persists and what the tree provider consumes. */
 export interface StoredHook {
     /** Stable on-disk UUID. Distinct from agent-assigned hookId. */

@@ -59,12 +59,13 @@ export class ProcessExplorerProvider implements vscode.TreeDataProvider<Explorer
                 return item;
             }
             case "class": {
+                const fullName = node.ns ? `${node.ns}.${node.obfName}` : node.obfName;
                 const key: LabelKey = { kind: "class", className: node.obfName };
                 const display = profile ? this.displayWithObfTag(profile, key) : node.obfName;
                 const item = new vscode.TreeItem(display, vscode.TreeItemCollapsibleState.None);
                 item.iconPath = new vscode.ThemeIcon("symbol-class");
                 item.contextValue = "frida.class";
-                item.tooltip = node.obfName;
+                item.tooltip = fullName;
                 if (profile) {
                     if (profile.annotations.isBookmarked(key)) item.iconPath = new vscode.ThemeIcon("star-full");
                     if (profile.annotations.getNote(key)) item.description = "📝";
@@ -72,7 +73,7 @@ export class ProcessExplorerProvider implements vscode.TreeDataProvider<Explorer
                 item.command = {
                     command: "frida.openClassDetail",
                     title: "Open detail",
-                    arguments: [node.obfName],
+                    arguments: [fullName],
                 };
                 return item;
             }

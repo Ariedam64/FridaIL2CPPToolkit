@@ -32,3 +32,12 @@ export interface HookEvent {
     error?: string;
     stackFrames?: string[];
 }
+
+/** Emitted when the agent auto-uninstalls a misbehaving hook. */
+export interface HookAutoRevertEvent {
+    type: "hook-auto-revert";
+    hookId: string;
+    ts: number;
+    reason: string; // e.g. "lookup-error" or "throw-flood"
+    detail?: string; // optional further context
+}

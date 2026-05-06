@@ -29,7 +29,7 @@ import {
 } from "../lib";
 import { coerce } from "./registry";
 import { notFoundClass, notFoundMethod } from "./errors";
-import type { HookEvent, HookSpec, InstalledHook } from "./hook-types";
+import type { HookAutoRevertEvent, HookEvent, HookSpec, InstalledHook } from "./hook-types";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
     return Il2Cpp.perform(fn) as Promise<T>;
@@ -82,6 +82,10 @@ interface ManagedEntry {
     method: Il2Cpp.Method;
     installedAt: number;
     hitCount: number;
+    // Flood detection
+    throwCount: number;       // total throws since install
+    throwWindowStart: number; // ts when the current 1s window started
+    throwsInWindow: number;
 }
 
 const _managed = new Map<string, ManagedEntry>();
@@ -114,6 +118,28 @@ function safeRetval(r: any): string | null {
     catch (e) { return `<err: ${String(e).slice(0, 60)}>`; }
 }
 
+const FLOOD_WINDOW_MS = 1000;
+const FLOOD_MAX_THROWS = 50;
+
+function emitAutoRevert(hookId: string, reason: string, detail?: string): void {
+    const evt: HookAutoRevertEvent = { type: "hook-auto-revert", hookId, ts: Date.now(), reason, detail };
+    try { send(evt); } catch { /* host gone */ }
+}
+
+function autoRevert(hookId: string, reason: string, detail?: string): void {
+    const entry = _managed.get(hookId);
+    if (!entry) return;
+    try { entry.method.revert(); } catch {}
+    _managed.delete(hookId);
+    emitAutoRevert(hookId, reason, detail);
+    console.log(`[hooks] auto-reverted ${hookId} (${reason}): ${detail ?? ""}`);
+}
+
+function isLookupError(err: unknown): boolean {
+    const s = String(err);
+    return s.includes("couldn't find") || s.includes("Il2CppError");
+}
+
 function installLogTemplate(hookId: string, entry: ManagedEntry, captureStack: boolean): void {
     const { method } = entry;
     const isStatic = method.isStatic;
@@ -141,7 +167,29 @@ function installLogTemplate(hookId: string, entry: ManagedEntry, captureStack: b
                 ? klass.method(methodName).invoke(...args)
                 : (this as Il2Cpp.Object).method(methodName).invoke(...args);
         } catch (err) {
+            entry.throwCount++;
+            const now = Date.now();
+            if (now - entry.throwWindowStart > FLOOD_WINDOW_MS) {
+                entry.throwWindowStart = now;
+                entry.throwsInWindow = 1;
+            } else {
+                entry.throwsInWindow++;
+            }
             emit({ hookId, self: selfStr, args: argsStr, retval: null, error: String(err), stackFrames });
+
+            // Two auto-revert triggers: clear lookup errors (likely wrong class
+            // identity), or sustained throw flood (>50 throws in 1s).
+            if (isLookupError(err)) {
+                autoRevert(hookId, "lookup-error", String(err).slice(0, 200));
+                // Don't re-throw — we don't want to propagate to the original caller
+                // because the original target wasn't us anyway. Return undefined.
+                return undefined;
+            }
+            if (entry.throwsInWindow >= FLOOD_MAX_THROWS) {
+                autoRevert(hookId, "throw-flood", `${entry.throwsInWindow} throws in <1s`);
+                return undefined;
+            }
+
             throw err;
         }
         emit({ hookId, self: selfStr, args: argsStr, retval: safeRetval(result), stackFrames });
@@ -183,7 +231,10 @@ export function installHook(spec: HookSpec): Promise<{ hookId: string }> {
         if (!method) throw notFoundMethod(spec.className, spec.methodName);
 
         const hookId = `h${++_hookIdCounter}`;
-        const entry: ManagedEntry = { spec, method, installedAt: Date.now(), hitCount: 0 };
+        const entry: ManagedEntry = {
+            spec, method, installedAt: Date.now(), hitCount: 0,
+            throwCount: 0, throwWindowStart: 0, throwsInWindow: 0,
+        };
 
         switch (spec.template) {
             case "log":        installLogTemplate(hookId, entry, false); break;

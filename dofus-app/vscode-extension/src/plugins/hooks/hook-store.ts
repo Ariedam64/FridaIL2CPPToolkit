@@ -119,6 +119,15 @@ export class HookStore {
         this.emit();
     }
 
+    /** Mark a hook as disarmed because the agent auto-reverted it. */
+    markDisarmedByHookId(installedHookId: string): boolean {
+        const h = this.hooks.find((x) => x.installedHookId === installedHookId);
+        if (!h) return false;
+        h.installedHookId = null;
+        this.emit();
+        return true;
+    }
+
     onChange(listener: Listener): () => void {
         this.listeners.push(listener);
         return () => {

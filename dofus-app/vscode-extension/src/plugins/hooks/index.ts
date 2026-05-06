@@ -26,6 +26,27 @@ export function activateHooksPlugin(coreApi: CoreApi, _ctx: vscode.ExtensionCont
         try { return coreApi.labels; } catch { return null; }
     };
 
+    // Subscribe to agent auto-revert events. The listener is registered early
+    // but defers ensureStore() until we know a profile is attached (which is
+    // guaranteed if a hook fired in the first place).
+    const autoRevertSub = coreApi.onAgentMessage((payload: unknown) => {
+        if (
+            !payload || typeof payload !== "object" ||
+            (payload as { type?: string }).type !== "hook-auto-revert"
+        ) return;
+        const evt = payload as { hookId: string; reason: string; detail?: string };
+        const profile = coreApi.profile.current();
+        if (!profile) return;
+        const s = ensureStore();
+        const updated = s.markDisarmedByHookId(evt.hookId);
+        if (updated) {
+            vscode.window.showWarningMessage(
+                `Hook auto-reverted (${evt.reason})${evt.detail ? `: ${evt.detail}` : ""}`,
+            );
+        }
+    });
+    disposables.push(autoRevertSub);
+
     // Build pieces lazily after the first attach so storage() doesn't throw.
     let bound = false;
     const bind = (): void => {
