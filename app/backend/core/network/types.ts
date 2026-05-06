@@ -1,6 +1,6 @@
-// Pure type declarations + tunable constants for the Network plugin.
-// No runtime logic here — frame-store / type-aggregator / serializer-config
-// import these.
+// Pure type declarations, tunable constants, and TypeKey utilities for the
+// Network plugin. No stateful logic — frame-store / type-aggregator /
+// serializer-config import these.
 
 export const MAX_FRAME_DEPTH = 2;
 export const MAX_FIELD_PREVIEW_CHARS = 80;
@@ -77,7 +77,7 @@ export function encodeTypeKey(k: TypeKey): string {
 }
 
 export function decodeTypeKey(encoded: string): TypeKey {
-    const idx = encoded.indexOf("~");
+    const idx = encoded.lastIndexOf("~");
     if (idx < 0) return { ns: null, className: encoded };
     const ns = encoded.slice(0, idx);
     const className = encoded.slice(idx + 1);
