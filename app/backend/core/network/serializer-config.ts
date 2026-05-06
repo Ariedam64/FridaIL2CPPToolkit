@@ -7,6 +7,7 @@ export interface EntryRef {
     className: string;
     methodName: string;
     direction: "send" | "recv";
+    ns?: string | null;  // optional — when provided, refines the match
 }
 
 type Listener = () => void;
@@ -88,9 +89,11 @@ export class SerializerConfigStore {
 }
 
 function match(e: SerializerEntry, ref: EntryRef): boolean {
-    return e.className === ref.className
-        && e.methodName === ref.methodName
-        && e.direction === ref.direction;
+    if (e.className !== ref.className) return false;
+    if (e.methodName !== ref.methodName) return false;
+    if (e.direction !== ref.direction) return false;
+    if (ref.ns !== undefined && e.ns !== ref.ns) return false;
+    return true;
 }
 
 function sanitize(e: SerializerEntry): SerializerEntry {

@@ -269,7 +269,19 @@ function captureThrow(entry: SerializerEntry, error: string): void {
     if (inst.throwsInWindow >= FLOOD_MAX_THROWS) {
         try { inst.method.revert(); } catch {}
         _installed.delete(id);
-        try { send({ type: "network-auto-revert", entryId: id, reason: "throw-flood", detail: error.slice(0, 200) }); } catch {}
+        try {
+            send({
+                type: "network-auto-revert",
+                entry: {
+                    className: entry.className,
+                    ns: entry.ns,
+                    methodName: entry.methodName,
+                    direction: entry.direction,
+                },
+                reason: "throw-flood",
+                detail: error.slice(0, 200),
+            });
+        } catch {}
     }
 }
 

@@ -12,7 +12,12 @@ interface AgentNetworkFramePayload {
 
 interface AgentAutoRevertPayload {
     type: "network-auto-revert";
-    entryId: string;          // shape: "<className>.<methodName>@<direction>"
+    entry: {
+        className: string;
+        ns: string | null;
+        methodName: string;
+        direction: "send" | "recv";
+    };
     reason: string;
     detail?: string;
 }
@@ -48,9 +53,16 @@ export function mountNetworkEventBus(session: Session): () => void {
             const p = payload as AgentAutoRevertPayload;
             const cfg = session.serializerConfigStore();
             if (!cfg) return;
-            const m = /^(.+)\.([^.@]+)@(send|recv)$/.exec(p.entryId);
-            if (!m) return;
-            cfg.markStale({ className: m[1], methodName: m[2], direction: m[3] as "send" | "recv" }, true);
+            if (!p.entry || !p.entry.className || !p.entry.methodName) return;
+            cfg.markStale(
+                {
+                    className: p.entry.className,
+                    ns: p.entry.ns,
+                    methodName: p.entry.methodName,
+                    direction: p.entry.direction,
+                },
+                true,
+            );
         } else if (payload.type === "network-frame-error") {
             const p = payload as AgentFrameErrorPayload;
             const store = session.frameStore();

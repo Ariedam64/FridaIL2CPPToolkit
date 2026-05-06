@@ -126,9 +126,15 @@ export function mountNetworkInspector(host: HTMLElement, opts: InspectorMountOpt
     });
     host.querySelector<HTMLButtonElement>("#net-insp-refresh")!.addEventListener("click", () => { void refreshTable(); });
 
-    const offFrame = subscribe("network-frame-added", () => {
-        // We don't know the new frame's type from the throttled message — refresh blindly.
-        void refreshTable();
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    const offFrame = subscribe("network-frame-added", (msg: { frame: { typeKey: NetTypeKey } }) => {
+        // Skip frames not for the currently-viewed type.
+        if (!currentKey) return;
+        const k = msg.frame?.typeKey;
+        if (!k || k.className !== currentKey.className || k.ns !== currentKey.ns) return;
+        // Debounce so we don't fetch on every frame at high rates.
+        if (refreshTimer) return;
+        refreshTimer = setTimeout(() => { refreshTimer = null; void refreshTable(); }, 200);
     });
 
     void refreshTypeList().then(() => refreshTable());
@@ -138,6 +144,9 @@ export function mountNetworkInspector(host: HTMLElement, opts: InspectorMountOpt
             currentKey = key;
             void refreshTypeList().then(() => refreshTable());
         },
-        dispose() { offFrame(); },
+        dispose() {
+            offFrame();
+            if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+        },
     };
 }
