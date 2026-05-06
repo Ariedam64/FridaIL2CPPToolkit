@@ -10,6 +10,7 @@ const MAX_FIELD_PREVIEW_CHARS = 80;
 const MAX_FRAME_BYTES = 50_000;
 const FLOOD_WINDOW_MS = 1000;
 const FLOOD_MAX_THROWS = 50;
+const TRUNCATED_MARKER = "<truncated: frame too large>";
 
 type FieldKind =
     | "int" | "long" | "float" | "bool"
@@ -56,7 +57,10 @@ function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
 }
 
 function entryId(e: SerializerEntry): string {
-    return `${e.className}.${e.methodName}@${e.direction}`;
+    // Include ns + signature so two overloads or namespaced classes with the
+    // same short name don't collide in `_installed`.
+    const ns = e.ns ?? "";
+    return `${ns}.${e.className}.${e.methodName}(${e.methodSignature})@${e.direction}`;
 }
 
 function classifyType(typeName: string): FieldKind {
@@ -155,7 +159,7 @@ function walkFields(obj: any, depth: number): FrameField[] {
         out.push(entry);
         totalBytes += JSON.stringify(entry).length;
         if (totalBytes > MAX_FRAME_BYTES) {
-            out.push({ name: "…", kind: "unknown", preview: "<truncated: frame too large>" });
+            out.push({ name: "…", kind: "unknown", preview: TRUNCATED_MARKER });
             break;
         }
     }
@@ -230,7 +234,7 @@ function installEntryHook(entry: SerializerEntry, method: Il2Cpp.Method): void {
             const messageObj = entry.direction === "send" ? args[sendIndex] : result;
             if (messageObj && typeof messageObj === "object" && messageObj.class) {
                 const fields = walkFields(messageObj, MAX_FRAME_DEPTH);
-                const truncated = fields.length > 0 && fields[fields.length - 1].preview.includes("truncated");
+                const truncated = fields.length > 0 && fields[fields.length - 1].preview === TRUNCATED_MARKER;
                 const typeKey: TypeKey = {
                     ns: messageObj.class.namespace || null,
                     className: messageObj.class.name,
@@ -288,7 +292,9 @@ export async function disarmNetworkCapture(): Promise<{ reverted: number }> {
 }
 
 export async function listInstalledNetworkHooks(): Promise<SerializerEntry[]> {
-    const out: SerializerEntry[] = [];
-    _installed.forEach((inst) => out.push(inst.entry));
-    return out;
+    return inVm(() => {
+        const out: SerializerEntry[] = [];
+        _installed.forEach((inst) => out.push(inst.entry));
+        return out;
+    });
 }
