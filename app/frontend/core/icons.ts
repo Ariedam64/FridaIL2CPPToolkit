@@ -35,4 +35,5 @@ export const icons = {
     eject:        (s = 14) => svg(`<path d="M5 17h14"/><path d="M12 4 4 14h16z"/>`, s),
     folder:       (s = 14) => svg(`<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>`, s),
     layers:       (s = 14) => svg(`<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>`, s),
+    crown:      (s = 14) => svg(`<path d="M2 7l6 4 4-6 4 6 6-4-2 12H4z"/><line x1="6" y1="17" x2="18" y2="17"/>`, s),
 };
