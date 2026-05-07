@@ -5,6 +5,7 @@ import type {
     Toolkit, InstanceHandle, HookHandle, NetworkPacket, CaptureOpts,
     HookInstallOpts, HookCallEvent, ScriptLog,
 } from "./types";
+import type { HookSpec } from "../hooks/types";
 
 export interface ToolkitDeps {
     runId: string;
@@ -102,13 +103,13 @@ function buildHooks(deps: ToolkitDeps): Toolkit["hooks"] {
         async install(target, opts) {
             const store = requireStore();
             const [className, methodName] = splitTarget(target);
-            const spec = {
+            const spec: HookSpec = {
                 className: deps.resolveLabel(className),
                 methodName: deps.resolveLabel(methodName),
                 template: opts.mode === "modify-return" ? "force-return" : "log",
-                forceReturnValue: opts.returnValue,
+                ...(opts.returnValue !== undefined ? { forceReturnValue: opts.returnValue } : {}),
             };
-            const stored = store.add(spec as unknown as Parameters<typeof store.add>[0]);
+            const stored = store.add(spec);
             await store.install(stored.id);
             return { id: stored.id };
         },
@@ -116,31 +117,39 @@ function buildHooks(deps: ToolkitDeps): Toolkit["hooks"] {
             const store = requireStore();
             await store.remove(handle.id);
         },
-        async onceCall(target, opts) {
+        onceCall(target, opts) {
             const store = requireStore();
             const [className, methodName] = splitTarget(target);
-            const spec = {
+            const spec: HookSpec = {
                 className: deps.resolveLabel(className),
                 methodName: deps.resolveLabel(methodName),
                 template: "log",
             };
-            const stored = store.add(spec as unknown as Parameters<typeof store.add>[0]);
-            await store.install(stored.id);
+            const stored = store.add(spec);
 
-            const timeoutMs = opts?.timeoutMs ?? 30_000;
             return new Promise<HookCallEvent>((resolve, reject) => {
-                const timer = setTimeout(() => {
-                    unsub();
-                    void store.remove(stored.id);
-                    reject(new Error(`timeout waiting for ${target} after ${timeoutMs}ms`));
-                }, timeoutMs);
+                let timer: ReturnType<typeof setTimeout> | null = null;
 
                 const unsub = store.onAgentEvent((evt) => {
                     if (evt.hookId !== stored.id) return;
-                    clearTimeout(timer);
+                    if (timer) clearTimeout(timer);
                     unsub();
                     void store.remove(stored.id);
-                    resolve({ args: evt.args, ts: new Date().toISOString() });
+                    resolve({ args: evt.args, ts: evt.ts !== undefined ? new Date(evt.ts).toISOString() : new Date().toISOString() });
+                });
+
+                // Now arm the hook (event handler is already in place).
+                store.install(stored.id).then(() => {
+                    const timeoutMs = opts?.timeoutMs ?? 30_000;
+                    timer = setTimeout(() => {
+                        unsub();
+                        void store.remove(stored.id);
+                        reject(new Error(`timeout waiting for ${target} after ${timeoutMs}ms`));
+                    }, timeoutMs);
+                }).catch((err) => {
+                    unsub();
+                    void store.remove(stored.id);
+                    reject(err instanceof Error ? err : new Error(String(err)));
                 });
             });
         },

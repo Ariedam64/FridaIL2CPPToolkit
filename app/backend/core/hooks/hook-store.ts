@@ -136,10 +136,10 @@ export class HookStore {
         };
     }
 
-    private agentEventListeners: Array<(evt: { hookId: string; args: unknown[] }) => void> = [];
+    private agentEventListeners: Array<(evt: { hookId: string; args: unknown[]; ts?: number }) => void> = [];
 
     /** Subscribe to agent-emitted hook-call events. Used by toolkit-api.hooks.onceCall. */
-    onAgentEvent(listener: (evt: { hookId: string; args: unknown[] }) => void): () => void {
+    onAgentEvent(listener: (evt: { hookId: string; args: unknown[]; ts?: number }) => void): () => void {
         this.agentEventListeners.push(listener);
         return () => {
             const i = this.agentEventListeners.indexOf(listener);
@@ -148,9 +148,11 @@ export class HookStore {
     }
 
     /** Called by session.ts when an agent-message of type 'hook-event' arrives. */
-    notifyAgentEvent(hookId: string, args: unknown[]): void {
+    notifyAgentEvent(agentHookId: string, args: unknown[], ts?: number): void {
+        const stored = this.hooks.find((h) => h.installedHookId === agentHookId);
+        if (!stored) return;  // unknown hookId — ignore (not for us)
         for (const l of this.agentEventListeners) {
-            try { l({ hookId, args }); } catch { /* swallow */ }
+            try { l({ hookId: stored.id, args, ts }); } catch { /* swallow */ }
         }
     }
 

@@ -68,6 +68,15 @@ describe("toolkit.hooks", () => {
     it("install throws when not attached (no hookStore)", async () => {
         const deps = { ...makeDeps(), hookStore: null };
         const toolkit = buildToolkit(deps);
-        await expect(toolkit.hooks.install("X", {})).rejects.toThrow(/not attached/);
+        await expect(toolkit.hooks.install("X.foo", {})).rejects.toThrow(/not attached/);
+    });
+
+    it("onceCall ignores events with non-matching hookId (regression: agent vs stored ID translation)", async () => {
+        const deps = makeDeps();
+        const toolkit = buildToolkit(deps);
+        const promise = toolkit.hooks.onceCall("X.foo", { timeoutMs: 80 });
+        // Emit an event with a DIFFERENT hookId — should be ignored, NOT resolve the promise.
+        setTimeout(() => deps.hookEmitter.emit("event", { hookId: "DIFFERENT", args: [99] }), 10);
+        await expect(promise).rejects.toThrow(/timeout/);
     });
 });
