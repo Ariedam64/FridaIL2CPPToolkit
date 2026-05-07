@@ -11,6 +11,8 @@ import { mountNetworkPage } from "./pages/network.js";
 import { mountInstancesPage } from "./pages/instances.js";
 import { mountScriptsPage } from "./pages/scripts.js";
 import { showProcessPicker } from "./components/process-picker.js";
+import { getPlugin } from "./core/plugin-host.js";
+import { mountPluginPage } from "./core/mount-plugin-page.js";
 import { bindPaletteShortcut } from "./components/command-palette.js";
 
 const root = document.getElementById("app")!;
@@ -29,50 +31,72 @@ root.innerHTML = `
 `;
 
 const sb = renderStatusBar(document.getElementById("statusbar-host")!);
+let cachedProfile: { gameName: string; buildId: string } | null = null;
 const connBadge = document.getElementById("conn-badge")!;
 const pageHost = document.getElementById("page-host")!;
 pageHost.style.flex = "1";
 pageHost.style.display = "flex";
 pageHost.style.minHeight = "0";
 
-function mountPage(tab: NavTab): void {
+async function mountPage(tab: NavTab): Promise<void> {
     pageHost.innerHTML = "";
-    // Reset inline styles set by previous pages — prevents flex-direction
-    // from the Instances page leaking into Explorer's 3-panel layout, etc.
     pageHost.style.cssText = "";
     pageHost.style.flex = "1";
     pageHost.style.display = "flex";
     pageHost.style.minHeight = "0";
-    if (tab === "explorer") mountExplorerPage(pageHost);
-    else if (tab === "hooks") mountHooksPage(pageHost);
-    else if (tab === "network") mountNetworkPage(pageHost);
-    else if (tab === "bookmarks") mountBookmarksPage(pageHost);
-    else if (tab === "migrations") mountMigrationsPage(pageHost);
-    else if (tab === "instances") mountInstancesPage(pageHost);
-    else if (tab === "scripts") mountScriptsPage(pageHost);
+
+    if (tab === "explorer") return mountExplorerPage(pageHost);
+    if (tab === "hooks") return mountHooksPage(pageHost);
+    if (tab === "network") return mountNetworkPage(pageHost);
+    if (tab === "bookmarks") return mountBookmarksPage(pageHost);
+    if (tab === "migrations") return mountMigrationsPage(pageHost);
+    if (tab === "instances") return mountInstancesPage(pageHost);
+    if (tab === "scripts") return mountScriptsPage(pageHost);
+
+    // Plugin fallback
+    const plugin = getPlugin(tab);
+    if (plugin) {
+        await mountPluginPage(pageHost, plugin, {
+            profile: cachedProfile,
+            currentSubTab: parseSubTab(location.hash),
+            setSubTab: (key) => { location.hash = `#/${plugin.id}?sub=${encodeURIComponent(key)}`; },
+            onAttachClick: () => void showProcessPicker(),
+        });
+        return;
+    }
+
+    // Unknown tab → default to explorer
+    return mountExplorerPage(pageHost);
+}
+
+function parseSubTab(hash: string): string | null {
+    const m = /\?sub=([^&]+)/.exec(hash);
+    return m ? decodeURIComponent(m[1]) : null;
 }
 
 const navHandle = renderNavIcons(document.getElementById("nav-icons-host")!, {
     onSelect: (tab: NavTab) => {
         location.hash = `#/${tab}`;
-        mountPage(tab);
+        void mountPage(tab);
     },
 });
 
 window.addEventListener("hashchange", () => {
     const tab = (location.hash.replace(/^#\//, "").split("?")[0] || "explorer") as NavTab;
     navHandle.setActive(tab);
-    mountPage(tab);
+    void mountPage(tab);
 });
 
 async function refreshProfile(): Promise<void> {
     try {
         const { profile } = await api.getProfile();
         if (profile) {
+            cachedProfile = { gameName: profile.manifest.gameName, buildId: profile.manifest.buildId };
             sb.setConnection(`${profile.manifest.gameName} / ${profile.manifest.buildId.slice(0, 8)}`, true);
             connBadge.textContent = "connected";
             connBadge.classList.remove("disconnected");
         } else {
+            cachedProfile = null;
             sb.setConnection("no connection", false);
             connBadge.textContent = "disconnected";
             connBadge.classList.add("disconnected");
@@ -81,9 +105,14 @@ async function refreshProfile(): Promise<void> {
 }
 
 connectWs();
-subscribe("profile-attached", refreshProfile);
-subscribe("profile-detached", refreshProfile);
+subscribe("profile-attached", () => { void refreshProfile().then(maybeRemountPlugin); });
+subscribe("profile-detached", () => { void refreshProfile().then(maybeRemountPlugin); });
 void refreshProfile();
+
+function maybeRemountPlugin(): void {
+    const tab = (location.hash.replace(/^#\//, "").split("?")[0] || "explorer") as NavTab;
+    if (getPlugin(tab)) void mountPage(tab);
+}
 
 // Forward script WS events to the active page host as CustomEvents.
 // WS messages arrive as { type, payload } envelopes — unwrap to pass only the
@@ -96,7 +125,7 @@ for (const type of ["script-list-changed", "script-log", "script-result"] as con
 
 const initialTab = (location.hash.replace(/^#\//, "").split("?")[0] || "explorer") as NavTab;
 navHandle.setActive(initialTab);
-mountPage(initialTab);
+void mountPage(initialTab);
 
 document.getElementById("attach-btn")!.addEventListener("click", () => {
     void showProcessPicker();
