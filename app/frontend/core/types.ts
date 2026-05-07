@@ -110,3 +110,73 @@ export interface LabelKeyLite {
     methodName?: string;
     fieldName?: string;
 }
+
+// ---------------------------------------------------------------------------
+// v1.4 Instances plugin
+// ---------------------------------------------------------------------------
+
+export type InstanceRecipeStep =
+    | { op: "captureViaGC"; className: string; index: number; asKey: string }
+    | { op: "captureViaHook"; className: string; tickMethod: string; timeoutMs: number; asKey: string }
+    | { op: "captureFieldValue"; ownerKey: string; fieldName: string; asKey: string }
+    | { op: "captureListElement"; ownerKey: string; listFieldName: string; index: number; asKey: string }
+    | { op: "captureMethodReturn"; ownerKey: string; methodName: string; args: unknown[]; asKey: string };
+
+export interface InstanceRecipe {
+    id: string;
+    name: string;
+    description?: string;
+    steps: InstanceRecipeStep[];
+    createdAt: string;
+    updatedAt: string;
+    lastReplayedAt?: string;
+    lastReplayStatus?: "ok" | "partial" | "failed";
+}
+
+export interface CapturedInstanceLite {
+    key: string;
+    className: string;
+    handle: string;
+    capturedAt: string;
+    capturedVia: InstanceRecipeStep["op"];
+    isAlive: boolean;
+}
+
+export interface FieldReadLite {
+    name: string;
+    typeName: string;
+    kind: "scalar" | "string" | "enum" | "nested" | "array" | "null" | "unknown";
+    preview: string;
+    rawValue?: string | number | boolean;
+    enumNumeric?: number;
+    nestedClass?: string;
+    arrayLength?: number;
+    isWritable: boolean;
+}
+
+export interface InstanceHistoryEntry {
+    id: string;
+    timestamp: string;
+    action: "write" | "call";
+    target: { instanceKey: string; member: string };
+    before?: string;
+    after?: string;
+    callArgs?: unknown[];
+    callResult?: string;
+    success: boolean;
+    error?: string;
+}
+
+export interface InstanceRecipeStepResult {
+    stepIndex: number;
+    op: InstanceRecipeStep["op"];
+    asKey: string;
+    ok: boolean;
+    summary?: string;
+    error?: string;
+}
+
+export interface InstanceRecipeReplayResult {
+    steps: InstanceRecipeStepResult[];
+    finalStatus: "ok" | "partial" | "failed";
+}

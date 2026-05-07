@@ -91,4 +91,63 @@ export const api = {
     stopNetworkCapture() {
         return call<{ reverted: number }>("POST", "/api/network/stop");
     },
+
+    // ---- v1.4 Instances ----
+    listInstances() {
+        return call<{ instances: import("./types.js").CapturedInstanceLite[] }>("GET", "/api/instances/list");
+    },
+    captureInstance(payload: import("./types.js").InstanceRecipeStep) {
+        return call<{ key: string; summary: string }>("POST", "/api/instances/capture", payload);
+    },
+    deleteInstance(key: string) {
+        return call<{ ok: boolean }>("DELETE", `/api/instances/${encodeURIComponent(key)}`);
+    },
+    readInstanceFields(key: string) {
+        return call<{ alive: boolean; fields: import("./types.js").FieldReadLite[]; error?: string }>(
+            "POST", `/api/instances/${encodeURIComponent(key)}/read-fields`,
+        );
+    },
+    writeInstanceField(key: string, fieldName: string, value: unknown) {
+        return call<{ before: string; after: string }>(
+            "POST", `/api/instances/${encodeURIComponent(key)}/write-field`, { fieldName, value },
+        );
+    },
+    callInstanceMethod(key: string, methodName: string, args: unknown[]) {
+        return call<{ result: string }>(
+            "POST", `/api/instances/${encodeURIComponent(key)}/call`, { methodName, args },
+        );
+    },
+    getInstancesReadOnly() {
+        return call<{ enabled: boolean }>("GET", "/api/instances/read-only");
+    },
+    setInstancesReadOnly(enabled: boolean) {
+        return call<{ enabled: boolean }>("POST", "/api/instances/read-only", { enabled });
+    },
+    listRecipes() {
+        return call<{ recipes: import("./types.js").InstanceRecipe[] }>("GET", "/api/instances/recipes");
+    },
+    addRecipe(name: string, steps: import("./types.js").InstanceRecipeStep[], description?: string) {
+        return call<{ recipe: import("./types.js").InstanceRecipe }>(
+            "POST", "/api/instances/recipes", { name, steps, description },
+        );
+    },
+    updateRecipe(id: string, patch: Partial<import("./types.js").InstanceRecipe>) {
+        return call<{ recipe: import("./types.js").InstanceRecipe }>(
+            "PUT", `/api/instances/recipes/${encodeURIComponent(id)}`, patch,
+        );
+    },
+    deleteRecipe(id: string) {
+        return call<{ ok: boolean }>("DELETE", `/api/instances/recipes/${encodeURIComponent(id)}`);
+    },
+    replayRecipe(id: string) {
+        return call<import("./types.js").InstanceRecipeReplayResult>(
+            "POST", `/api/instances/recipes/${encodeURIComponent(id)}/replay`,
+        );
+    },
+    getInstanceHistory() {
+        return call<{ entries: import("./types.js").InstanceHistoryEntry[] }>("GET", "/api/instances/history");
+    },
+    clearInstanceHistory() {
+        return call<{ ok: boolean }>("DELETE", "/api/instances/history");
+    },
 };
