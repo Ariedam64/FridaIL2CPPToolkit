@@ -275,7 +275,7 @@ function renderViewer(): void {
                 row.innerHTML = `
                     <span class="ip-field-name">${escape(name)}</span>
                     <span class="ip-field-type" style="min-width:0"></span>
-                    <button class="ip-pill" data-call="${escape(name)}" ${_readOnly ? "disabled" : ""}>Call</button>
+                    <button class="ip-pill" data-call="${escape(name)}">Call</button>
                 `;
                 row.querySelector<HTMLButtonElement>(`[data-call]`)?.addEventListener("click", () => {
                     import("../components/instance-call-modal.js").then(({ openCallModal }) => {
@@ -283,6 +283,7 @@ function renderViewer(): void {
                             instanceKey: activeKey,
                             methodName: name,
                             parameters: [],
+                            readOnly: _readOnly,
                             onResult: (result) => { console.log("call result:", result); },
                         });
                     });

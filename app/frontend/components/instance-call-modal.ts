@@ -4,6 +4,7 @@ export interface CallModalOptions {
     instanceKey: string;
     methodName: string;
     parameters: Array<{ name: string; typeName: string }>;
+    readOnly: boolean;
     onResult(result: string): void;
 }
 
@@ -19,16 +20,26 @@ export function openCallModal(opts: CallModalOptions): void {
         : opts.parameters.map((p) => `
             <label style="display:block;margin-bottom:8px"><span style="display:inline-block;min-width:100px">${escape(p.name)}</span><span style="font-size:10px;color:var(--text-faint)"> (${escape(p.typeName)})</span><br><input class="ip-input" data-param="${escape(p.name)}" style="width:100%"></label>
         `).join("");
+    const warningHtml = opts.readOnly
+        ? `<div style="background:rgba(239,68,68,0.10);border:1px solid var(--danger);padding:8px;border-radius:4px;font-size:11px;margin-bottom:14px;color:var(--danger)">
+             🔒 Read-Only mode is ON. Toggle it OFF in the toolbar before calling.
+           </div>`
+        : `<div style="background:rgba(245,158,11,0.10);border:1px solid var(--warning);padding:8px;border-radius:4px;font-size:11px;margin-bottom:14px">
+             ⚠ Calling this method executes game code. Risk: client may crash, server may desync.
+           </div>`;
+
+    const callBtnAttrs = opts.readOnly
+        ? `disabled style="background:var(--bg-elevated);color:var(--text-faint);cursor:not-allowed"`
+        : `style="background:var(--warning);color:var(--bg)"`;
+
     overlay.innerHTML = `
         <div style="background:var(--bg);border:1px solid var(--border-strong);border-radius:6px;padding:18px;width:480px">
             <h3 style="margin-top:0">Call ${escape(opts.instanceKey)}.${escape(opts.methodName)}()</h3>
             <div style="margin-bottom:14px">${paramsHtml}</div>
-            <div style="background:rgba(245,158,11,0.10);border:1px solid var(--warning);padding:8px;border-radius:4px;font-size:11px;margin-bottom:14px">
-                ⚠ Calling this method executes game code. Risk: client may crash, server may desync.
-            </div>
+            ${warningHtml}
             <div style="display:flex;gap:6px;justify-content:flex-end">
                 <button class="ip-pill" data-cancel>Cancel</button>
-                <button class="ip-pill" data-call style="background:var(--warning);color:var(--bg)">Call</button>
+                <button class="ip-pill" data-call ${callBtnAttrs}>Call</button>
             </div>
         </div>
     `;
