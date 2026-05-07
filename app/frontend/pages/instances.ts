@@ -262,29 +262,36 @@ function renderViewer(): void {
     }
     const mc = v.querySelector<HTMLElement>("#ip-methods");
     if (mc) {
-        // listClassMembers returns { methods: string[], fields: string[] } — names only
-        void api.rpc<{ methods: string[]; fields: string[] }>(
-            "listClassMembers", [inst.className],
+        void api.rpc<Array<{ name: string; returnType: string; isStatic: boolean; parameters: Array<{ name: string; typeName: string }> }>>(
+            "listMethodsDetailed", [inst.className],
         ).then((r) => {
-            const methodNames = r.result.methods;
-            if (methodNames.length === 0) {
-                mc.innerHTML = `<div style="color:var(--text-faint);font-size:11px;padding:4px 0">No methods found.</div>`;
+            const methods = r.result.filter((m) => !m.isStatic);
+            if (methods.length === 0) {
+                mc.innerHTML = `<div style="color:var(--text-faint);font-size:11px;padding:4px 0">No instance methods found.</div>`;
                 return;
             }
-            for (const name of methodNames) {
+            for (const m of methods) {
                 const row = document.createElement("div");
                 row.className = "ip-field-row";
+                // Build a readable signature: ReturnType name(Type1 p1, Type2 p2)
+                const returnShort = m.returnType.replace(/^System\./, "");
+                const paramsStr = m.parameters.length === 0
+                    ? ""
+                    : m.parameters.map((p) => `${p.typeName.replace(/^System\./, "")} ${p.name || "_"}`).join(", ");
+                const sig = `${returnShort} ${m.name}(${paramsStr})`;
                 row.innerHTML = `
-                    <span class="ip-field-name">${escape(name)}</span>
-                    <span class="ip-field-type" style="min-width:0"></span>
-                    <button class="ip-pill" data-call="${escape(name)}">Call</button>
+                    <span class="ip-field-name" style="min-width:140px">${escape(m.name)}</span>
+                    <span class="ip-field-type" style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escape(sig)}">${escape(sig)}</span>
+                    <button class="ip-pill" data-call="${escape(m.name)}">Call</button>
                 `;
-                row.querySelector<HTMLButtonElement>(`[data-call]`)?.addEventListener("click", () => {
+                const callBtn = row.querySelector<HTMLButtonElement>(`[data-call]`);
+                callBtn?.addEventListener("click", () => {
                     import("../components/instance-call-modal.js").then(({ openCallModal }) => {
+                        if (!_activeKey) return;
                         openCallModal({
-                            instanceKey: activeKey,
-                            methodName: name,
-                            parameters: [],
+                            instanceKey: _activeKey,
+                            methodName: m.name,
+                            parameters: m.parameters,
                             readOnly: _readOnly,
                             onResult: (result) => { console.log("call result:", result); },
                         });

@@ -797,6 +797,43 @@ export function readDict(className: string, fieldName: string, limit = 50): Prom
 }
 
 /**
+ * List non-static methods of `className` with structured parameter info.
+ * Used by the v1.4 Instances Call modal to render typed param inputs.
+ */
+export interface MethodDetail {
+    name: string;
+    returnType: string;
+    isStatic: boolean;
+    parameters: Array<{ name: string; typeName: string }>;
+}
+
+export function listMethodsDetailed(className: string): Promise<MethodDetail[]> {
+    return inVm(() => {
+        const klass = findClass(className);
+        if (!klass) throw notFoundClass(className);
+        const out: MethodDetail[] = [];
+        for (const m of klass.methods) {
+            try {
+                const params: Array<{ name: string; typeName: string }> = [];
+                for (const p of m.parameters) {
+                    params.push({
+                        name: (p.name ?? "") as string,
+                        typeName: (p.type?.name ?? "?") as string,
+                    });
+                }
+                out.push({
+                    name: m.name,
+                    returnType: (m.returnType?.name ?? "?") as string,
+                    isStatic: !!(m as any).isStatic,
+                    parameters: params,
+                });
+            } catch { /* skip unreadable method */ }
+        }
+        return out;
+    });
+}
+
+/**
  * Look up a single value by key in a Dictionary<K,V> field.
  * Uses the internal `_entries` array (safe for primitive-keyed dicts).
  * `key` is matched against entry.key via strict equality on the stringified value.
