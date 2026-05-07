@@ -8,6 +8,7 @@ import { mountBookmarksPage } from "./pages/bookmarks.js";
 import { mountMigrationsPage } from "./pages/migrations.js";
 import { mountHooksPage } from "./pages/hooks.js";
 import { mountNetworkPage } from "./pages/network.js";
+import { mountInstancesPage } from "./pages/instances.js";
 import { showProcessPicker } from "./components/process-picker.js";
 import { bindPaletteShortcut } from "./components/command-palette.js";
 
@@ -40,6 +41,7 @@ function mountPage(tab: NavTab): void {
     else if (tab === "network") mountNetworkPage(pageHost);
     else if (tab === "bookmarks") mountBookmarksPage(pageHost);
     else if (tab === "migrations") mountMigrationsPage(pageHost);
+    else if (tab === "instances") mountInstancesPage(pageHost);
 }
 
 const navHandle = renderNavIcons(document.getElementById("nav-icons-host")!, {
