@@ -44,6 +44,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
     host.innerHTML = `<div style="padding:24px;color:var(--text-faint)">Click a class in the explorer to view its detail.</div>`;
 
     async function show(fullName: string): Promise<void> {
+        let liveInstanceCount: number | null = null;  // null = not yet probed, 0 = none, >0 = some
         host.innerHTML = `<div style="padding:24px;color:var(--text-faint)">Loading ${escape(fullName)}…</div>`;
         let dump: string;
         try {
@@ -238,7 +239,13 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
             void navigator.clipboard.writeText(fullName);
         });
         host.querySelector("#cd-instances")?.addEventListener("click", () => {
-            location.hash = `#/instances?class=${encodeURIComponent(fullName)}`;
+            if (liveInstanceCount && liveInstanceCount > 0) {
+                // Auto-capture via GC at index 0 — skip the wizard.
+                location.hash = `#/instances?class=${encodeURIComponent(fullName)}&auto=1`;
+            } else {
+                // No live instances (or probe failed) — open wizard so user can pick captureViaHook.
+                location.hash = `#/instances?class=${encodeURIComponent(fullName)}`;
+            }
         });
 
         // Probe live instance count for the Instances button.
@@ -253,14 +260,16 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                 const lines = result;
                 const isEmpty = lines.length === 0 || (lines.length === 1 && lines[0].includes("(none"));
                 if (isEmpty) {
+                    liveInstanceCount = 0;
                     btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--text-faint);font-size:10px">(none)</span>`;
                     btn.title = "GC found no live instances — try via Hook on a tick method";
                 } else {
                     // Look for "(total N)" suffix; otherwise count as "≥1".
                     const totalMatch = lines.join(" ").match(/total (\d+)/);
-                    const count = totalMatch ? totalMatch[1] : "≥1";
-                    btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--success);font-size:10px">(${count} live)</span>`;
-                    btn.title = `${count} live instance${count === "1" ? "" : "s"} via GC — click to capture`;
+                    const count = totalMatch ? parseInt(totalMatch[1], 10) : 1;
+                    liveInstanceCount = count;
+                    btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--success);font-size:10px">(${count}${count === 1 && !totalMatch ? "+" : ""} live)</span>`;
+                    btn.title = `${count}${count === 1 && !totalMatch ? "+" : ""} live instance${count === 1 && !totalMatch ? "(s)" : count === 1 ? "" : "s"} via GC — click to capture`;
                 }
             } catch {
                 // Probe failed (no session, agent disconnected, etc.) — keep default label.

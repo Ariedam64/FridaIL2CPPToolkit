@@ -27,8 +27,16 @@ export function mountInstancesPage(host: HTMLElement): void {
     setTimeout(() => {
         const hash = window.location.hash;
         const m = hash.match(/[?&]class=([^&]+)/);
-        if (m) {
-            const className = decodeURIComponent(m[1]);
+        if (!m) return;
+        const className = decodeURIComponent(m[1]);
+        const isAuto = /[?&]auto=1/.test(hash);
+        if (isAuto) {
+            // Auto-capture via GC at index 0. Use className as asKey by default.
+            const asKey = className.split(".").pop()?.toLowerCase() || className.toLowerCase();
+            api.captureInstance({ op: "captureViaGC", className, index: 0, asKey })
+                .then(() => { void loadInstances(); })
+                .catch((err) => alert(`Auto-capture failed: ${err instanceof Error ? err.message : String(err)}`));
+        } else {
             window.dispatchEvent(new CustomEvent("instances:open-wizard", { detail: { className } }));
         }
     }, 0);

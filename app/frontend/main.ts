@@ -36,6 +36,12 @@ pageHost.style.minHeight = "0";
 
 function mountPage(tab: NavTab): void {
     pageHost.innerHTML = "";
+    // Reset inline styles set by previous pages — prevents flex-direction
+    // from the Instances page leaking into Explorer's 3-panel layout, etc.
+    pageHost.style.cssText = "";
+    pageHost.style.flex = "1";
+    pageHost.style.display = "flex";
+    pageHost.style.minHeight = "0";
     if (tab === "explorer") mountExplorerPage(pageHost);
     else if (tab === "hooks") mountHooksPage(pageHost);
     else if (tab === "network") mountNetworkPage(pageHost);
