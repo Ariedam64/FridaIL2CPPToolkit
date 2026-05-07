@@ -45,32 +45,35 @@ function buildInstances(deps: ToolkitDeps): Toolkit["instances"] {
     return {
         async find(label) {
             const reg = requireRegistry();
-            const matches = reg.list().filter((c) => matchesLabel(c.className, label));
-            if (matches.length === 0) throw new Error(`no captured instance for label '${label}'`);
-            if (matches.length > 1)  throw new Error(`label '${label}' has ${matches.length} matches; use findAll()`);
+            const live = reg.list().filter((c) => c.isAlive);
+            const matches = live.filter((c) => matchesLabel(c.className, label));
+            if (matches.length === 0) throw new Error(`no live captured instance for label '${label}'`);
+            if (matches.length > 1)  throw new Error(`label '${label}' has ${matches.length} live matches; use findAll()`);
             const m = matches[0];
             return { className: m.className, handle: m.handle, key: m.key };
         },
         async findAll(label) {
             const reg = requireRegistry();
             return reg.list()
+                .filter((c) => c.isAlive)
                 .filter((c) => matchesLabel(c.className, label))
                 .map((m): InstanceHandle => ({ className: m.className, handle: m.handle, key: m.key }));
         },
         async capture(label, opts?: CaptureOpts) {
             const reg = requireRegistry();
             const className = deps.resolveLabel(label);
-            const summary = await deps.agentCall("captureInstance", [
+            const summary = String(await deps.agentCall("captureInstance", [
                 className, opts?.index ?? 0, opts?.asKey ?? null,
-            ]) as string;
+            ])).trim();
             const m = summary.match(/^(.+?)@(0x[0-9a-fA-F]+)/);
-            if (!m) throw new Error(`capture returned unexpected format: ${summary}`);
+            if (!m) throw new Error(`capture returned unexpected format: ${summary.slice(0, 120)}`);
             const cls = m[1];
             const handle = m[2];
             const key = opts?.asKey ?? `${cls}@${handle}`;
             reg.set(key, cls, handle, "captureViaGC");
             return { className: cls, handle, key };
         },
+        // TODO(T9+): consider a pre-flight isAlive check once handle-invalidation lifecycle is formalized.
         async read(handle, field) {
             return deps.agentCall("readField", [handle.className, handle.handle, field]);
         },
