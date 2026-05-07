@@ -321,28 +321,39 @@ export class Session extends EventEmitter {
             this.currentRecipeStore.onChange(() => this.emit("recipe-store-changed")),
         );
 
-        const scriptsDir = path.join(profile.rootPath, "plugins", "scripts");
-        emitScriptsTypes(scriptsDir);
-        const loader = new ScriptLoader(scriptsDir);
-        await loader.start();
-        loader.on("change", (entry) => this.emit("script-list-changed", entry));
-        loader.on("remove", (id)    => this.emit("script-list-changed", { removed: id }));
-        this.currentScriptLoader = loader;
+        try {
+            const scriptsDir = path.join(profile.rootPath, "plugins", "scripts");
+            emitScriptsTypes(scriptsDir);
+            const loader = new ScriptLoader(scriptsDir);
+            await loader.start();
+            loader.on("change", (entry) => this.emit("script-list-changed", entry));
+            loader.on("remove", (id)    => this.emit("script-list-changed", { removed: id }));
+            this.currentScriptLoader = loader;
 
-        const runner = new ScriptRunner(
-            loader,
-            {
-                instanceRegistry: this.currentInstanceRegistry,
-                hookStore:        this.currentHookStore,
-                frameStore:       this.currentFrameStore,
-                agentCall:        (m, a) => this.fridaClient.call(m, a),
-                resolveLabel:     (l) => l, // v1.4: identity. Friendly→obf wiring deferred.
-            },
-            buildToolkit,
-        );
-        runner.on("log",    (e) => this.emit("script-log", e));
-        runner.on("result", (r) => this.emit("script-result", r));
-        this.currentScriptRunner = runner;
+            const runner = new ScriptRunner(
+                loader,
+                {
+                    instanceRegistry: this.currentInstanceRegistry,
+                    hookStore:        this.currentHookStore,
+                    frameStore:       this.currentFrameStore,
+                    agentCall:        (m, a) => this.fridaClient.call(m, a),
+                    resolveLabel:     (l) => l, // v1.4: identity. Friendly→obf wiring deferred.
+                },
+                buildToolkit,
+            );
+            runner.on("log",    (e) => this.emit("script-log", e));
+            runner.on("result", (r) => this.emit("script-result", r));
+            this.currentScriptRunner = runner;
+        } catch (err) {
+            // Scripts plugin failed to init — degrade gracefully, attach still succeeds.
+            console.warn("[scripts] init failed, running session without script support:", err instanceof Error ? err.message : err);
+            // Best-effort cleanup of anything that did get set:
+            if (this.currentScriptLoader) {
+                void this.currentScriptLoader.dispose();
+                this.currentScriptLoader = null;
+            }
+            this.currentScriptRunner = null;
+        }
 
         // Forward label/annotation events so the WS bridge can broadcast them.
         // Capture disposers so they can be cleaned up on detach.
