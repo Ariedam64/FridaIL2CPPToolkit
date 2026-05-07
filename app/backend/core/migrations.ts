@@ -14,6 +14,7 @@ import type {
     ClassFingerprint,
     FieldFingerprint,
     LabelKey,
+    MethodFingerprint,
     MigrationAutoRecord,
     MigrationLostRecord,
     MigrationResult,
@@ -262,10 +263,128 @@ function matchFieldsStrict(
 }
 
 function matchMethodsLenient(
-    _oldCls: ClassFingerprint,
-    _newCls: ClassFingerprint,
-    _oldMethodLabels: Record<string, string>,
-    _out: ClassMembersResult,
+    oldCls: ClassFingerprint,
+    newCls: ClassFingerprint,
+    oldMethodLabels: Record<string, string>,
+    out: ClassMembersResult,
 ): void {
-    // Filled in Task 7. Empty stub — all params prefixed with _ to satisfy noUnusedParameters.
+    for (const oldMethod of oldCls.methods) {
+        const compoundKey = `${oldCls.obfName}.${oldMethod.obfName}`;
+        const label = oldMethodLabels[compoundKey];
+        if (!label) continue;
+
+        const key = { kind: "method" as const, className: newCls.obfName, methodName: "" };
+
+        // Rule 1: token match
+        if (oldMethod.token) {
+            const tokMatches = newCls.methods.filter((m) => m.token === oldMethod.token);
+            if (tokMatches.length === 1) {
+                out.auto.push({
+                    key: { kind: "method", className: newCls.obfName, methodName: tokMatches[0].obfName },
+                    oldObf: compoundKey,
+                    newObf: `${newCls.obfName}.${tokMatches[0].obfName}`,
+                    label,
+                    reason: "token match",
+                    parentClassMigration: oldCls.obfName,
+                });
+                continue;
+            }
+        }
+
+        // Rule 2: exact signature + name preserved, unique
+        const exactNamed = newCls.methods.filter(
+            (m) =>
+                m.obfName === oldMethod.obfName &&
+                m.returnType === oldMethod.returnType &&
+                arraysEqual(m.paramTypes, oldMethod.paramTypes),
+        );
+        if (exactNamed.length === 1) {
+            out.auto.push({
+                key: { kind: "method", className: newCls.obfName, methodName: exactNamed[0].obfName },
+                oldObf: compoundKey,
+                newObf: `${newCls.obfName}.${exactNamed[0].obfName}`,
+                label,
+                reason: "exact signature, name preserved",
+                parentClassMigration: oldCls.obfName,
+            });
+            continue;
+        }
+
+        // Rule 3: exact signature without name, unique
+        const exactUnnamed = newCls.methods.filter(
+            (m) =>
+                m.returnType === oldMethod.returnType &&
+                arraysEqual(m.paramTypes, oldMethod.paramTypes),
+        );
+        if (exactUnnamed.length === 1) {
+            out.auto.push({
+                key: { kind: "method", className: newCls.obfName, methodName: exactUnnamed[0].obfName },
+                oldObf: compoundKey,
+                newObf: `${newCls.obfName}.${exactUnnamed[0].obfName}`,
+                label,
+                reason: "signature match, renamed method",
+                parentClassMigration: oldCls.obfName,
+            });
+            continue;
+        }
+
+        // Rule 4: structural score
+        const scored = newCls.methods
+            .map((m) => ({ m, score: methodSimilarity(oldMethod, m) }))
+            .filter((c) => c.score >= 0.60)
+            .sort((a, b) => b.score - a.score);
+
+        if (scored.length === 0) {
+            out.lost.push({
+                key,
+                oldObf: compoundKey,
+                label,
+                reason: "no candidate above 0.60 similarity",
+                parentClassMigration: oldCls.obfName,
+            });
+            continue;
+        }
+
+        const top = scored[0];
+        const second = scored[1];
+        if (top.score >= 0.95 && (!second || top.score - second.score >= 0.10)) {
+            out.auto.push({
+                key: { kind: "method", className: newCls.obfName, methodName: top.m.obfName },
+                oldObf: compoundKey,
+                newObf: `${newCls.obfName}.${top.m.obfName}`,
+                label,
+                reason: `unique structural match (score=${top.score.toFixed(3)})`,
+                parentClassMigration: oldCls.obfName,
+            });
+        } else {
+            out.review.push({
+                key,
+                oldObf: compoundKey,
+                candidates: scored.slice(0, 5).map((c) => ({
+                    newObf: `${newCls.obfName}.${c.m.obfName}`,
+                    score: c.score,
+                    reason: `structural similarity ${c.score.toFixed(3)}`,
+                })),
+                label,
+                parentClassMigration: oldCls.obfName,
+            });
+        }
+    }
+}
+
+function methodSimilarity(a: MethodFingerprint, b: MethodFingerprint): number {
+    const cntDiff = Math.abs(a.paramCount - b.paramCount);
+    const cntMax = Math.max(a.paramCount, b.paramCount, 1);
+    const paramCountScore = Math.max(0, 1 - cntDiff / cntMax);
+
+    const paramJaccard = jaccard(new Set(a.paramTypes), new Set(b.paramTypes));
+    const returnScore = a.returnType === b.returnType ? 1 : 0;
+
+    return paramCountScore * 0.4 + paramJaccard * 0.4 + returnScore * 0.2;
+}
+
+function arraysEqual(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
 }

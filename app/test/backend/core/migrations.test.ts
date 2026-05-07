@@ -230,3 +230,85 @@ describe("matchClassMembers — fields (STRICT)", () => {
         expect(result.lost[0].parentClassMigration).toBe("oldA");
     });
 });
+
+describe("matchClassMembers — methods (LENIENT)", () => {
+    const mkMethod = (overrides: Partial<import("../../../backend/core/types").MethodFingerprint> = {}): import("../../../backend/core/types").MethodFingerprint => ({
+        obfName: "x",
+        token: null,
+        paramTypes: [],
+        returnType: "System.Void",
+        paramCount: 0,
+        declIndex: 0,
+        isStatic: false,
+        ...overrides,
+    });
+
+    it("AUTO when token matches", () => {
+        const oldCls = cls("oldA", { methods: [mkMethod({ obfName: "vto", token: "0x600A1B2" })] });
+        const newCls = cls("newA", { methods: [mkMethod({ obfName: "abc", token: "0x600A1B2" })] });
+        const result = matchClassMembers(oldCls, newCls, { "oldA.vto": "encode" }, {});
+        expect(result.auto).toHaveLength(1);
+        expect(result.auto[0].key).toEqual({ kind: "method", className: "newA", methodName: "abc" });
+        expect(result.auto[0].reason).toBe("token match");
+    });
+
+    it("AUTO when full signature exact + name preserved + unique", () => {
+        const oldCls = cls("oldA", {
+            methods: [mkMethod({ obfName: "Encode", paramTypes: ["int", "string"], returnType: "void" })],
+        });
+        const newCls = cls("newA", {
+            methods: [
+                mkMethod({ obfName: "Encode", paramTypes: ["int", "string"], returnType: "void" }),
+                mkMethod({ obfName: "Other", paramTypes: ["bool"], returnType: "void", declIndex: 1 }),
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, { "oldA.Encode": "encode" }, {});
+        expect(result.auto).toHaveLength(1);
+        expect(result.auto[0].reason).toContain("exact signature, name preserved");
+    });
+
+    it("AUTO when signature without name is unique", () => {
+        const oldCls = cls("oldA", {
+            methods: [mkMethod({ obfName: "vto", paramTypes: ["int", "string"], returnType: "void" })],
+        });
+        const newCls = cls("newA", {
+            methods: [
+                mkMethod({ obfName: "abc", paramTypes: ["int", "string"], returnType: "void" }),
+                mkMethod({ obfName: "def", paramTypes: ["bool"], returnType: "void", declIndex: 1 }),
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, { "oldA.vto": "encode" }, {});
+        expect(result.auto).toHaveLength(1);
+        expect(result.auto[0].key).toEqual({ kind: "method", className: "newA", methodName: "abc" });
+        expect(result.auto[0].reason).toContain("signature match, renamed method");
+    });
+
+    it("REVIEW when score 0.60-0.95 (multiple candidates)", () => {
+        const oldCls = cls("oldA", {
+            methods: [mkMethod({ obfName: "vto", paramTypes: ["int", "int"], returnType: "void" })],
+        });
+        const newCls = cls("newA", {
+            methods: [
+                mkMethod({ obfName: "a", paramTypes: ["int", "long"], returnType: "void" }),
+                mkMethod({ obfName: "b", paramTypes: ["long", "int"], returnType: "void", declIndex: 1 }),
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, { "oldA.vto": "encode" }, {});
+        expect(result.review.length).toBeGreaterThanOrEqual(1);
+        expect(result.review[0].candidates.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("LOST when no candidate >= 0.60", () => {
+        const oldCls = cls("oldA", {
+            methods: [mkMethod({ obfName: "vto", paramTypes: ["int", "int", "int"], returnType: "void" })],
+        });
+        const newCls = cls("newA", {
+            methods: [
+                mkMethod({ obfName: "a", paramTypes: ["string"], returnType: "bool" }),
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, { "oldA.vto": "encode" }, {});
+        expect(result.lost).toHaveLength(1);
+        expect(result.lost[0].reason).toContain("no candidate above 0.60");
+    });
+});
