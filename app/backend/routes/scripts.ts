@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { ScriptLoader } from "../core/scripts/script-loader";
 import type { ScriptRunner } from "../core/scripts/script-runner";
+import { ScriptValidationError } from "../core/scripts/script-runner";
 
 export interface ScriptsDeps {
     loader: () => Pick<ScriptLoader, "list" | "get" | "getDefinition"> | null;
@@ -38,9 +39,7 @@ export function mountScripts(app: Express, deps: ScriptsDeps): void {
             res.json({ runId });
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            // Validation errors → 400; everything else → 500
-            const status =
-                /missing required|expected|min |max |unknown param|not in/.test(msg) ? 400 : 500;
+            const status = err instanceof ScriptValidationError ? 400 : 500;
             res.status(status).json({ error: msg });
         }
     });

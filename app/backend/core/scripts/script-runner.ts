@@ -7,6 +7,13 @@ import type { ScriptLoader } from "./script-loader";
 import type { Toolkit, RunResult, ScriptLog, ScriptDefinition } from "./types";
 import type { ToolkitDeps } from "./toolkit-api";
 
+export class ScriptValidationError extends Error {
+    readonly name = "ScriptValidationError";
+    constructor(message: string) {
+        super(message);
+    }
+}
+
 interface RunnerDeps {
     instanceRegistry: ToolkitDeps["instanceRegistry"];
     hookStore: ToolkitDeps["hookStore"];
@@ -38,7 +45,7 @@ export class ScriptRunner extends EventEmitter {
         if (!def) throw new Error(`script not found: ${scriptId}`);
 
         const validated = validateParamValues(def.params, paramValues);
-        if (!validated.ok) throw new Error(validated.error);
+        if (!validated.ok) throw new ScriptValidationError(validated.error);
 
         if (this.running.has(scriptId)) {
             throw new Error(`script '${scriptId}' is already running`);
