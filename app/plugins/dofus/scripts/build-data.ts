@@ -1,21 +1,17 @@
 #!/usr/bin/env tsx
-// Build Dofus plugin static index files from a datacenter dump.
+// Build Dofus plugin static index files from canonical-coords + datacenter dump.
 // Run: npm run dofus:build-data (from app/) OR npx tsx <this file> (from anywhere).
 //
-// Inputs (read from <repo-root>/.toolkit-data/datacenter/):
-//   - MapsInformationDataRoot.json
-//   - AreasDataRoot.json
-//   - SubAreasDataRoot.json
-//   - WorldMapsDataRoot.json
+// Inputs:
+//   Primary:  <repo-root>/dofus-app/data/canonical-coords-wm*.json
+//             Format: { "x,y": mapId, ... }  — one file per worldMap id
+//   Enrich:   <repo-root>/.toolkit-data/datacenter/MapsInformationDataRoot.json
+//             Sparse (13 entries), but has real subAreaId/nameId/name
+//   Support:  AreasDataRoot.json, SubAreasDataRoot.json, WorldMapsDataRoot.json
 //
 // Outputs (written to app/plugins/dofus/data/):
-//   - maps-information.json
+//   - maps-information.json  — ~17k entries
 //   - areas.json
-//
-// NOTE: The datacenter dump files use a wrapper format:
-//   { cls, items: [{ id, fields: { ...actualFields } }] }
-// This script unwraps that format. The m_name field (when present) provides
-// the resolved string name; otherwise we fall back to nameId display.
 
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -24,6 +20,7 @@ import { fileURLToPath } from "node:url";
 const _DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(_DIR, "../../../..");
 const DC_DIR = path.join(REPO_ROOT, ".toolkit-data", "datacenter");
+const COORDS_DIR = path.join(REPO_ROOT, "dofus-app", "data");
 const OUT_DIR = path.resolve(_DIR, "../data");
 
 // Raw wrapped format from the datacenter dump
@@ -40,6 +37,7 @@ interface DcMapFields {
     subAreaId: number;
     worldMap: number;
     nameId?: number;
+    m_name?: string;
 }
 
 interface DcAreaFields {
@@ -59,6 +57,16 @@ interface DcWorldFields {
     id: number;
     nameId?: number;
     m_name?: string;
+}
+
+interface MapInfoEntry {
+    mapId: number;
+    posX: number;
+    posY: number;
+    subAreaId: number;
+    worldMap: number;
+    nameId: number;
+    name: string;
 }
 
 function readJson<T>(p: string): T {
@@ -85,17 +93,83 @@ function unwrap<T>(wrapper: DcWrapper<T> | T[]): T[] {
     return [];
 }
 
-function nameOrId(o: { m_name?: string; nameId?: number; id: number }): string {
+function nameOrId(o: { m_name?: string; name?: string; nameId?: number; id: number }): string {
     if (o.m_name) return o.m_name;
+    if (o.name) return o.name;
     if (o.nameId !== undefined && o.nameId !== 0) return `#${o.nameId}`;
     return `id-${o.id}`;
 }
 
-function main(): void {
-    console.log(`[dofus:build-data] reading from ${DC_DIR}`);
+/**
+ * Read all canonical-coords-wm*.json files and build a map of mapId → {posX, posY, worldMap}.
+ *
+ * Filename convention:
+ *   canonical-coords-wm-1.json  → worldMap = -1  (the dash IS the minus sign)
+ *   canonical-coords-wm1.json   → worldMap = 1
+ *   canonical-coords-wm10.json  → worldMap = 10
+ */
+function loadCanonicalCoords(): Map<number, { posX: number; posY: number; worldMap: number }> {
+    const out = new Map<number, { posX: number; posY: number; worldMap: number }>();
+    if (!fs.existsSync(COORDS_DIR)) {
+        console.warn(`[dofus:build-data] coords dir not found: ${COORDS_DIR}`);
+        return out;
+    }
 
-    const rawMaps = readJson<DcWrapper<DcMapFields> | DcMapFields[]>(
+    // Match both wm-1.json (world -1) and wm1.json (world 1), wm10.json, etc.
+    const files = fs.readdirSync(COORDS_DIR).filter((f) =>
+        /^canonical-coords-wm(-?\d+)\.json$/.test(f),
+    );
+
+    // Track which worlds are loaded to detect duplicates
+    const seenWorld = new Map<number, string>();
+
+    // Sort deterministically (lexicographic); process all files
+    files.sort();
+
+    for (const f of files) {
+        const m = /^canonical-coords-wm(-?\d+)\.json$/.exec(f);
+        if (!m) continue;
+        const worldMap = parseInt(m[1], 10);
+
+        if (seenWorld.has(worldMap)) {
+            console.warn(
+                `[dofus:build-data] world ${worldMap} already loaded from ${seenWorld.get(worldMap)}, skipping ${f}`,
+            );
+            continue;
+        }
+        seenWorld.set(worldMap, f);
+
+        const raw = JSON.parse(
+            fs.readFileSync(path.join(COORDS_DIR, f), "utf8"),
+        ) as Record<string, number>;
+
+        let count = 0;
+        for (const [coord, mapId] of Object.entries(raw)) {
+            const commaIdx = coord.indexOf(",");
+            if (commaIdx === -1) continue;
+            const posX = parseInt(coord.slice(0, commaIdx), 10);
+            const posY = parseInt(coord.slice(commaIdx + 1), 10);
+            if (!Number.isFinite(posX) || !Number.isFinite(posY)) continue;
+            out.set(mapId, { posX, posY, worldMap });
+            count++;
+        }
+        console.log(`[dofus:build-data] coords wm=${worldMap} ← ${f} (${count} entries)`);
+    }
+
+    console.log(`[dofus:build-data] canonical-coords total: ${out.size} unique maps across ${seenWorld.size} worlds`);
+    return out;
+}
+
+function main(): void {
+    console.log(`[dofus:build-data] reading from ${DC_DIR} + ${COORDS_DIR}`);
+
+    // --- Primary source: canonical coords ---
+    const coords = loadCanonicalCoords();
+
+    // --- Enrichment source: sparse datacenter dump ---
+    const rawMaps = readJsonOpt<DcWrapper<DcMapFields> | DcMapFields[]>(
         path.join(DC_DIR, "MapsInformationDataRoot.json"),
+        [],
     );
     const rawAreas = readJsonOpt<DcWrapper<DcAreaFields> | DcAreaFields[]>(
         path.join(DC_DIR, "AreasDataRoot.json"),
@@ -117,26 +191,58 @@ function main(): void {
 
     fs.mkdirSync(OUT_DIR, { recursive: true });
 
-    // maps-information.json
-    const mapsOut = dcMaps
-        .filter((m) => m.id != null && m.worldMap != null)
-        .map((m) => ({
-            mapId: m.id,
-            posX: m.posX ?? 0,
-            posY: m.posY ?? 0,
-            subAreaId: m.subAreaId ?? 0,
-            worldMap: m.worldMap,
-            nameId: m.nameId ?? 0,
-            name: nameOrId({ m_name: undefined, nameId: m.nameId, id: m.id }),
-        }));
+    // --- Build entries from canonical-coords (primary source) ---
+    const byMapId = new Map<number, MapInfoEntry>();
+    for (const [mapId, { posX, posY, worldMap }] of coords) {
+        byMapId.set(mapId, {
+            mapId,
+            posX,
+            posY,
+            subAreaId: 0,
+            worldMap,
+            nameId: 0,
+            name: `Map ${mapId}`,
+        });
+    }
+
+    // --- Enrich from MapsInformation dump ---
+    let enrichedCount = 0;
+    for (const m of dcMaps) {
+        if (m.id == null) continue;
+        const existing = byMapId.get(m.id);
+        if (existing) {
+            // Overwrite placeholder values with real datacenter data
+            existing.subAreaId = m.subAreaId ?? existing.subAreaId;
+            existing.nameId = m.nameId ?? existing.nameId;
+            existing.name = nameOrId({ m_name: m.m_name, nameId: m.nameId, id: m.id });
+            enrichedCount++;
+        } else {
+            // MapsInformation has a map not in coords — add it too
+            byMapId.set(m.id, {
+                mapId: m.id,
+                posX: m.posX ?? 0,
+                posY: m.posY ?? 0,
+                subAreaId: m.subAreaId ?? 0,
+                worldMap: m.worldMap ?? 0,
+                nameId: m.nameId ?? 0,
+                name: nameOrId({ m_name: m.m_name, nameId: m.nameId, id: m.id }),
+            });
+            enrichedCount++;
+        }
+    }
+
+    // --- Write maps-information.json ---
+    const mapsOut = Array.from(byMapId.values()).sort((a, b) => a.mapId - b.mapId);
     fs.writeFileSync(
         path.join(OUT_DIR, "maps-information.json"),
         JSON.stringify(mapsOut),
         "utf8",
     );
-    console.log(`[dofus:build-data] wrote maps-information.json — ${mapsOut.length} maps`);
+    console.log(
+        `[dofus:build-data] wrote maps-information.json — ${mapsOut.length} maps (${enrichedCount} enriched from datacenter)`,
+    );
 
-    // areas.json
+    // --- Write areas.json (unchanged logic) ---
     const areasOut = {
         areas: Object.fromEntries(
             dcAreas.map((a) => [a.id, { id: a.id, name: nameOrId(a) }]),
@@ -165,6 +271,14 @@ function main(): void {
 const HARDCODED_WORLDS: Array<{ id: number; name: string }> = [
     { id: -1, name: "Caves" },
     { id: 1,  name: "Amakna" },
+    { id: 2,  name: "Wabbit Island" },
+    { id: 3,  name: "Cania" },
+    { id: 4,  name: "Sidimote" },
+    { id: 5,  name: "Sufokia" },
+    { id: 6,  name: "Otomai" },
+    { id: 7,  name: "Islands" },
+    { id: 8,  name: "Srambad" },
+    { id: 9,  name: "Enutrosor" },
     { id: 10, name: "Frigost" },
     { id: 12, name: "Otomai" },
     { id: 13, name: "Saharach" },

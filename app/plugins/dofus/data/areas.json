@@ -738,12 +738,12 @@
     "316": {
       "id": 316,
       "areaId": 0,
-      "name": "Souterrains des Dragoeufs"
+      "name": "#116347"
     },
     "319": {
       "id": 319,
       "areaId": 30,
-      "name": "Labyrinthe du Minotoror"
+      "name": "#556958"
     },
     "320": {
       "id": 320,
@@ -998,7 +998,7 @@
     "495": {
       "id": 495,
       "areaId": 12,
-      "name": "Caverne des Fungus"
+      "name": "#4497"
     },
     "500": {
       "id": 500,
@@ -1173,7 +1173,7 @@
     "622": {
       "id": 622,
       "areaId": 48,
-      "name": "Cavernes des Givrefoux"
+      "name": "#4394"
     },
     "623": {
       "id": 623,
@@ -1243,7 +1243,7 @@
     "753": {
       "id": 753,
       "areaId": 48,
-      "name": "Ruche des Gloursons"
+      "name": "#4376"
     },
     "755": {
       "id": 755,
@@ -1843,7 +1843,7 @@
     "882": {
       "id": 882,
       "areaId": 61,
-      "name": "#711577"
+      "name": "Chambre de Tal Kasha"
     },
     "883": {
       "id": 883,
@@ -2589,6 +2589,11 @@
       "id": 1034,
       "areaId": 0,
       "name": "#1054734"
+    },
+    "1035": {
+      "id": 1035,
+      "areaId": 45,
+      "name": "#1064675"
     },
     "1036": {
       "id": 1036,
