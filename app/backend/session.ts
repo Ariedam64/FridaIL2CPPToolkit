@@ -118,13 +118,18 @@ export class Session extends EventEmitter {
             const previousBuildId = profile.manifest.derivedFrom.split("/")[1];
             const oldFps = await this.profileManager.loadFingerprints(gameName, previousBuildId);
             if (oldFps && currentFps.length > 0) {
-                const oldLabels = await this.profileManager.loadProfileLabels(
-                    gameName,
-                    previousBuildId,
-                );
-                const result = matchFingerprints({ oldFps, newFps: currentFps, oldLabels });
+                const oldLabels = await this.profileManager.loadProfileLabels(gameName, previousBuildId);
+                const oldMethodLabels = await this.profileManager.loadProfileMethodLabels(gameName, previousBuildId);
+                const oldFieldLabels = await this.profileManager.loadProfileFieldLabels(gameName, previousBuildId);
+                const result = matchFingerprints({
+                    oldFps,
+                    newFps: currentFps,
+                    oldLabels,
+                    oldMethodLabels,
+                    oldFieldLabels,
+                });
                 for (const m of result.auto) {
-                    profile.labels.set({ kind: "class", className: m.newObf }, m.label);
+                    profile.labels.set(m.key, m.label);
                 }
                 await profile.labels.flush();
                 this.currentMigrations = { result, oldFps, currentFps };
