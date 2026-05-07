@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Express } from "express";
+import { replayRecipe, type ReplayAgent } from "../core/instances/replay.js";
 
 export interface InstancesDeps {
     session: {
@@ -63,6 +64,22 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
         } catch (err) {
             res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
         }
+    });
+
+    // NOTE: DELETE /api/instances/history (Task 10) must be registered before
+    // DELETE /api/instances/:key so Express does not treat "history" as :key.
+
+    app.get("/api/instances/history", (_req, res) => {
+        const h = deps.session.historyStore();
+        res.json({ entries: h ? h.list() : [] });
+    });
+
+    app.delete("/api/instances/history", (_req, res) => {
+        const h = deps.session.historyStore();
+        if (!h) { res.status(503).json({ error: "no session" }); return; }
+        h.clear();
+        deps.session.emit("instance-history-changed");
+        res.json({ ok: true });
     });
 
     app.delete("/api/instances/:key", (req, res) => {
@@ -214,5 +231,38 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
         rs.delete(req.params.id);
         deps.session.emit("recipe-store-changed");
         res.json({ ok: true });
+    });
+
+    // -----------------------------------------------------------------------
+    // Task 10: recipe replay
+    // -----------------------------------------------------------------------
+
+    app.post("/api/instances/recipes/:id/replay", async (req, res) => {
+        const rs = deps.session.recipeStore();
+        const reg = deps.session.instanceRegistry();
+        if (!rs || !reg) { res.status(503).json({ error: "no session" }); return; }
+        const recipe = rs.get(req.params.id);
+        if (!recipe) { res.status(404).json({ error: "not found" }); return; }
+
+        const parse = (raw: string): { className: string; handle: string } => {
+            const m = raw.match(/^(.+?)@(0x[0-9a-fA-F]+)/);
+            return m ? { className: m[1], handle: m[2] } : { className: "Unknown", handle: raw };
+        };
+        const agent: ReplayAgent = {
+            captureViaGC: async (cn, idx) => parse(String(await deps.session.agentCall("captureViaGC", [cn, idx]))),
+            captureViaHook: async (cn, tm, ms) => parse(String(await deps.session.agentCall("capture", [cn, tm, ms]))),
+            captureFieldValue: async (ok, fn, ak) => parse(String(await deps.session.agentCall("captureFieldValue", [ok, fn, ak]))),
+            captureListElement: async (cn, fn, idx, ak) => parse(String(await deps.session.agentCall("captureListElement", [cn, fn, idx, ak]))),
+            captureMethodReturn: async (ok, mn, args, ak) => parse(String(await deps.session.agentCall("captureMethodReturn", [ok, mn, args, ak]))),
+        };
+
+        const result = await replayRecipe(recipe, agent, reg);
+        rs.update(recipe.id, {
+            lastReplayedAt: new Date().toISOString(),
+            lastReplayStatus: result.finalStatus,
+        });
+        deps.session.emit("instance-registry-changed");
+        deps.session.emit("recipe-store-changed");
+        res.json(result);
     });
 }

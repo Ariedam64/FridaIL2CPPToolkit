@@ -234,3 +234,48 @@ describe("instances routes — recipes CRUD", () => {
         expect(recipes.list()).toHaveLength(0);
     });
 });
+
+describe("instances routes — recipe replay", () => {
+    it("POST /api/instances/recipes/:id/replay executes all steps", async () => {
+        const { app, recipes, registry } = buildApp({
+            agent: {
+                captureViaGC: async (cn: string) => `${cn}@0x1`,
+                captureFieldValue: async () => "Inv@0x2",
+            },
+        });
+        const r = recipes.add("test", [
+            { op: "captureViaGC", className: "Player", index: 0, asKey: "p" },
+            { op: "captureFieldValue", ownerKey: "p", fieldName: "inv", asKey: "i" },
+        ] as any);
+        const res = await request(app).post(`/api/instances/recipes/${r.id}/replay`);
+        expect(res.status).toBe(200);
+        expect(res.body.finalStatus).toBe("ok");
+        expect(res.body.steps).toHaveLength(2);
+        expect(registry.get("p")).not.toBeNull();
+        expect(registry.get("i")).not.toBeNull();
+    });
+
+    it("POST /api/instances/recipes/:id/replay returns 404 for unknown id", async () => {
+        const { app } = buildApp();
+        const res = await request(app).post("/api/instances/recipes/missing/replay");
+        expect(res.status).toBe(404);
+    });
+});
+
+describe("instances routes — history", () => {
+    it("GET /api/instances/history returns entries (most recent first)", async () => {
+        const { app, history } = buildApp();
+        history.append({ id: "1", timestamp: "2026-05-07T00:00:00Z", action: "write", target: { instanceKey: "p", member: "x" }, before: "1", after: "2", success: true });
+        const res = await request(app).get("/api/instances/history");
+        expect(res.status).toBe(200);
+        expect(res.body.entries).toHaveLength(1);
+    });
+
+    it("DELETE /api/instances/history clears", async () => {
+        const { app, history } = buildApp();
+        history.append({ id: "1", timestamp: "2026-05-07T00:00:00Z", action: "write", target: { instanceKey: "p", member: "x" }, before: "1", after: "2", success: true });
+        const res = await request(app).delete("/api/instances/history");
+        expect(res.status).toBe(200);
+        expect(history.list()).toHaveLength(0);
+    });
+});
