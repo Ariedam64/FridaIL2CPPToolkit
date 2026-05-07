@@ -103,10 +103,35 @@ export interface ClassFingerprint {
     methods: MethodFingerprint[];
 }
 
+export interface MigrationAutoRecord {
+    key: LabelKey;
+    oldObf: string;
+    newObf: string;
+    label: string;
+    reason: string;
+    parentClassMigration?: string;
+}
+
+export interface MigrationReviewRecord {
+    key: LabelKey;
+    oldObf: string;
+    candidates: Array<{ newObf: string; score: number; reason: string }>;
+    label: string;
+    parentClassMigration?: string;
+}
+
+export interface MigrationLostRecord {
+    key: LabelKey;
+    oldObf: string;
+    label: string;
+    reason: string;
+    parentClassMigration?: string;
+}
+
 export interface MigrationResult {
-    auto: Array<{ key: LabelKey; oldObf: string; newObf: string; label: string; reason: string }>;
-    review: Array<{ key: LabelKey; oldObf: string; candidates: Array<{ newObf: string; score: number; reason: string }>; label: string }>;
-    lost: Array<{ key: LabelKey; oldObf: string; label: string; reason: string }>;
+    auto: MigrationAutoRecord[];
+    review: MigrationReviewRecord[];
+    lost: MigrationLostRecord[];
 }
 
 // ---------------------------------------------------------------------------
