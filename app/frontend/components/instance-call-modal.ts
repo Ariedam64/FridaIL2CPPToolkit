@@ -45,7 +45,18 @@ export function openCallModal(opts: CallModalOptions): void {
         try {
             const r = await api.callInstanceMethod(opts.instanceKey, opts.methodName, args);
             opts.onResult(r.result);
-            overlay.remove();
+            // Replace modal contents with the result so the user can read it.
+            const modal = overlay.querySelector<HTMLElement>("div");  // first child div = modal panel
+            if (modal) {
+                modal.innerHTML = `
+                    <h3 style="margin-top:0">Result: ${escape(opts.instanceKey)}.${escape(opts.methodName)}()</h3>
+                    <pre style="background:var(--bg-elevated);padding:10px;border-radius:4px;font-family:var(--font-code);font-size:12px;max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-word">${escape(r.result)}</pre>
+                    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:14px">
+                        <button class="ip-pill" data-close-result>Close</button>
+                    </div>
+                `;
+                modal.querySelector<HTMLButtonElement>("[data-close-result]")?.addEventListener("click", () => overlay.remove());
+            }
         } catch (err) {
             alert(`Call failed: ${err instanceof Error ? err.message : String(err)}`);
         }

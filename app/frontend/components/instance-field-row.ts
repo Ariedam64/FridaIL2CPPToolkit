@@ -1,6 +1,7 @@
 import { api } from "../core/api.js";
 import { icons } from "../core/icons.js";
 import type { FieldReadLite } from "../core/types.js";
+import { prettyFieldName, prettyClassName, isBackingField } from "../core/il2cpp-pretty.js";
 
 export interface FieldRowOptions {
     instanceKey: string;
@@ -24,7 +25,12 @@ export function renderFieldRow(opts: FieldRowOptions): HTMLElement {
     div.style.fontFamily = "var(--font-code)";
     div.style.fontSize = "12px";
 
-    const name = `<span style="min-width:140px;color:var(--text-strong)">${escape(f.name)}</span>`;
+    const displayName = prettyFieldName(f.name);
+    const isProp = isBackingField(f.name);
+    const nameHtml = isProp
+        ? `<span style="min-width:140px;color:var(--text-strong);font-style:italic" title="${escape(f.name)}">${escape(displayName)}</span>`
+        : `<span style="min-width:140px;color:var(--text-strong)">${escape(displayName)}</span>`;
+    const name = nameHtml;
     const type = `<span style="min-width:60px;color:var(--syntax-type);font-size:10px">${escape(f.kind)}</span>`;
 
     const editable = !readOnly && f.isWritable && (f.kind === "scalar" || f.kind === "string" || f.kind === "enum");
@@ -38,7 +44,7 @@ export function renderFieldRow(opts: FieldRowOptions): HTMLElement {
             <button class="ip-pill" data-save="${escape(f.name)}">Save</button>
         `;
     } else if (drillable) {
-        const target = f.kind === "nested" ? `→ ${escape(f.nestedClass!)}` : `[${f.arrayLength} items]`;
+        const target = f.kind === "nested" ? `→ ${escape(prettyClassName(f.nestedClass!))}` : `[${f.arrayLength} items]`;
         valueHtml = `
             <span style="flex:1;color:var(--syntax-name)">${target}</span>
             <button class="ip-pill" data-drill="${escape(f.name)}">${icons.chevronRight(10)} Drill</button>

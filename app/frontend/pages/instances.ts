@@ -6,6 +6,7 @@ import { renderFieldRow } from "../components/instance-field-row.js";
 import { openCaptureWizard } from "../components/instance-capture-wizard-modal.js";
 import { openRecipesModal } from "../components/instance-recipes-modal.js";
 import type { CapturedInstanceLite, FieldReadLite, InstanceHistoryEntry } from "../core/types.js";
+import { prettyClassName } from "../core/il2cpp-pretty.js";
 
 let _hostEl: HTMLElement | null = null;
 let _instances: CapturedInstanceLite[] = [];
@@ -185,7 +186,7 @@ function renderSidebar(): void {
         div.style.position = "relative";
         div.innerHTML = `
             <div class="key">${escape(inst.key)}</div>
-            <div class="meta">${escape(inst.className)}@${escape(inst.handle)} ${inst.isAlive ? "" : "(dead)"}</div>
+            <div class="meta">${escape(prettyClassName(inst.className))}@${escape(inst.handle)} ${inst.isAlive ? "" : "(dead)"}</div>
             <button class="ip-instance-del" data-del title="Remove this capture" style="position:absolute;top:6px;right:6px;background:transparent;border:none;color:var(--text-faint);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:3px;display:none">×</button>
         `;
         div.addEventListener("mouseenter", () => {
@@ -228,7 +229,7 @@ function renderViewer(): void {
     const inst = _instances.find((i) => i.key === _activeKey);
     if (!inst) { v.innerHTML = ""; return; }
     v.innerHTML = `
-        <h3 style="margin-top:0;font-family:var(--font-code);font-size:14px">${escape(inst.key)} → ${escape(inst.className)}@${escape(inst.handle)}</h3>
+        <h3 style="margin-top:0;font-family:var(--font-code);font-size:14px">${escape(inst.key)} → ${escape(prettyClassName(inst.className))}@${escape(inst.handle)}</h3>
         ${!_activeAlive ? `<div style="color:var(--danger);font-size:11px;margin-bottom:8px">⚠ instance appears dead${_activeError ? `: <code>${escape(_activeError)}</code>` : " — re-capture to refresh"}</div>` : ""}
         <div class="ip-section-title">Fields (${_activeFields.length})</div>
         <div id="ip-fields"></div>
