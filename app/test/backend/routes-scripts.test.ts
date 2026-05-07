@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import express from "express";
 import request from "supertest";
-import { mountScripts, type ScriptsDeps } from "../../../backend/routes/scripts";
-import type { ScriptDefinition, RegistryEntry } from "../../../backend/core/scripts/types";
+import { mountScripts, type ScriptsDeps } from "../../backend/routes/scripts";
+import type { ScriptDefinition, RegistryEntry } from "../../backend/core/scripts/types";
 
 const fakeDef = (id: string): ScriptDefinition => ({
     name: id, params: { x: { type: "number", required: true } },
@@ -72,5 +72,18 @@ describe("routes/scripts", () => {
         const r = await request(app).post("/api/scripts/echo/run").send({ params: {} });
         expect(r.status).toBe(400);
         expect(r.body.error).toMatch(/missing required param: x/);
+    });
+
+    it("returns 503 when not attached (loader is null)", async () => {
+        const deps: ScriptsDeps = {
+            loader: () => null,   // not attached
+            runner: () => null,
+        };
+        const app = express();
+        app.use(express.json());
+        mountScripts(app, deps);
+        const r = await request(app).post("/api/scripts/echo/run").send({ params: {} });
+        expect(r.status).toBe(503);
+        expect(r.body.error).toMatch(/not attached/);
     });
 });
