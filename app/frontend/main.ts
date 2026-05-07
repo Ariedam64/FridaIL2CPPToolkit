@@ -52,7 +52,7 @@ const navHandle = renderNavIcons(document.getElementById("nav-icons-host")!, {
 });
 
 window.addEventListener("hashchange", () => {
-    const tab = (location.hash.replace(/^#\//, "") || "explorer") as NavTab;
+    const tab = (location.hash.replace(/^#\//, "").split("?")[0] || "explorer") as NavTab;
     navHandle.setActive(tab);
     mountPage(tab);
 });
@@ -77,7 +77,7 @@ subscribe("profile-attached", refreshProfile);
 subscribe("profile-detached", refreshProfile);
 void refreshProfile();
 
-const initialTab = (location.hash.replace(/^#\//, "") || "explorer") as NavTab;
+const initialTab = (location.hash.replace(/^#\//, "").split("?")[0] || "explorer") as NavTab;
 navHandle.setActive(initialTab);
 mountPage(initialTab);
 

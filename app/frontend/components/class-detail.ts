@@ -240,6 +240,32 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
         host.querySelector("#cd-instances")?.addEventListener("click", () => {
             location.hash = `#/instances?class=${encodeURIComponent(fullName)}`;
         });
+
+        // Probe live instance count for the Instances button.
+        void (async () => {
+            try {
+                const { result } = await api.rpc<string[]>("listInstances", [fullName, 1]);
+                const btn = host.querySelector<HTMLButtonElement>("#cd-instances");
+                if (!btn) return;
+                // Parse the agent's response. It returns either
+                //   [`[0] Class@handle`, optionally `… and N more (total M)`]
+                // or [`(none — try captureViaHook for MonoBehaviours)`] when empty.
+                const lines = result;
+                const isEmpty = lines.length === 0 || (lines.length === 1 && lines[0].includes("(none"));
+                if (isEmpty) {
+                    btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--text-faint);font-size:10px">(none)</span>`;
+                    btn.title = "GC found no live instances — try via Hook on a tick method";
+                } else {
+                    // Look for "(total N)" suffix; otherwise count as "≥1".
+                    const totalMatch = lines.join(" ").match(/total (\d+)/);
+                    const count = totalMatch ? totalMatch[1] : "≥1";
+                    btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--success);font-size:10px">(${count} live)</span>`;
+                    btn.title = `${count} live instance${count === "1" ? "" : "s"} via GC — click to capture`;
+                }
+            } catch {
+                // Probe failed (no session, agent disconnected, etc.) — keep default label.
+            }
+        })();
     }
 
     return { show };
