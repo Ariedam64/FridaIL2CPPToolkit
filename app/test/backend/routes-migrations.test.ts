@@ -99,3 +99,91 @@ describe("migrations routes", () => {
         expect(res.status).toBe(503);
     });
 });
+
+describe("migrations routes — polymorphic accept", () => {
+    function makeFakeSessionPoly(reviewItems: any[]) {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mig-poly-"));
+        const labelStore = new LabelStore(path.join(tmpDir, "labels.json"));
+        const profile: any = { labels: labelStore };
+        const migrations = { result: { auto: [], review: reviewItems, lost: [] } };
+        return {
+            profile: () => profile,
+            migrations: () => migrations,
+            labelStore,
+        };
+    }
+
+    it("accepts a field key and writes the label under {kind:field}", async () => {
+        const session = makeFakeSessionPoly([
+            {
+                key: { kind: "field", className: "newCls", fieldName: "" },
+                label: "playerId",
+                oldObf: "oldCls.emjv",
+                candidates: [
+                    { newObf: "newCls.aaa", score: 0.9, reason: "type+ordinal" },
+                    { newObf: "newCls.bbb", score: 0.7, reason: "..." },
+                ],
+                parentClassMigration: "oldCls",
+            },
+        ]);
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session: session as any });
+
+        const res = await request(local)
+            .post("/api/migrations/accept")
+            .send({
+                key: { kind: "field", className: "newCls", fieldName: "aaa" },
+                oldObf: "oldCls.emjv",
+            });
+        expect(res.status).toBe(200);
+        expect(session.labelStore.get({ kind: "field", className: "newCls", fieldName: "aaa" })).toBe("playerId");
+        const m = session.migrations()!;
+        expect(m.result.review).toHaveLength(0);
+        expect(m.result.auto).toHaveLength(1);
+    });
+
+    it("accepts a method key", async () => {
+        const session = makeFakeSessionPoly([
+            {
+                key: { kind: "method", className: "newCls", methodName: "" },
+                label: "encode",
+                oldObf: "oldCls.vto",
+                candidates: [{ newObf: "newCls.abc", score: 0.95, reason: "..." }],
+                parentClassMigration: "oldCls",
+            },
+        ]);
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session: session as any });
+
+        const res = await request(local)
+            .post("/api/migrations/accept")
+            .send({
+                key: { kind: "method", className: "newCls", methodName: "abc" },
+                oldObf: "oldCls.vto",
+            });
+        expect(res.status).toBe(200);
+        expect(session.labelStore.get({ kind: "method", className: "newCls", methodName: "abc" })).toBe("encode");
+    });
+
+    it("backward-compat: oldObf+newObf payload still accepted (assumed class)", async () => {
+        const session = makeFakeSessionPoly([
+            {
+                key: { kind: "class", className: "ecu" },
+                label: "OldClass",
+                oldObf: "ecu",
+                candidates: [{ newObf: "egq", score: 0.92, reason: "..." }],
+            },
+        ]);
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session: session as any });
+
+        const res = await request(local)
+            .post("/api/migrations/accept")
+            .send({ oldObf: "ecu", newObf: "egq" });
+        expect(res.status).toBe(200);
+        expect(session.labelStore.get({ kind: "class", className: "egq" })).toBe("OldClass");
+    });
+});

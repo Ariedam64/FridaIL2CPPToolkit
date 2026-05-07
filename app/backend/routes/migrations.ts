@@ -1,6 +1,7 @@
 // app/backend/routes/migrations.ts
 import type { Express } from "express";
 import type { Session } from "../session.js";
+import type { LabelKey } from "../core/types.js";
 
 export interface MigrationsDeps { session: Session; }
 
@@ -15,21 +16,47 @@ export function mountMigrations(app: Express, deps: MigrationsDeps): void {
         const p = deps.session.profile();
         const m = deps.session.migrations();
         if (!p || !m) { res.status(503).json({ error: "no migrations or no profile" }); return; }
-        const { oldObf, newObf } = req.body ?? {};
-        if (typeof oldObf !== "string" || typeof newObf !== "string") {
-            res.status(400).json({ error: "oldObf + newObf required" });
+
+        // Accept either:
+        //   v1.3 polymorphic: { key: LabelKey, oldObf: string }
+        //   v1.2 legacy:      { oldObf: string, newObf: string }   (assumed class)
+        const body = req.body ?? {};
+        let key: LabelKey;
+        let oldObf: string;
+        if (body.key && typeof body.oldObf === "string") {
+            key = body.key as LabelKey;
+            oldObf = body.oldObf;
+        } else if (typeof body.oldObf === "string" && typeof body.newObf === "string") {
+            key = { kind: "class", className: body.newObf };
+            oldObf = body.oldObf;
+        } else {
+            res.status(400).json({ error: "expected {key,oldObf} or {oldObf,newObf}" });
             return;
         }
-        const idx = m.result.review.findIndex(r => r.oldObf === oldObf);
+
+        const idx = m.result.review.findIndex((r) => r.oldObf === oldObf);
         if (idx < 0) { res.status(404).json({ error: "no pending review" }); return; }
         const entry = m.result.review[idx];
-        p.labels.set({ kind: "class", className: newObf }, entry.label);
+
+        p.labels.set(key, entry.label);
         p.labels.scheduleFlush();
         m.result.review.splice(idx, 1);
+
+        // Compute newObf for the AUTO record
+        const newObf =
+            key.kind === "class"  ? key.className
+          : key.kind === "method" ? `${key.className}.${key.methodName}`
+          : `${key.className}.${key.fieldName}`;
+
         m.result.auto.push({
-            key: entry.key, label: entry.label, oldObf: entry.oldObf, newObf,
+            key,
+            label: entry.label,
+            oldObf: entry.oldObf,
+            newObf,
             reason: "user accepted",
+            parentClassMigration: entry.parentClassMigration,
         });
+
         res.json({ ok: true });
     });
 
