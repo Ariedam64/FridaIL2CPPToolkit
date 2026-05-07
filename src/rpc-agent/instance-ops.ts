@@ -361,18 +361,36 @@ export interface ValueScanOptions {
 }
 
 function valueMatches(actual: unknown, expected: string | number | boolean): boolean {
-    if (typeof actual === "number" || typeof actual === "bigint") {
-        const n = typeof actual === "bigint" ? Number(actual) : actual;
-        const e = typeof expected === "number" ? expected : Number(expected);
-        return !Number.isNaN(e) && n === e;
+    if (typeof expected === "boolean") {
+        if (typeof actual === "boolean") return actual === expected;
+        // Allow "true"/"false"/0/1 stringification fallback below
     }
-    if (typeof actual === "boolean") {
-        return actual === (expected === true || expected === "true" || expected === 1);
+    if (actual === null || actual === undefined) return false;
+
+    const expectedStr = String(expected);
+
+    if (typeof actual === "number") {
+        const e = Number(expected);
+        return !Number.isNaN(e) && actual === e;
+    }
+    if (typeof actual === "bigint") {
+        return actual.toString() === expectedStr;
     }
     if (typeof actual === "string") {
-        return actual === String(expected);
+        return actual === expectedStr;
     }
-    return false;
+    if (typeof actual === "boolean") {
+        return String(actual) === expectedStr;
+    }
+
+    // Catch-all: Frida Int64/UInt64 wrappers and anything with a sensible toString.
+    // Compares the decimal-string representation.
+    try {
+        const s = String(actual);
+        return s === expectedStr;
+    } catch {
+        return false;
+    }
 }
 
 
