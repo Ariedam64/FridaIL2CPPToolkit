@@ -5,6 +5,7 @@ import type { ScriptDefinition } from "../../../../backend/core/scripts/types";
 const fakeLoader = (defs: Record<string, ScriptDefinition>) => ({
     getDefinition: (id: string) => defs[id] ?? null,
     get: (id: string) => (defs[id] ? { id, status: "loaded", definition: defs[id], filePath: "", loadedAt: "" } : null),
+    getCompiled: (_id: string) => null,
 });
 
 const fakeBuildToolkit = vi.fn((deps: { emitLog: (l: { level: string; args: unknown[] }) => void }) => ({

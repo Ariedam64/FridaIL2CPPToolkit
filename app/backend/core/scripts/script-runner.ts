@@ -92,8 +92,7 @@ export class ScriptRunner extends EventEmitter {
                 let stack    = err instanceof Error ? err.stack   : undefined;
 
                 // Re-map stack to user .ts source if loader can supply the compiled JS + path.
-                const loaderWithCompiled = this.loader as { getCompiled?: (id: string) => string | null };
-                const compiled = loaderWithCompiled.getCompiled?.(scriptId);
+                const compiled = this.loader.getCompiled(scriptId);
                 const entry = this.loader.get(scriptId);
                 if (stack && compiled && entry?.filePath) {
                     try { stack = await remapStack(stack, compiled, entry.filePath); }
@@ -151,7 +150,11 @@ async function remapStack(stack: string, compiledJs: string, originalPath: strin
     const rawMap = extractInlineSourceMap(compiledJs);
     if (!rawMap) return stack;
     const consumer = await new SourceMapConsumer(rawMap);
-    // AsyncFunction preamble: "async function anonymous(...\n) {\n" = 2 lines before user code.
+    // `new AsyncFunction("module", "exports", "require", code)` wraps user code in:
+    //     async function anonymous(module,exports,require\n) {\n
+    // — exactly 2 lines BEFORE the user's code, so stack <anonymous>:LINE references
+    // the compiled-JS line, which corresponds to (LINE - 2) in the sourcemap input.
+    // Stable across V8 since Node 12, verified on Node 22.
     const ASYNC_FN_PREAMBLE_LINES = 2;
     try {
         return stack.split("\n").map((line) => {

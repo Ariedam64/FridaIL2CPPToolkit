@@ -81,6 +81,7 @@ export class ScriptLoader extends EventEmitter {
                 sourcefile: filePath, target: "es2022",
             });
         } catch (err) {
+            this.compiledById.delete(id);
             const entry: RegistryEntry = {
                 id, filePath, status: "compile-error",
                 error: (err as Error).message, loadedAt,
