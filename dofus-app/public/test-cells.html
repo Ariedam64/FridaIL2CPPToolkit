@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Cell overlay test — map (4,-18)</title>
+  <style>
+    body { margin: 0; padding: 16px; background: #000; color: #ddd; font-family: monospace; font-size: 12px; }
+    h1 { font-size: 14px; margin: 0 0 8px; }
+    .row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+    .controls { display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #111; border: 1px solid #333; min-width: 240px; }
+    .controls label { display: flex; gap: 6px; align-items: center; justify-content: space-between; }
+    .controls input[type="number"] { width: 80px; background: #000; color: #fff; border: 1px solid #444; padding: 2px 4px; font-family: monospace; font-size: 11px; }
+    .controls .hint { color: #888; font-size: 10.5px; line-height: 1.5; margin: 4px 0; padding: 4px; background: #050505; border: 1px dashed #333 }
+    .wrap {
+      position: relative;
+      border: 1px solid #444;
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+    }
+    .wrap.dragging { cursor: grabbing; }
+    .wrap img { position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; }
+    .wrap canvas { position: absolute; pointer-events: none; }
+    .legend span { display: inline-block; width: 10px; height: 10px; vertical-align: middle; margin-right: 4px; }
+    button { background: #222; color: #fff; border: 1px solid #444; padding: 4px 8px; font-family: monospace; font-size: 11px; cursor: pointer; }
+    button:hover { background: #333; }
+    .live { color: #6cf; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Cell overlay test — mapId 191104002 (4, -18)</h1>
+
+  <div class="row">
+    <div class="controls">
+      <label>cell W (col step)  <input id="cw" type="number" value="86" step="0.5"></label>
+      <label>cell H (full)       <input id="ch" type="number" value="43" step="0.5"></label>
+      <label>row step (=ch/2)    <input id="rs" type="number" value="21.5" step="0.5"></label>
+      <label>offset X (px)       <input id="ox" type="number" value="438" step="1"></label>
+      <label>offset Y (px)       <input id="oy" type="number" value="123" step="1"></label>
+      <label>image scale         <input id="sc" type="number" value="0.5" step="0.05"></label>
+      <label>canvas scale        <input id="cs" type="number" value="1.0" step="0.01"></label>
+      <label>alpha               <input id="al" type="number" value="0.5" step="0.05"></label>
+      <label>image src
+        <select id="src">
+          <option value="/maps-preview/191104002.png">v1 (2080×1107)</option>
+          <option value="/maps-preview-v2/191104002.png">v2 (1204×860)</option>
+        </select>
+      </label>
+
+      <div class="hint">
+        <b>drag</b> on image → moves canvas (offset X/Y).<br>
+        <b>wheel</b> → canvas scale (zoom around mouse).<br>
+        <b>shift+wheel</b> → cell W (and H/rs proportional).<br>
+        <b>ctrl+wheel</b> → image scale (display zoom).<br>
+        <b>arrows</b> → nudge offset 1 px (shift = 10).
+      </div>
+
+      <div style="display:flex; gap:6px">
+        <button id="reset">reset</button>
+        <button id="copy-vals">copy values to clipboard</button>
+      </div>
+
+      <p style="margin:4px 0">
+        live: ox=<span class="live" id="r-ox">-</span> oy=<span class="live" id="r-oy">-</span>
+        cs=<span class="live" id="r-cs">-</span> cw=<span class="live" id="r-cw">-</span>
+      </p>
+      <p class="legend" style="margin-top:8px">
+        <span style="background:#3a7b3a"></span>walkable
+        <span style="background:#ff9d00"></span>map-change
+        <span style="background:#d9b02c"></span>farm
+        <span style="background:#2a2520"></span>blocked
+        <span style="background:#6cf"></span>interactive
+      </p>
+      <p class="hint">
+        v1: slot 1204×860 centered in 2080×1107 → TL=(438,123).<br>
+        v2: slot is the whole image → TL=(0,0).
+      </p>
+    </div>
+    <div>
+      <div class="wrap" id="wrap">
+        <img id="img" src="/maps-preview/191104002.png">
+        <canvas id="cells"></canvas>
+      </div>
+      <p>map data is loaded from /api/maps/191104002</p>
+    </div>
+  </div>
+
+<script>
+let cellsData = null;
+let interactiveCells = new Set();
+
+const $ = (id) => document.getElementById(id);
+
+async function loadData() {
+  const r = await fetch('/api/maps/191104002');
+  if (!r.ok) { alert('no map data'); return; }
+  const m = await r.json();
+  cellsData = m.c || [];
+  interactiveCells = new Set();
+  for (const [cell] of (m.ie || [])) interactiveCells.add(cell);
+  for (const it of (m.interactives || [])) interactiveCells.add(it.cell);
+  draw();
+}
+
+function cellColor(flags, mcd) {
+  if (!((flags >> 5) & 1)) return null;
+  const mov = flags & 1, los = (flags >> 1) & 1, nrp = (flags >> 3) & 1;
+  const farm = (flags >> 4) & 1, hb = (flags >> 6) & 1;
+  if (!mov) return los ? "#4a4030" : "#2a2520";
+  if (nrp) return null;
+  if (mcd) return "#ff9d00";
+  if (farm) return "#d9b02c";
+  if (hb) return "#3cd";
+  return "#3a7b3a";
+}
+
+function getVals() {
+  return {
+    cw: parseFloat($('cw').value),
+    ch: parseFloat($('ch').value),
+    rs: parseFloat($('rs').value),
+    ox: parseFloat($('ox').value),
+    oy: parseFloat($('oy').value),
+    sc: parseFloat($('sc').value),
+    cs: parseFloat($('cs').value),
+    al: parseFloat($('al').value),
+    src: $('src').value,
+  };
+}
+
+function applyImageSrcAndSize() {
+  const v = getVals();
+  const img = $('img');
+  // Compare full path — v1 and v2 share the same filename (191104002.png).
+  const currentPath = img.src ? new URL(img.src, location.href).pathname : "";
+  if (currentPath === v.src) {
+    sizeWrapAndDraw();
+  } else {
+    img.onload = sizeWrapAndDraw;
+    img.src = v.src;
+  }
+}
+
+function sizeWrapAndDraw() {
+  const v = getVals();
+  const img = $('img');
+  if (!img.naturalWidth) return;
+  const wrap = $('wrap');
+  wrap.style.width = (img.naturalWidth * v.sc) + 'px';
+  wrap.style.height = (img.naturalHeight * v.sc) + 'px';
+  drawCells(img.naturalWidth, img.naturalHeight);
+  updateReadouts();
+}
+
+function draw() {
+  if (!cellsData) return;
+  applyImageSrcAndSize();
+}
+
+function updateReadouts() {
+  const v = getVals();
+  $('r-ox').textContent = v.ox.toFixed(1);
+  $('r-oy').textContent = v.oy.toFixed(1);
+  $('r-cs').textContent = v.cs.toFixed(3);
+  $('r-cw').textContent = v.cw.toFixed(2);
+}
+
+function drawCells(imgW, imgH) {
+  const v = getVals();
+  const canvas = $('cells');
+  canvas.width = imgW;
+  canvas.height = imgH;
+  canvas.style.left = '0';
+  canvas.style.top = '0';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, imgW, imgH);
+  ctx.globalAlpha = v.al;
+
+  for (let i = 0; i < cellsData.length; i++) {
+    const cell = cellsData[i] || [0, 0, 0, 0, 0];
+    const flags = cell[0] | 0, mcd = cell[2] | 0;
+    const col = i % 14;
+    const row = Math.floor(i / 14);
+    const cxBase = col * v.cw + (row % 2) * (v.cw / 2) + v.cw / 2;
+    const cyBase = row * v.rs + v.ch / 2;
+    const cx = cxBase * v.cs + v.ox;
+    const cy = cyBase * v.cs + v.oy;
+    const cwS = v.cw * v.cs, chS = v.ch * v.cs;
+    const highlighted = interactiveCells.has(i);
+    const base = cellColor(flags, mcd);
+    if (!base && !highlighted) continue;
+    ctx.fillStyle = highlighted ? "#6cf" : base;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - chS / 2);
+    ctx.lineTo(cx + cwS / 2, cy);
+    ctx.lineTo(cx, cy + chS / 2);
+    ctx.lineTo(cx - cwS / 2, cy);
+    ctx.closePath();
+    ctx.fill();
+    if (highlighted) {
+      ctx.globalAlpha = Math.min(1, v.al + 0.4);
+      ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.globalAlpha = v.al;
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+// Convert client (mouse) coords to image-pixel coords inside the wrap.
+function clientToImagePx(ev) {
+  const wrap = $('wrap');
+  const r = wrap.getBoundingClientRect();
+  const v = getVals();
+  const localX = ev.clientX - r.left;
+  const localY = ev.clientY - r.top;
+  return { x: localX / v.sc, y: localY / v.sc };
+}
+
+// ---- drag to move offset ----
+let drag = null;
+$('wrap').addEventListener('mousedown', (ev) => {
+  if (ev.button !== 0) return;
+  ev.preventDefault();
+  const v = getVals();
+  drag = { startClientX: ev.clientX, startClientY: ev.clientY, startOx: v.ox, startOy: v.oy, sc: v.sc };
+  $('wrap').classList.add('dragging');
+});
+window.addEventListener('mousemove', (ev) => {
+  if (!drag) return;
+  const dx = (ev.clientX - drag.startClientX) / drag.sc;
+  const dy = (ev.clientY - drag.startClientY) / drag.sc;
+  $('ox').value = (drag.startOx + dx).toFixed(2);
+  $('oy').value = (drag.startOy + dy).toFixed(2);
+  // Just redraw cells, no need to reload image.
+  const img = $('img');
+  if (img.naturalWidth) drawCells(img.naturalWidth, img.naturalHeight);
+  updateReadouts();
+});
+window.addEventListener('mouseup', () => {
+  if (!drag) return;
+  drag = null;
+  $('wrap').classList.remove('dragging');
+});
+
+// ---- wheel: cs (canvas scale) | shift: cw | ctrl: image scale ----
+$('wrap').addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  const v = getVals();
+  const delta = -Math.sign(ev.deltaY); // up = +1, down = -1
+  const factor = 1 + delta * 0.03;
+  if (ev.ctrlKey) {
+    $('sc').value = Math.max(0.1, Math.min(2, v.sc * factor)).toFixed(3);
+    sizeWrapAndDraw();
+  } else if (ev.shiftKey) {
+    const newCw = v.cw * factor;
+    $('cw').value = newCw.toFixed(3);
+    $('ch').value = (newCw / 2 * 1).toFixed(3);  // 1:0.5 ratio (CELL_W : CELL_H)... actually keep ratio
+    $('rs').value = (newCw / 4).toFixed(3);
+    // Above keeps CELL_W=2*CELL_H, row step = CELL_H/2 = CELL_W/4.
+    drawCells($('img').naturalWidth, $('img').naturalHeight);
+    updateReadouts();
+  } else {
+    // canvas scale, anchored on mouse position so the cell under cursor stays under cursor.
+    const m = clientToImagePx(ev);
+    const newCs = v.cs * factor;
+    // Solve: m.x = x_base * cs + ox  => want same m after change:
+    //   m = x_base * newCs + new_ox  =>  new_ox = m - x_base * newCs
+    //   x_base = (m - ox) / cs
+    const xBase = (m.x - v.ox) / v.cs;
+    const yBase = (m.y - v.oy) / v.cs;
+    const newOx = m.x - xBase * newCs;
+    const newOy = m.y - yBase * newCs;
+    $('cs').value = newCs.toFixed(4);
+    $('ox').value = newOx.toFixed(2);
+    $('oy').value = newOy.toFixed(2);
+    drawCells($('img').naturalWidth, $('img').naturalHeight);
+    updateReadouts();
+  }
+}, { passive: false });
+
+// ---- arrow keys: nudge offset ----
+window.addEventListener('keydown', (ev) => {
+  if (ev.target && (ev.target.tagName === 'INPUT' || ev.target.tagName === 'SELECT')) return;
+  const step = ev.shiftKey ? 10 : 1;
+  let handled = true;
+  const ox = parseFloat($('ox').value), oy = parseFloat($('oy').value);
+  if (ev.key === 'ArrowLeft')      $('ox').value = (ox - step).toFixed(2);
+  else if (ev.key === 'ArrowRight') $('ox').value = (ox + step).toFixed(2);
+  else if (ev.key === 'ArrowUp')    $('oy').value = (oy - step).toFixed(2);
+  else if (ev.key === 'ArrowDown')  $('oy').value = (oy + step).toFixed(2);
+  else handled = false;
+  if (handled) {
+    ev.preventDefault();
+    drawCells($('img').naturalWidth, $('img').naturalHeight);
+    updateReadouts();
+  }
+});
+
+$('reset').onclick = () => {
+  $('cw').value = 86; $('ch').value = 43; $('rs').value = 21.5;
+  $('ox').value = 438; $('oy').value = 123; $('sc').value = 0.5; $('cs').value = 1; $('al').value = 0.5;
+  draw();
+};
+
+$('copy-vals').onclick = () => {
+  const v = getVals();
+  const txt = `cw=${v.cw}  ch=${v.ch}  rs=${v.rs}  ox=${v.ox}  oy=${v.oy}  cs=${v.cs}  src=${v.src}`;
+  navigator.clipboard.writeText(txt).then(() => {
+    $('copy-vals').textContent = 'copied!';
+    setTimeout(() => $('copy-vals').textContent = 'copy values to clipboard', 1200);
+  });
+};
+
+['cw','ch','rs','ox','oy','sc','cs','al'].forEach(id => $(id).addEventListener('change', draw));
+$('src').addEventListener('change', () => {
+  // Re-anchor offset when switching v1↔v2 since slot TL differs.
+  const newSrc = $('src').value;
+  if (newSrc.includes('-v2')) { $('ox').value = 0; $('oy').value = 0; }
+  else { $('ox').value = 438; $('oy').value = 123; }
+  draw();
+});
+
+loadData();
+</script>
+</body>
+</html>

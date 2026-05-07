@@ -1,0 +1,123 @@
+[
+  {
+    "message": "icb",
+    "clearHandlers": [
+      "SmithMagicCoopUi",
+      "SmithMagicUi"
+    ],
+    "inferredLabel": "SmithMagicCoopUi"
+  },
+  {
+    "message": "idm",
+    "clearHandlers": [
+      "WatchEquipmentUI",
+      "WatchEquipmentUi"
+    ],
+    "inferredLabel": "WatchEquipmentUI"
+  },
+  {
+    "message": "jfs",
+    "clearHandlers": [
+      "SmithMagicCoopUi"
+    ],
+    "inferredLabel": "SmithMagicCoopUi"
+  },
+  {
+    "message": "jfi",
+    "clearHandlers": [
+      "SmithMagicCoopUi"
+    ],
+    "inferredLabel": "SmithMagicCoopUi"
+  },
+  {
+    "message": "khu",
+    "clearHandlers": [
+      "Inventory"
+    ],
+    "inferredLabel": "Inventory"
+  },
+  {
+    "message": "khn",
+    "clearHandlers": [
+      "Inventory"
+    ],
+    "inferredLabel": "Inventory"
+  },
+  {
+    "message": "ibk",
+    "clearHandlers": [
+      "StorageTabInformationWrapper"
+    ],
+    "inferredLabel": "StorageTabInformationWrapper"
+  },
+  {
+    "message": "ksl",
+    "clearHandlers": [
+      "ColorSet"
+    ],
+    "inferredLabel": "ColorSet"
+  },
+  {
+    "message": "jjk",
+    "clearHandlers": [
+      "InfiniteDreamEndFightUI"
+    ],
+    "inferredLabel": "InfiniteDreamEndFightUI"
+  },
+  {
+    "message": "jno",
+    "clearHandlers": [
+      "EndTurnWidgetUI"
+    ],
+    "inferredLabel": "EndTurnWidgetUI"
+  },
+  {
+    "message": "iyy",
+    "clearHandlers": [
+      "BuffsFightUI"
+    ],
+    "inferredLabel": "BuffsFightUI"
+  },
+  {
+    "message": "izc",
+    "clearHandlers": [
+      "BuffsFightUI"
+    ],
+    "inferredLabel": "BuffsFightUI"
+  },
+  {
+    "message": "knl",
+    "clearHandlers": [
+      "BasicCharacterWrapper"
+    ],
+    "inferredLabel": "BasicCharacterWrapper"
+  },
+  {
+    "message": "iso",
+    "clearHandlers": [
+      "RoleplayIntroductionService"
+    ],
+    "inferredLabel": "RoleplayIntroductionService"
+  },
+  {
+    "message": "jsg",
+    "clearHandlers": [
+      "MapDisplayService"
+    ],
+    "inferredLabel": "MapDisplayService"
+  },
+  {
+    "message": "kaz",
+    "clearHandlers": [
+      "MarkedCellsService"
+    ],
+    "inferredLabel": "MarkedCellsService"
+  },
+  {
+    "message": "khe",
+    "clearHandlers": [
+      "FightEntitiesService"
+    ],
+    "inferredLabel": "FightEntitiesService"
+  }
+]

@@ -1,0 +1,228 @@
+{
+  "totalParses": 178,
+  "distinctMessages": 24,
+  "sniffer": "CodedInputStream.ReadMessage hook (post-parse builder type)",
+  "session": "Light gameplay (login + a few actions)",
+  "observations": [
+    {
+      "obf": "gui",
+      "parseCount": 89,
+      "handlerCount": 3,
+      "handlers": [
+        "fzd",
+        "fzf",
+        "fzk"
+      ]
+    },
+    {
+      "obf": "idw",
+      "parseCount": 30,
+      "handlerCount": 3,
+      "handlers": [
+        "duu",
+        "dva",
+        "dve"
+      ]
+    },
+    {
+      "obf": "irl",
+      "parseCount": 10,
+      "handlerCount": 3,
+      "handlers": [
+        "dva",
+        "ejt",
+        "fcq"
+      ]
+    },
+    {
+      "obf": "jtq",
+      "parseCount": 7,
+      "handlerCount": 2,
+      "handlers": [
+        "gqu",
+        "grz"
+      ]
+    },
+    {
+      "obf": "jnc",
+      "parseCount": 6,
+      "handlerCount": 4,
+      "handlers": [
+        "dtv",
+        "ehk",
+        "ejo",
+        "ejt"
+      ]
+    },
+    {
+      "obf": "irx",
+      "parseCount": 4,
+      "handlerCount": 2,
+      "handlers": [
+        "ehk",
+        "ejt"
+      ]
+    },
+    {
+      "obf": "irk",
+      "parseCount": 4,
+      "handlerCount": 1,
+      "handlers": [
+        "dva"
+      ]
+    },
+    {
+      "obf": "jrr",
+      "parseCount": 4,
+      "handlerCount": 3,
+      "handlers": [
+        "eku",
+        "eqq",
+        "fzm"
+      ]
+    },
+    {
+      "obf": "icy",
+      "parseCount": 3,
+      "handlerCount": 1,
+      "handlers": [
+        "dxd"
+      ]
+    },
+    {
+      "obf": "isy",
+      "parseCount": 2,
+      "handlerCount": 5,
+      "handlers": [
+        "dtv",
+        "duu",
+        "ech",
+        "ejt",
+        "exm"
+      ]
+    },
+    {
+      "obf": "knz",
+      "parseCount": 2,
+      "handlerCount": 1,
+      "handlers": [
+        "ela"
+      ]
+    },
+    {
+      "obf": "knu",
+      "parseCount": 2,
+      "handlerCount": 2,
+      "handlers": [
+        "gqu",
+        "grz"
+      ]
+    },
+    {
+      "obf": "jlw",
+      "parseCount": 2,
+      "handlerCount": 6,
+      "handlers": [
+        "due",
+        "dun",
+        "dxi",
+        "ewt",
+        "exj"
+      ]
+    },
+    {
+      "obf": "iso",
+      "parseCount": 2,
+      "inferredFromClearHandlers": "RoleplayIntroductionService",
+      "handlerCount": 9,
+      "handlers": [
+        "RoleplayIntroductionService",
+        "duu",
+        "duv",
+        "efe",
+        "ehk"
+      ]
+    },
+    {
+      "obf": "ksj",
+      "parseCount": 2,
+      "handlerCount": 1,
+      "handlers": [
+        "duj"
+      ]
+    },
+    {
+      "obf": "isa",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "ehk"
+      ]
+    },
+    {
+      "obf": "gzc",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "dun"
+      ]
+    },
+    {
+      "obf": "hfw",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "ebz"
+      ]
+    },
+    {
+      "obf": "hvp",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "dvq"
+      ]
+    },
+    {
+      "obf": "hwj",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "fjd"
+      ]
+    },
+    {
+      "obf": "jcw",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "emo"
+      ]
+    },
+    {
+      "obf": "ibs",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "emo"
+      ]
+    },
+    {
+      "obf": "idn",
+      "parseCount": 1,
+      "handlerCount": 1,
+      "handlers": [
+        "egy"
+      ]
+    },
+    {
+      "obf": "jdk",
+      "parseCount": 1,
+      "handlerCount": 2,
+      "handlers": [
+        "elz",
+        "emo"
+      ]
+    }
+  ]
+}

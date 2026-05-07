@@ -8,6 +8,9 @@ import { mountLogs } from "./panels/logs.js";
 import { renderWorld } from "./panels/world.js";
 import { renderMap } from "./panels/map.js";
 import { renderItems } from "./panels/items.js";
+import { renderSocket } from "./panels/socket.js";
+import { renderCoverage } from "./panels/coverage.js";
+import { renderResources } from "./panels/resources.js";
 
 function $(sel: string, root: ParentNode = document): HTMLElement {
     const el = root.querySelector(sel);
@@ -74,6 +77,9 @@ function renderMainTab(name: string): void {
     if (name === "world")      void renderWorld(wrap);
     else if (name === "map")   renderMap(wrap);
     else if (name === "items") void renderItems(wrap);
+    else if (name === "socket") renderSocket(wrap);
+    else if (name === "coverage") renderCoverage(wrap);
+    else if (name === "resources") void renderResources(wrap);
 }
 
 document.addEventListener("tab-change", (e) => {

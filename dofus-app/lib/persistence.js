@@ -14,6 +14,8 @@ const COVERAGE_PLAN   = path.join(DATA_DIR, "coverage-plan.json");
 const GFX_REGISTRY    = path.join(DATA_DIR, "gfx-to-type.json");
 const TILE_MAPPING    = path.join(DATA_DIR, "tile-mapping.json");
 const ADDRESSABLES    = path.join(DATA_DIR, "worldmap-addressables.json");
+const RESOURCES       = path.join(DATA_DIR, "resources.json");
+const RESOURCE_MAPS   = path.join(DATA_DIR, "resource-maps.json");
 
 function ensureDir(p) { fs.mkdirSync(p, { recursive: true }); }
 
@@ -114,6 +116,16 @@ function readGfxRegistry() {
     try { return JSON.parse(fs.readFileSync(GFX_REGISTRY, "utf8")); } catch { return {}; }
 }
 
+function readResources() {
+    if (!fs.existsSync(RESOURCES)) return null;
+    try { return JSON.parse(fs.readFileSync(RESOURCES, "utf8")); } catch { return null; }
+}
+
+function readResourceMaps() {
+    if (!fs.existsSync(RESOURCE_MAPS)) return null;
+    try { return JSON.parse(fs.readFileSync(RESOURCE_MAPS, "utf8")); } catch { return null; }
+}
+
 // -------- Worldmap tile-name dumps (per-wm) --------------------------------
 // `listCartographyTileNames` returns {worldmaps:[{worldMapId, tiles:[{index,name,width,height}]}]}.
 // We persist one snapshot per worldMapId visited so the offline matcher can
@@ -178,6 +190,7 @@ module.exports = {
     saveCapture,
     saveCatalog, readCatalog, listCatalogs,
     readCoveragePlan, readGfxRegistry,
+    readResources, readResourceMaps,
     saveWmTileNames, listWmTileNames,
     readBundleManifest, bundleTilePath, readTileMapping,
     saveAddressables, readAddressables,

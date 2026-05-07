@@ -1,0 +1,7373 @@
+{
+  "stats": {
+    "assemblies": 17,
+    "classDumps": 105,
+    "obfuscatedWithMethodLeaks": 147,
+    "obfuscatedWithTypeRefs": 77,
+    "obfuscatedWithSubclasses": 14,
+    "totalIdentifications": 403
+  },
+  "identifications": [
+    {
+      "asm": "Core",
+      "obf": "fpz`1",
+      "label": "Generic UI base (large)",
+      "score": 198,
+      "methods": [
+        "WindowDragged"
+      ],
+      "typeRefs": [],
+      "children": [
+        "AchievementsUI",
+        "AddFriendUi",
+        "AdminSelectItemUI",
+        "AllianceAvaUi",
+        "AllianceConquestsUi",
+        "AllianceFightUi",
+        "AllianceLogBook",
+        "AllianceNuggetValidPopup",
+        "AlmanaxEventDetails",
+        "AlterationUI",
+        "AppearanceUI",
+        "AuctionHouseEffectFilter",
+        "AuctionHouseItemsList",
+        "AuctionHouseSellUi",
+        "AuctionHouseTab`1",
+        "BankUi",
+        "BaseLadderTabUI`1",
+        "BasePopup`2",
+        "BaseRenameUi",
+        "BaseSocialMemberRightsUi`1",
+        "BaseSocialMembersUi`1",
+        "BestiaryTabUI",
+        "BuffsFightUI",
+        "BugReporter",
+        "CalendarUI",
+        "CartographyBannerUI",
+        "CartographyTool",
+        "CharacterCreation",
+        "CharacterHeader",
+        "CharacterPresetUi",
+        "CharacterSelection",
+        "ChatView",
+        "CloningUi",
+        "CollectedTaxCollectorUI",
+        "ColorPickerUi",
+        "CommonSpellsList",
+        "CompanionDetail",
+        "CompanionUI",
+        "ConfirmBuyPopupUi",
+        "ConfirmPurchaseUi",
+        "ConfirmSellPopupUi",
+        "CosmeticUi",
+        "CraftUi",
+        "CrafterList",
+        "CreatePresetUI",
+        "CreateRankUi",
+        "DescriptionPopup",
+        "DocumentBase`1",
+        "DungeonRusherDetails",
+        "EncyclopediaList",
+        "EndSeasonRewardUi",
+        "EquipmentUi",
+        "ExchangeStorageUi",
+        "ExchangeUI",
+        "ExtractionUi",
+        "FeedUI",
+        "FightMapPreviewUi",
+        "FightResultCharacterTab",
+        "FightResultResumeTab",
+        "FightResultStatsTab",
+        "FighterInfoPlacementUI",
+        "ForgettableListBase`1",
+        "ForgettableSpellRemoveUi",
+        "ForgettableSpellSetCreationPopup",
+        "ForgettableSpellSetListUi",
+        "FriendsUI",
+        "GameCollectionTabUI",
+        "GameMenu",
+        "GameSuggestionTabUI",
+        "GeneticUi",
+        "GuildChestUi",
+        "GuildContributionUi",
+        "GuildHouseManagerUi",
+        "GuildHouses",
+        "GuildLevelRewardsUI",
+        "GuildLogBook",
+        "GuildMissionRanksAndCategoriesOption",
+        "GuildMissionSubscribersUi",
+        "GuildMissionTierOption",
+        "GuildMissions",
+        "GuildNoteEditingPopup",
+        "GuildShopConfirmBuyPopup",
+        "GuildShopUi",
+        "GuildWeeklyActivityRewardsUi",
+        "HavenbagManagerUI",
+        "HouseSalePopup",
+        "HouseUI",
+        "InfiniteDreamBestiary",
+        "InfiniteDreamCreateNewPopup",
+        "InfiniteDreamDropTable",
+        "InfiniteDreamEndFightUI",
+        "InfiniteDreamHub",
+        "InfiniteDreamMap",
+        "InfiniteDreamResultUi",
+        "InfiniteDreamRollPopup",
+        "InfiniteDreamShopUi",
+        "InfiniteDreamSpellBar",
+        "InfiniteDreamTrackingUi",
+        "InternalBigNotificationUI",
+        "InternalNotificationUI",
+        "ItemsSet",
+        "JobSkillsUI",
+        "JobUI",
+        "JoinPartyUi",
+        "KisInfractionPopupUi",
+        "KisPopupWarningUi",
+        "KisPreventSanctionPopupUi",
+        "LadderRewardsTableUi",
+        "LatencyUI",
+        "LegendaryHuntsUi",
+        "LevelUpUi",
+        "LivingObjectLookUi",
+        "LivingObjectUi",
+        "MainMenu",
+        "MapInfoUI",
+        "MarketPrice",
+        "MatingUi",
+        "MimicryUi",
+        "ModalCoverUi",
+        "ModifyRankUi",
+        "NewTurnStartUI",
+        "NpcDialog",
+        "OldRewardsProgress`1",
+        "OptionLoadingErrorUi",
+        "OptionTabUi",
+        "PaddockGaugeFillUi",
+        "PaddockUi",
+        "PartyDisplayUi",
+        "PersonalGuildHouseManagerUi",
+        "PingWheel",
+        "PlayerInventoryUi",
+        "PlayerSpellUi",
+        "PlayerTurnStartUI",
+        "PresetListUi",
+        "PreviewedAlterationsUi",
+        "PrismModuleUi",
+        "PvpArenaFightsUi",
+        "QualitySelectionUI",
+        "QuestList",
+        "QuestsUI",
+        "RecipesUI",
+        "RecycleUi",
+        "RemoveRankUi",
+        "ReportUI",
+        "RewardsMenuMinimizedUi",
+        "RewardsMenuUi",
+        "RewardsProgressTab`1",
+        "RideParentUi",
+        "RuneMakerUi",
+        "SalesHistoryUI",
+        "SeasonalEventDetails",
+        "SecretPopup",
+        "ServerSelection",
+        "ShopArticleConfirmUi",
+        "ShopUi",
+        "SlaveFightUI",
+        "SlotWrapperListUi",
+        "SmileyUIEmoteTab",
+        "SmileyUISmileyTab",
+        "SmithMagicUi",
+        "SocialApplicationsUI",
+        "SocialApplyUi",
+        "SocialJoinUi",
+        "SocialRecruitmentUI",
+        "SpectatorUi",
+        "SpellBaseUi",
+        "SpellList",
+        "SpellPickerUI",
+        "SpouseUI",
+        "StatBoost`1",
+        "StorableItemList",
+        "SurrenderPopupUi",
+        "TagEditorUi",
+        "TaxCollectorEquipment",
+        "TaxCollectorPersonalization",
+        "TopTaxCollectors",
+        "TreasureHunt",
+        "TutorialUI",
+        "UIChallengeChoiceDisplay",
+        "UIChallengeSelectionDisplay",
+        "UIChallengeSettingsDisplay",
+        "UICharacterSheet",
+        "UIEstateAgency",
+        "UITimeline",
+        "UpdateStorageTabUI",
+        "WatchEquipmentUi",
+        "WebBakPopup",
+        "WebGiftCodeResultUi",
+        "WebGiftMysteryBoxUi",
+        "WebGiftUi",
+        "WidgetManager",
+        "WidgetProgressGaugeUi",
+        "WorldBossUi",
+        "WorldEventDetails",
+        "WorldEventRewardsUi",
+        "WorldEventsLadderTabUI"
+      ],
+      "domains": [
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eat",
+      "label": "World/cartography UI",
+      "score": 94,
+      "methods": [
+        "AddAreaShape",
+        "CenterToPlayerPosition",
+        "Display",
+        "DisplayWhenReady",
+        "LoadCartographyImages",
+        "LoadLod",
+        "OnMouseDrag",
+        "RefreshScaleAfterLoad",
+        "ToggleLayer",
+        "UpdateIcons",
+        "UpdatePrismIcon",
+        "UpdatePrismsAsync"
+      ],
+      "typeRefs": [
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableEntry",
+          19
+        ],
+        [
+          "Core.UILogic.Components.ContextMenu.DofusContextualMenu",
+          18
+        ],
+        [
+          "Core.DataCenter.Metadata.World.SubAreaData",
+          9
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.Builder.CartographyTooltipBuilder.CartographyTooltipInfos",
+          9
+        ],
+        [
+          "Core.UILogic.Components.ContextMenu.ContextMenuItem.ContextMenuItemView",
+          7
+        ],
+        [
+          "Core.DataCenter.Metadata.World.MapInformationData",
+          6
+        ],
+        [
+          "Core.DataCenter.Metadata.Quest.QuestData",
+          5
+        ],
+        [
+          "Core.DataCenter.Types.Point",
+          5
+        ],
+        [
+          "Core.DataCenter.Metadata.World.WorldMapData",
+          4
+        ],
+        [
+          "Core.DataCenter.Metadata.World.HintData",
+          2
+        ]
+      ],
+      "children": [
+        "CartographyBannerView",
+        "CartographyMapView"
+      ],
+      "domains": [
+        [
+          "UI",
+          35
+        ],
+        [
+          "DataCenter",
+          31
+        ],
+        [
+          "World",
+          2
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Trade",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fdy",
+      "label": "Entity factory (rendering)",
+      "score": 82,
+      "methods": [
+        "AddToPoolOnMainThread",
+        "ShowFightPreview",
+        "SynchronizeFightPreviewTooltips"
+      ],
+      "typeRefs": [
+        [
+          "Core.UILogic.Components.Tooltips.TooltipRoot",
+          33
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.Builder.IBaseTooltipBuilder",
+          21
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.TooltipType",
+          7
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.Builder.ITooltipPinnable",
+          6
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.Builder.Internal.TooltipPositioning",
+          5
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.DofusTooltipsSettings",
+          2
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.TooltipSyncHandler",
+          1
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.TooltipAdditionalType",
+          1
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          77
+        ],
+        [
+          "Combat",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "els",
+      "label": "Audio manager (FMOD)",
+      "score": 60,
+      "methods": [
+        "DEBUG_LocalizedSounds",
+        "DoLoadBank",
+        "DoLoadBankWithGuid",
+        "GenerateMapSpatializationAsync",
+        "Init",
+        "Initialize",
+        "InitializeAudioManager",
+        "PlayMenuWhenDoneInit",
+        "PlaySound",
+        "PlaySoundEventInstance"
+      ],
+      "typeRefs": [
+        [
+          "FMOD.Studio.PARAMETER_ID",
+          21
+        ],
+        [
+          "FMOD.Studio.EventInstance",
+          8
+        ],
+        [
+          "Ankama.AudioManagement.BankFlags",
+          5
+        ],
+        [
+          "Core.World.Metadata.Maps.MapMetadata",
+          3
+        ],
+        [
+          "Ankama.AudioManagement.MusicInstance",
+          2
+        ],
+        [
+          "AleCore.Data.Sound.PlaylistSet",
+          2
+        ],
+        [
+          "Ankama.AudioManagement.AudioManagerLibrary",
+          1
+        ],
+        [
+          "Ankama.AudioManagement.AudioManagerSettings",
+          1
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Audio",
+          42
+        ],
+        [
+          "World",
+          1
+        ],
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eah",
+      "label": "World/cartography UI",
+      "score": 57,
+      "methods": [
+        "InitStaticCartographyData",
+        "MoveTo",
+        "MoveToWorldmapMenuElement",
+        "ScheduleAnomalyListRefresh",
+        "SetUpWorldMap",
+        "SwitchToConquestOrAnomalyMode"
+      ],
+      "typeRefs": [
+        [
+          "Core.UILogic.Components.Figma.CheckboxCustom",
+          17
+        ],
+        [
+          "Core.UILogic.Bindings.TerritoryItemBinding",
+          10
+        ],
+        [
+          "Core.UILogic.Components.Figma.ListElementBasic",
+          5
+        ],
+        [
+          "Core.DataCenter.Metadata.World.SubAreaData",
+          4
+        ],
+        [
+          "Core.UILogic.Components.SelectableGroup",
+          2
+        ],
+        [
+          "Core.UILogic.Components.Tooltips.Builder.IBaseTooltipBuilder",
+          2
+        ],
+        [
+          "Core.DataCenter.Metadata.World.DungeonData",
+          1
+        ],
+        [
+          "Core.DataCenter.Metadata.World.HintData",
+          1
+        ],
+        [
+          "Core.Services.Roleplay.CartographyService.CartographyMapView",
+          1
+        ],
+        [
+          "Core.Services.Roleplay.CartographyService.CartographyTool",
+          1
+        ],
+        [
+          "Core.UILogic.Components.Figma.SectionHeader",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          37
+        ],
+        [
+          "DataCenter",
+          6
+        ],
+        [
+          "World",
+          3
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Trade",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "egq",
+      "label": "HAAPI client (Ankama+Dofus)",
+      "score": 56,
+      "methods": [
+        "ConsumeKardByCode",
+        "ConsumeKardById",
+        "CreateTokenWithPassword",
+        "GetAccountBids",
+        "GetAlmanaxEvent",
+        "GetCmsPollInGame",
+        "GetDirectionsRates",
+        "GetFeeds",
+        "GetKardByAccountIdWithApiKey",
+        "GetOffersKamas",
+        "GetOffersOgrines",
+        "MarkCmsPollInGamesAsRead",
+        "OgrinsAccount",
+        "OgrinsAmount",
+        "SendDeviceInfos",
+        "SendGameEvent",
+        "SendGameEvents"
+      ],
+      "typeRefs": [
+        [
+          "Com.Ankama.HaapiDofus.Model.BakBidOffers",
+          2
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.Token",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.Almanax",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.CmsPollInGame",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.KardTicket",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.KardKard",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.KardKardStock",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.MoneyOgrine",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.MoneyBalance",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiDofus.Model.BakBid",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Model.CmsFeed",
+          1
+        ],
+        [
+          "Com.Ankama.HaapiDofus.Model.BakRates",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "HAAPI",
+          13
+        ],
+        [
+          "Auth",
+          3
+        ],
+        [
+          "Cms",
+          2
+        ],
+        [
+          "Combat",
+          1
+        ],
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "uf",
+      "label": "Entity factory (rendering)",
+      "score": 48,
+      "methods": [
+        "GenerateAnimatedElement",
+        "GenerateCellPing",
+        "GenerateCharacter",
+        "GenerateCharacterForUI",
+        "GenerateCharacterInternal",
+        "GenerateFightOnMapTeamIcon",
+        "GenerateFollower",
+        "GenerateMapCharacter",
+        "GenerateMark",
+        "GeneratePing",
+        "GeneratePreview",
+        "GenerateProjectile",
+        "GeneratePropEffect",
+        "GenerateScenario"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.Entity.Entity",
+          55
+        ],
+        [
+          "Core.Rendering.Look.EntityLook",
+          18
+        ],
+        [
+          "Core.Rendering.Entity.Animations.EntityAnimation",
+          5
+        ],
+        [
+          "Editor.AleCore.Data.ClientAnimatedElementTransform",
+          5
+        ],
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableCatalogName",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          1
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "World",
+          1
+        ],
+        [
+          "UI",
+          1
+        ],
+        [
+          "Anim",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "emb",
+      "label": "Shopi (Boutique) client",
+      "score": 43,
+      "methods": [
+        "CreateCart",
+        "CreateOrder",
+        "GetArticleInfo",
+        "GetCategoryPromoteGroup",
+        "GetPaymentMethod",
+        "GetShopCatalog",
+        "GetShopCategoryList",
+        "PayOrderFree",
+        "PayOrderOgrines",
+        "SearchArticles"
+      ],
+      "typeRefs": [
+        [
+          "Com.Ankama.Shopi.Model.ShopKey",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.Language",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.CategoryList",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.CatalogPage",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.SortOneOf",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.PromoteGroup",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.ArticleList",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.Article",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.Cart",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.CartDetailClassicRequest",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.Order",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.CreateOrderRequest",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.CartPaymentModeList",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.AnkamaOgrinePayment",
+          1
+        ],
+        [
+          "Com.Ankama.Shopi.Model.AnkamaFreePayment",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Boutique",
+          21
+        ],
+        [
+          "Trade",
+          3
+        ],
+        [
+          "Money",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dxd",
+      "label": "Protocol service [SmithMagic] (75 msg handlers)",
+      "score": 40,
+      "methods": [
+        "PresetListEventWhenCharacterInfo",
+        "RefreshTagsWhenContentReceived"
+      ],
+      "typeRefs": [
+        [
+          "Core.UILogic.Inventory.Views.AbstractStorageView",
+          10
+        ],
+        [
+          "Core.DataCenter.Metadata.Enums.ShortCutBarTypes",
+          5
+        ],
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          5
+        ],
+        [
+          "Core.UILogic.Inventory.Inventory",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          12
+        ],
+        [
+          "Network",
+          6
+        ],
+        [
+          "DataCenter",
+          5
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "iso",
+      "label": "?",
+      "score": 30,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          14
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          7
+        ],
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          30
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eka",
+      "label": "Entity factory (rendering)",
+      "score": 25,
+      "methods": [
+        "AddStylizedTextElement",
+        "AddTextElement",
+        "Initialize"
+      ],
+      "typeRefs": [
+        [
+          "Core.UILogic.Components.CharacteristicContextual.TextElement",
+          9
+        ],
+        [
+          "Core.UILogic.Components.CharacteristicContextual.StyledTextElement",
+          9
+        ],
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableEntry",
+          4
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          18
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ejr",
+      "label": "Entity factory (rendering)",
+      "score": 25,
+      "methods": [
+        "GetClosestAnimFromBoneAsync",
+        "GetClosestAsync",
+        "Init",
+        "LoadAndApplyDefinitionAsync",
+        "LoadAnimationNamesAsync",
+        "LoadDefinitionFromBoneCatalogAsync",
+        "LoadDefinitionFromCatalogAsync",
+        "LoadDefinitionFromMappedBoneAsync",
+        "LoadSkin",
+        "PreLoadDefinitionFromCatalog",
+        "PreLoadSkin"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.Look.EntityLook",
+          28
+        ],
+        [
+          "Core.Enums.BreedEnum",
+          17
+        ],
+        [
+          "Ankama.Animations.AnimatedObjectDefinition",
+          15
+        ],
+        [
+          "Core.Rendering.Entity.Animations.EntityAnimation",
+          11
+        ],
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableCatalogName",
+          10
+        ],
+        [
+          "Ankama.Animations.SkinAsset",
+          2
+        ],
+        [
+          "Core.Rendering.Entity.Animations.EntityAnimator",
+          2
+        ],
+        [
+          "Core.Characters.Data.BonesLabelEventsIndexData",
+          1
+        ],
+        [
+          "Core.Characters.Data.BoneIndexData",
+          1
+        ],
+        [
+          "Core.Services.Entities.EntityInformationServices.EntityInfo",
+          1
+        ],
+        [
+          "Core.Characters.Data.AnimLabelEvents",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Anim",
+          2
+        ],
+        [
+          "Data",
+          2
+        ],
+        [
+          "World",
+          1
+        ],
+        [
+          "Boutique",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gv",
+      "label": "DataCenter consumer",
+      "score": 24,
+      "methods": [
+        "DoHpRegen"
+      ],
+      "typeRefs": [
+        [
+          "Core.Wrappers.DataCenterWrappers.StatWrappers.EntityStat",
+          24
+        ],
+        [
+          "Core.DataCenter.Metadata.Stat.StatId",
+          22
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "DataCenter",
+          22
+        ],
+        [
+          "Combat",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dvw",
+      "label": "DataCenter consumer",
+      "score": 24,
+      "methods": [
+        "DelayedClearAchievements"
+      ],
+      "typeRefs": [
+        [
+          "Core.DataCenter.Metadata.Quest.AchievementRewardData",
+          16
+        ],
+        [
+          "Core.DataCenter.Metadata.Quest.AchievementData",
+          4
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "DataCenter",
+          20
+        ],
+        [
+          "Quest",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dwj",
+      "label": "DataCenter consumer",
+      "score": 19,
+      "methods": [
+        "FollowObjective",
+        "UnfollowObjective"
+      ],
+      "typeRefs": [
+        [
+          "Core.DataCenter.Metadata.Quest.QuestData",
+          10
+        ],
+        [
+          "Core.DataCenter.Metadata.Quest.QuestObjectiveData",
+          5
+        ],
+        [
+          "Core.DataCenter.Metadata.Quest.QuestCategoryData",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "DataCenter",
+          16
+        ],
+        [
+          "Quest",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ehc",
+      "label": "Entity factory (rendering)",
+      "score": 18,
+      "methods": [
+        "GenerateSprite",
+        "LoadEntity"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.Entity.Entity",
+          52
+        ],
+        [
+          "Core.Rendering.Entity.EntityQuery",
+          11
+        ],
+        [
+          "Core.UILogic.Components.ContextMenu.ContextMenuFactory.IContextMenuMaker",
+          5
+        ],
+        [
+          "Core.Rendering.Look.EntityLook",
+          4
+        ],
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableCatalogName",
+          4
+        ],
+        [
+          "AleCore.Parameters.Shader.ShaderOutlineParameters",
+          4
+        ],
+        [
+          "Core.Rendering.Entity.Sprites.EntitySprite",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          5
+        ],
+        [
+          "Audio",
+          4
+        ],
+        [
+          "Render",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gir",
+      "label": "Entity factory (rendering)",
+      "score": 18,
+      "methods": [
+        "GeneratePortalExitsStep",
+        "GenerateStep",
+        "ToProjectilePortalExitStep",
+        "ToProjectileSequencer"
+      ],
+      "typeRefs": [
+        [
+          "Core.DataCenter.Metadata.Spell.SpellScriptGfxUsageParams",
+          9
+        ],
+        [
+          "Core.Engine.Sequencing.SerialSequencer",
+          8
+        ],
+        [
+          "Core.PathFinding.WorldData.MapPoint",
+          6
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          4
+        ],
+        [
+          "Core.DataCenter.Metadata.Spell.SpellScriptGfxSequenceParams",
+          2
+        ],
+        [
+          "Core.Engine.Sequencing.Steps.ProjectileStep",
+          1
+        ],
+        [
+          "Core.DataCenter.Metadata.Spell.ParallelExecutionEndPolicy",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "DataCenter",
+          12
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dtf",
+      "label": "Boutique (cart/order)",
+      "score": 18,
+      "methods": [
+        "Connect",
+        "GetAuthenticationToken",
+        "GetSetting",
+        "PayCart",
+        "RequestAPIToken",
+        "RequestUserInfos",
+        "RequestZaapLanguage",
+        "RequestZaapUpdateNeeded",
+        "SetZaapLanguage"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Auth",
+          2
+        ],
+        [
+          "Network",
+          1
+        ],
+        [
+          "Trade",
+          1
+        ],
+        [
+          "Quest",
+          1
+        ],
+        [
+          "Login",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fpq",
+      "label": "HAAPI/Shopi configuration aggregator",
+      "score": 16,
+      "methods": [
+        "GetResizedSpriteFromURL",
+        "GetSpriteFromURL",
+        "GetTextureFromURL",
+        "HaapiRequestHandler"
+      ],
+      "typeRefs": [
+        [
+          "Com.Ankama.HaapiAnkama.Client.ApiException",
+          2
+        ],
+        [
+          "Com.Ankama.HaapiDofus.Client.ApiException",
+          2
+        ],
+        [
+          "Com.Ankama.Shopi.Client.ApiException",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "HAAPI",
+          4
+        ],
+        [
+          "Render",
+          2
+        ],
+        [
+          "Boutique",
+          2
+        ],
+        [
+          "Network",
+          1
+        ],
+        [
+          "Quest",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dts",
+      "label": "HAAPI/Shopi configuration aggregator",
+      "score": 15,
+      "methods": [
+        "AskAccessToken",
+        "CheckApiKeyValidity",
+        "RefreshKey"
+      ],
+      "typeRefs": [
+        [
+          "Com.Ankama.HaapiDofus.Client.Configuration",
+          3
+        ],
+        [
+          "Com.Ankama.HaapiAnkama.Client.Configuration",
+          3
+        ],
+        [
+          "Com.Ankama.Shopi.Client.Configuration",
+          3
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "HAAPI",
+          6
+        ],
+        [
+          "Boutique",
+          3
+        ],
+        [
+          "Auth",
+          2
+        ],
+        [
+          "Crypto",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ksj",
+      "label": "?",
+      "score": 15,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          4
+        ],
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          15
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ibs",
+      "label": "?",
+      "score": 15,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          4
+        ],
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          15
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "hwj",
+      "label": "?",
+      "score": 15,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          4
+        ],
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          15
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eyk",
+      "label": "Entity factory (rendering)",
+      "score": 15,
+      "methods": [
+        "ApplyModeTransition",
+        "GetOrCreateCellPing",
+        "ManageCellPings",
+        "ManageFightPings",
+        "RemovePingsAsync",
+        "SwitchRemoveMode"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.Entity.Entity",
+          6
+        ],
+        [
+          "Google.Protobuf.Collections.MapField",
+          3
+        ],
+        [
+          "Core.Rendering.World.EntityPing",
+          2
+        ],
+        [
+          "Core.Rendering.World.CellPing",
+          2
+        ],
+        [
+          "Core.UILogic.CursorType",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          3
+        ],
+        [
+          "Movement",
+          2
+        ],
+        [
+          "Combat",
+          1
+        ],
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "irx",
+      "label": "?",
+      "score": 15,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          4
+        ],
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          15
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "rj",
+      "label": "2D animation / sprite",
+      "score": 14,
+      "methods": [
+        "CreateMaterial",
+        "CreateMaterialsForMap",
+        "GetTexture",
+        "InitMaterial",
+        "PopulateRenderData"
+      ],
+      "typeRefs": [
+        [
+          "Runtime.Metadata.Maps.RenderData",
+          6
+        ],
+        [
+          "Editor.AleCore.Data.MaterialData",
+          4
+        ],
+        [
+          "Core.World.Metadata.Maps.MapMetadata",
+          3
+        ],
+        [
+          "Editor.AleCore.Data.Staging.StagingManager",
+          2
+        ],
+        [
+          "Editor.AleCore.Data.ShaderData",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Render",
+          2
+        ],
+        [
+          "World",
+          1
+        ],
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ghn",
+      "label": "Spell zone shape behavior (base)",
+      "score": 14,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Core.Hitboxes.Hitbox",
+          6
+        ],
+        [
+          "Core.Services.Entities.EntityInformationServices.EntityInfo",
+          2
+        ],
+        [
+          "Core.PathFinding.WorldData.MapPoint",
+          1
+        ]
+      ],
+      "children": [
+        "SpellZoneShapeBoomerangBehavior",
+        "SpellZoneShapeCheckerboardBehavior",
+        "SpellZoneShapeCircleBehavior",
+        "SpellZoneShapeConeBehavior",
+        "SpellZoneShapeCrossBehavior",
+        "SpellZoneShapeForkBehavior",
+        "SpellZoneShapeHalfCircleBehavior",
+        "SpellZoneShapeLineBehavior",
+        "SpellZoneShapeLineFromCasterBehavior",
+        "SpellZoneShapeOutsideComplexCircleBehavior",
+        "SpellZoneShapePerpendicularLineBehavior",
+        "SpellZoneShapeRectangleBehavior",
+        "SpellZoneShapeSquareBehavior",
+        "SpellZoneShapeWholeMapBehavior"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqd`2",
+      "label": "UI base class",
+      "score": 14,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "AllianceUI",
+        "AuctionHouseUI",
+        "EncyclopediaBaseUi",
+        "ForgettableBaseUI`1",
+        "GuidebookBaseUi",
+        "GuildUI",
+        "LadderUI",
+        "OptionBaseUi",
+        "PvpArenaBaseUi",
+        "SmileyUI",
+        "SocialBaseUI",
+        "UIFightResultBase`1",
+        "WebBakUi",
+        "WebBaseUi"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "exf",
+      "label": "Major protocol dispatcher (66 msg handlers, domain TBD)",
+      "score": 13,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gbe",
+      "label": "Protobuf message dispatcher",
+      "score": 13,
+      "methods": [
+        "PrepareProcessEnqueued",
+        "SendNetworkMessageToClient"
+      ],
+      "typeRefs": [
+        [
+          "Google.Protobuf.IMessage",
+          6
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ],
+        [
+          "Chat",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "exm",
+      "label": "Major protocol dispatcher (60 msg handlers, domain TBD)",
+      "score": 13,
+      "methods": [
+        "PrismAddOrUpdateStacked"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ebo",
+      "label": "DataCenter consumer",
+      "score": 12,
+      "methods": [
+        "GetAnimClipInfo",
+        "PlayAnimFun",
+        "PlaySynchronizedAnim"
+      ],
+      "typeRefs": [
+        [
+          "Core.Services.Entities.EntityInformationServices.EntityInfo",
+          7
+        ],
+        [
+          "Core.Engine.Sequencing.SerialSequencer",
+          5
+        ],
+        [
+          "Core.DataCenter.Types.AnimFunData",
+          5
+        ],
+        [
+          "Core.DataCenter.Metadata.Monster.AnimFunMonsterData",
+          1
+        ],
+        [
+          "Core.DataCenter.Metadata.Npc.AnimFunNpcData",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "DataCenter",
+          7
+        ],
+        [
+          "Anim",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "giw",
+      "label": "DataCenter consumer",
+      "score": 12,
+      "methods": [
+        "Run",
+        "RunDelayed",
+        "RunInternal"
+      ],
+      "typeRefs": [
+        [
+          "Core.Features.Fight.Spells.Scripts.ScriptLogic.ScriptResult",
+          8
+        ],
+        [
+          "Core.DataCenter.Metadata.Spell.BoundScriptUsageData",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "DataCenter",
+          2
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gzc",
+      "label": "?",
+      "score": 12,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          12
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ffx",
+      "label": "?",
+      "score": 12,
+      "methods": [
+        "DisplayCharacterCreation",
+        "EnableActionsMapsWhenReady",
+        "EnableCharacterSelectionWhenUnlocked",
+        "LoadServerSelectionWhenUnlocked",
+        "RemoveLoadingAfterLoading"
+      ],
+      "typeRefs": [
+        [
+          "Core.UILogic.Connection.BasicCharacterWrapper",
+          3
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          4
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "World",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "idn",
+      "label": "?",
+      "score": 12,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          12
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "irl",
+      "label": "?",
+      "score": 12,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          12
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "knu",
+      "label": "?",
+      "score": 12,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.FieldCodec",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          12
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dvb",
+      "label": "Protobuf message dispatcher",
+      "score": 11,
+      "methods": [
+        "ActivateSkill",
+        "MapChangeWhenNotMovingAnymore"
+      ],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          4
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          2
+        ],
+        [
+          "Google.Protobuf.IMessage",
+          2
+        ],
+        [
+          "Core.PathFinding.WorldData.MapPoint",
+          2
+        ],
+        [
+          "Core.UILogic.CursorLayerEnum",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          6
+        ],
+        [
+          "World",
+          1
+        ],
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "jcw",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "jlw",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "hfw",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "knz",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "jdk",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gui",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "jnc",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "jrr",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "icy",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "isa",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "hvp",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fza",
+      "label": "Connection lifecycle (network)",
+      "score": 9,
+      "methods": [
+        "ConnectAsync"
+      ],
+      "typeRefs": [
+        [
+          "DotNetty.Transport.Channels.Sockets.ISocketChannel",
+          5
+        ],
+        [
+          "DotNetty.Transport.Channels.SingleThreadEventLoop",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          7
+        ],
+        [
+          "Login",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "idw",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "jtq",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "isy",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "irk",
+      "label": "?",
+      "score": 9,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Google.Protobuf.MessageParser",
+          2
+        ],
+        [
+          "Google.Protobuf.Reflection.MessageDescriptor",
+          2
+        ],
+        [
+          "Google.Protobuf.UnknownFieldSet",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedOutputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.WriteContext",
+          1
+        ],
+        [
+          "Google.Protobuf.CodedInputStream",
+          1
+        ],
+        [
+          "Google.Protobuf.ParseContext",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          9
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ewy",
+      "label": "Protocol service [Roleplay] (43 msg handlers)",
+      "score": 8,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ejz",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 8,
+      "methods": [
+        "CreatureModeSwitched",
+        "RunUpdatePositionTask",
+        "UpdateDisplayedEntityPositionOnceBoundsAreValidAgain"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.Entity.Entity",
+          13
+        ],
+        [
+          "Core.DataCenter.Interfaces.IRectangle",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          2
+        ],
+        [
+          "DataCenter",
+          2
+        ],
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ehk",
+      "label": "Protocol service [Roleplay] (17 msg handlers)",
+      "score": 8,
+      "methods": [
+        "WaitForAddingObject",
+        "WaitForDroppingObjects",
+        "WaitProcessMapComplementaryInfo"
+      ],
+      "typeRefs": [
+        [
+          "Core.Services.Entities.EntityInformationServices.EntityInfo",
+          5
+        ],
+        [
+          "Core.Services.Entities.RoleplayEntitiesService.RoleplayEntitiesService",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "exe",
+      "label": "?",
+      "score": 8,
+      "methods": [
+        "DisposePendingClaimBoostRequests"
+      ],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          5
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          5
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Quest",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fan",
+      "label": "Protocol dispatcher (12 msg handlers)",
+      "score": 8,
+      "methods": [
+        "DelayPlacementDisplay"
+      ],
+      "typeRefs": [
+        [
+          "Google.Protobuf.Collections.RepeatedField",
+          3
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          3
+        ],
+        [
+          "UI",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fzb",
+      "label": "Network channel manager (DotNetty)",
+      "score": 8,
+      "methods": [
+        "ConnectAsync",
+        "DisconnectAsync"
+      ],
+      "typeRefs": [
+        [
+          "DotNetty.Transport.Channels.IChannel",
+          2
+        ],
+        [
+          "DotNetty.Transport.Channels.IChannelPipeline",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          4
+        ],
+        [
+          "Login",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "vi",
+      "label": "Entity factory (rendering)",
+      "score": 8,
+      "methods": [
+        "StartBounceMovement"
+      ],
+      "typeRefs": [
+        [
+          "DG.Tweening.Core.DOGetter",
+          2
+        ],
+        [
+          "DG.Tweening.Core.DOSetter",
+          2
+        ],
+        [
+          "DG.Tweening.TweenCallback",
+          2
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Tween",
+          6
+        ],
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "duv",
+      "label": "Protocol service [Roleplay] (3 msg handlers)",
+      "score": 7,
+      "methods": [
+        "DelayUntilLoaded",
+        "PrepareAndDispatchFightMapData"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          2
+        ],
+        [
+          "Combat",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "qu",
+      "label": "Entity factory (rendering)",
+      "score": 7,
+      "methods": [
+        "ApplyGuildCustomisation",
+        "Generate"
+      ],
+      "typeRefs": [
+        [
+          "Editor.AleCore.Data.ClientAnimatedElementTransform",
+          3
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ],
+        [
+          "Guild",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "efg",
+      "label": "?",
+      "score": 7,
+      "methods": [
+        "RefreshPresetNextFrame",
+        "RequestChangeToFightPreset",
+        "RequestGoBackToCurrentPreset"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          2
+        ],
+        [
+          "Quest",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ezc",
+      "label": "Protocol service [BuffsFight] (5 msg handlers)",
+      "score": 7,
+      "methods": [
+        "CountTurnTimeLeft",
+        "RefreshPathNextFrame"
+      ],
+      "typeRefs": [
+        [
+          "Core.PathFinding.WorldData.MapPoint",
+          4
+        ],
+        [
+          "Core.Services.Fight.FightTurnService.FightTurn",
+          3
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          2
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fqb",
+      "label": "?",
+      "score": 6,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Core.UILogic.Components.Figma.DofusTabGroup",
+          3
+        ],
+        [
+          "Core.UILogic.Components.Figma.DofusTab",
+          3
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          6
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fbq",
+      "label": "Entity factory (rendering)",
+      "score": 6,
+      "methods": [
+        "DisplayFightPreview",
+        "ListenForFightPreviewComputations",
+        "OnEntityStatsUpdatedDelayed"
+      ],
+      "typeRefs": [
+        [
+          "Core.PathFinding.WorldData.MapPoint",
+          4
+        ],
+        [
+          "Core.Rendering.Entity.Entity",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          1
+        ],
+        [
+          "UI",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dwf",
+      "label": "Protocol dispatcher (11 msg handlers)",
+      "score": 6,
+      "methods": [
+        "UpdateQuestWhenSubAreaLoaded"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          2
+        ],
+        [
+          "Quest",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dya",
+      "label": "Protocol dispatcher (11 msg handlers)",
+      "score": 6,
+      "methods": [
+        "OnPlayAnimationOnNpcEventAsync",
+        "OnPlayEmoteOnNpcEventAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Anim",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fot",
+      "label": "?",
+      "score": 6,
+      "methods": [
+        "ConnectWithLogin"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Login",
+          3
+        ],
+        [
+          "Network",
+          1
+        ],
+        [
+          "Auth",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gje",
+      "label": "DataCenter consumer",
+      "score": 6,
+      "methods": [
+        "AddProjectileExitAnimationSteps",
+        "Process"
+      ],
+      "typeRefs": [
+        [
+          "Core.Services.Fight.MarkedCellsService.Glyph",
+          5
+        ],
+        [
+          "Core.DataCenter.Metadata.Spell.SpellScriptStageParams",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Anim",
+          2
+        ],
+        [
+          "DataCenter",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ekt",
+      "label": "Audio manager (FMOD)",
+      "score": 6,
+      "methods": [
+        "InitializeSnapshotMaster",
+        "Run",
+        "WaitAudioInit"
+      ],
+      "typeRefs": [
+        [
+          "FMOD.Studio.EventInstance",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Audio",
+          2
+        ],
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ffy",
+      "label": "?",
+      "score": 6,
+      "methods": [
+        "GetTextAsync",
+        "LoadExternalConfiguration",
+        "PostForm"
+      ],
+      "typeRefs": [
+        [
+          "Runtime.Model.TicketFormList",
+          1
+        ],
+        [
+          "Ankama.Zendesk.Core.Client.ApiClient",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "foj",
+      "label": "?",
+      "score": 6,
+      "methods": [
+        "TriggerNewBigNotificationHookWhenUIIsOpened",
+        "TriggerNewNotificationHookWhenUIIsOpened"
+      ],
+      "typeRefs": [
+        [
+          "Core.UILogic.GameUICore.InternalNotifications.InternalNotificationUI",
+          2
+        ],
+        [
+          "Core.UILogic.Components.Figma.FigmaIcons",
+          1
+        ],
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableEntry",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          4
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fqb`1",
+      "label": "UI base class",
+      "score": 6,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "AlignmentUi",
+        "BaseZaapSelectionUI",
+        "NpcStoreUi",
+        "SocialGroupCardUI",
+        "SocialGroupCreatorUi",
+        "SocialRightsAndRanksUi"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "elf",
+      "label": "Pathfinding",
+      "score": 5,
+      "methods": [
+        "FindPathWorldMap"
+      ],
+      "typeRefs": [
+        [
+          "Core.PathFinding.WorldPathfinding.Edge",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          2
+        ],
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Pathfind",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dsx",
+      "label": "?",
+      "score": 5,
+      "methods": [
+        "SearchDlls",
+        "SendMessage"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          2
+        ],
+        [
+          "Chat",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "drd",
+      "label": "Auth/token service",
+      "score": 5,
+      "methods": [
+        "WaitForReloginToken"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Auth",
+          2
+        ],
+        [
+          "Login",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Ankama.Dofus.Core.World",
+      "obf": "gts",
+      "label": "2D animation / sprite",
+      "score": 5,
+      "methods": [
+        "CreateParticleSystem",
+        "CreateParticles",
+        "GetParticlesTexture"
+      ],
+      "typeRefs": [
+        [
+          "Editor.AleCore.Data.ClientParticlesParameters",
+          1
+        ],
+        [
+          "Core.World.Metadata.Maps.MapMetadata",
+          1
+        ],
+        [
+          "Editor.AleCore.Data.Staging.StagingManager",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Render",
+          1
+        ],
+        [
+          "Boutique",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "tc",
+      "label": "Rendering pipeline",
+      "score": 5,
+      "methods": [
+        "GenerateRefractionSprite",
+        "GenerateSprite"
+      ],
+      "typeRefs": [
+        [
+          "Editor.AleCore.Data.Transform2D",
+          4
+        ],
+        [
+          "Editor.AleCore.Data.ClientElementTransform",
+          2
+        ],
+        [
+          "Core.Rendering.Sprites.MapSprite",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Render",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "efe",
+      "label": "Protocol service [Roleplay] (28 msg handlers)",
+      "score": 5,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eyc",
+      "label": "Protocol dispatcher (26 msg handlers)",
+      "score": 5,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqy",
+      "label": "Sequencer step base",
+      "score": 5,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "ClickMarkerStep",
+        "FightInvisibleTemporarilyDetectedStep",
+        "FightThrowCharacterStep",
+        "ProjectileInLineStep",
+        "ProjectileStep"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dyt",
+      "label": "?",
+      "score": 5,
+      "methods": [
+        "GetTextFromURL",
+        "LoadGameActivityData",
+        "LoadGamesActivitiesLibraries"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqx`1",
+      "label": "?",
+      "score": 5,
+      "methods": [
+        "ReplaceAfterGeometryChanged",
+        "SetUiAccordingToPresetAfterFrame",
+        "SetUiPresetAfterFrame"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eyp",
+      "label": "Protocol service [BuffsFight] (8 msg handlers)",
+      "score": 4,
+      "methods": [
+        "UpdateSpellsNextFrame"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          1
+        ],
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eku",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "ShowDelay",
+        "StopLatencyTimer"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dvq",
+      "label": "Protocol dispatcher (17 msg handlers)",
+      "score": 4,
+      "methods": [
+        "NpcDialogCreationWhenAvailable"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dvc",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "OnInteractiveMapUpdateMessage"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          1
+        ],
+        [
+          "Network",
+          1
+        ],
+        [
+          "Chat",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fav",
+      "label": "Protocol service [BuffsFight] (24 msg handlers)",
+      "score": 4,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dwp",
+      "label": "Protocol dispatcher (20 msg handlers)",
+      "score": 4,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gox",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "Preview",
+        "PreviewContext"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqh`1",
+      "label": "UI base class",
+      "score": 4,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "BannerMenu",
+        "CharacterInformation",
+        "EndTurnWidgetUI",
+        "UIActionBar"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dva",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "SendLeaderPositionEventWhenReady"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ],
+        [
+          "Network",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gof",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "SendAllFightEvent"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          2
+        ],
+        [
+          "Network",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ehw",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "Play",
+        "TryCancelAndWait",
+        "TryHandleAnim"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Anim",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dvi",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "ManageSkillClickedWhenAvailable",
+        "UpdateStatedElement"
+      ],
+      "typeRefs": [
+        [
+          "Core.Services.Contracts.InteractiveElementData",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ecs",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "GetTextAsync",
+        "Init",
+        "LoadExternalConfiguration",
+        "PreInit"
+      ],
+      "typeRefs": [
+        [
+          "Core.Configuration.ApplicationConfig",
+          3
+        ]
+      ],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fpz",
+      "label": "?",
+      "score": 4,
+      "methods": [
+        "WindowDragged"
+      ],
+      "typeRefs": [
+        [
+          "Core.UI.UICoordinates",
+          10
+        ],
+        [
+          "DG.Tweening.Tween",
+          1
+        ],
+        [
+          "Ankama.AddressableUtilities.Runtime.AddressableEntry",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ],
+        [
+          "Tween",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ekj",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "TryConnectLatter"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          1
+        ],
+        [
+          "Login",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "emo",
+      "label": "Protocol dispatcher (19 msg handlers)",
+      "score": 3,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eld",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "SearchWorldPath"
+      ],
+      "typeRefs": [
+        [
+          "Core.PathFinding.WorldPathfinding.Edge",
+          5
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ],
+        [
+          "World",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "far",
+      "label": "Protocol service [Roleplay] (17 msg handlers)",
+      "score": 3,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtm",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "TriggerConnectionFailedPopup"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          1
+        ],
+        [
+          "Login",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ebw",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "CreateCamera",
+        "Init"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Render",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fco",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "FighterHasTriggeredMark"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Combat",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "qv",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "WaitForFrames"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ekx",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "RefreshResolutionAfterSet",
+        "ScreenServiceUpdate",
+        "SetScale"
+      ],
+      "typeRefs": [
+        [
+          "Ankama.ScreenManagement.WindowResolution",
+          2
+        ],
+        [
+          "Ankama.ScreenManagement.DisplayConfiguration",
+          1
+        ],
+        [
+          "Core.UI.QualityModifier",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fcq",
+      "label": "Protocol service [FightEntities] (17 msg handlers)",
+      "score": 3,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "sm",
+      "label": "Rendering pipeline",
+      "score": 3,
+      "methods": [
+        "GetTileMeshAndTexture"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.Zones.CellGeometry",
+          2
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ],
+        [
+          "Render",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "wi",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "Initialize",
+        "LoadBone"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ejt",
+      "label": "Protocol service [BuffsFight] (10 msg handlers)",
+      "score": 3,
+      "methods": [
+        "RefreshAfterZoom"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "drv",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "ParseItems"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Inventory",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "elg",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "GetWorldMap"
+      ],
+      "typeRefs": [
+        [
+          "Core.PathFinding.WorldData.MapPoint",
+          2
+        ],
+        [
+          "Core.PathFinding.WorldPathfinding.Edge",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dxq",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "OnWaitHavenBagFurnituresEvent"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Inventory",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "h",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "UpdateCursorPos"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ],
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "egg",
+      "label": "Protocol dispatcher (17 msg handlers)",
+      "score": 3,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "grr",
+      "label": "?",
+      "score": 3,
+      "methods": [
+        "NotifyChannelColorChange"
+      ],
+      "typeRefs": [
+        [
+          "Core.Chat.Messages.ChatChannel",
+          12
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          1
+        ],
+        [
+          "Chat",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "rn",
+      "label": "Rendering pipeline",
+      "score": 3,
+      "methods": [
+        "PreloadMetaData"
+      ],
+      "typeRefs": [
+        [
+          "Core.Rendering.MapRenderer",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": [
+        [
+          "Data",
+          2
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fdj",
+      "label": "Audio (manager)",
+      "score": 2,
+      "methods": [
+        "PlayCinematicAudio"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Audio",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dsd",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "TestHaapiAlmanax"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Almanax",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ekd",
+      "label": "Entity factory (rendering)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Core.Rendering.Entity.Entity",
+          10
+        ],
+        [
+          "Core.Rendering.Look.EntityLook",
+          2
+        ],
+        [
+          "Core.Services.Entities.EntityInformationServices.EntityInfo",
+          1
+        ]
+      ],
+      "children": [
+        "FightEntitiesService",
+        "RoleplayEntitiesService"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqu",
+      "label": "Service base class",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "DisplayableService",
+        "RoleplayIntroductionService"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Ankama.Dofus.Core.World",
+      "obf": "gtx",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "LoadMapAssetAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dry",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "RunBalladatorMode"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "frk`1",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "DisposeAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fju",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "WaitForPartyDisplay"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "eyy",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "CleanUpCursorsAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ews",
+      "label": "Protocol dispatcher (11 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "elz",
+      "label": "Protocol service [Inventory] (12 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "emw",
+      "label": "Protocol dispatcher (13 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fzh",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "LoadMapping"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fec`1",
+      "label": "Directory base (Guild/Alliance lists)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "AllianceDirectory",
+        "GuildDirectory"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fdc",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Timer"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "xn",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Migrate",
+        "PreInit"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqw",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "SetUiPreset"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "fbm",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Preview",
+        "ResetInternal"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eze",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "SetTimeout"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "emf",
+      "label": "Protocol dispatcher (12 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "frj",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "DisposeAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "nl",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Delay"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "foz",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Search"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "xs",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Migrate",
+        "MigrateOptions"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "oz",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "BasicTimer"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "edh",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "StartGame"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "foc",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "CheckCameraRatio"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Render",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "ech",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "DoCurrentMapEvent"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "World",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "bo",
+      "label": "Protocol dispatcher (10 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fjd",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "WaitForDialogUi"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "UI",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "te",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "Generate"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ebf",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "SearchAll"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "frl`2",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "DisposeAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "egp",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "SendAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dsz",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "CreateTimeout"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Time",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "frm`3",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "DisposeAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "frn",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "DisposeAsyncData"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Movement",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "gqu",
+      "label": "Protocol dispatcher (14 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dzl",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "IsVisibleFromAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "grs",
+      "label": "?",
+      "score": 2,
+      "methods": [
+        "SendPeriodicPreventionAlerts"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": [
+        [
+          "Network",
+          1
+        ]
+      ]
+    },
+    {
+      "asm": "Core",
+      "obf": "dri",
+      "label": "Protocol dispatcher (10 msg handlers)",
+      "score": 2,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ewz",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "UpdateMemberListLoop"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjp",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fce",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ehq",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dte",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "frz",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "OnStart"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fhf",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "InitGauge"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "lf",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "GroupFeatureCriterion"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dxk",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjg",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "td",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Load"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fab",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Refresh"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "elu",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "HourLoopUpdate"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dvl",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "ClickOrientation"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "egw",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "LaunchNotification"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gep",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "OnStart"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fhd",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "UpdateScoreWhenReady"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dyc",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "RefreshEmotes"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjn",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eli",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Init"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dsb",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "LoadCrashTestDummies"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fos",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "DisableAsync"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dye",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "GetCredentials"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjk",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtv",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "duu",
+      "label": "Protocol service [Roleplay] (5 msg handlers)",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjo",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqt",
+      "label": "Service base class",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "MapDisplayService"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ebv",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Init"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjj",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fgk",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtn",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fak",
+      "label": "Protocol service [BuffsFight] (6 msg handlers)",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ebj",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ekh",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "ReApplyIconLatter"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gfd",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "-ctor"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dwl",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fdq",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "ApplySolution"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dve",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "efu",
+      "label": "Protocol service [InfiniteDream] (9 msg handlers)",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "duc",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "LoadArrow"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtt",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "TryForceRouteLatter"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjl",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dxm",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "AddClickListener"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fcj",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fdr",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "ApplySolution"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "co",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "EmptyActivity"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "frh",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "GenerateMark"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ems",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "egy",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "grz",
+      "label": "?",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fqg`2",
+      "label": "UI base class",
+      "score": 1,
+      "methods": [],
+      "typeRefs": [],
+      "children": [
+        "BreedingUi"
+      ],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "edn",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Init"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ggj",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "OnStart"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ru",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Add"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjh",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Main"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjf",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "Process"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gcj",
+      "label": "?",
+      "score": 1,
+      "methods": [
+        "ShowBubble"
+      ],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ft",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fx",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "exj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ezb",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ce",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fbk",
+      "label": "Protocol service [BuffsFight] (2 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bh",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "due",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dw",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "iy",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eki",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eyl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "cz",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyg",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ebz",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jx",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyl",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ejo",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eq",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyp",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "is",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyr",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gig",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fye",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "lk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eg",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyb",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dxu",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ghw",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "hh",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ela",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fcb",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fzm",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ii",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ehz",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gjx",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fym",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bf",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dxi",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fep",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eei",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dsy",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "iu",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fik",
+      "label": "Protocol service [InfiniteDream] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eed",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dud",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "hj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "tj",
+      "label": "Protocol service [BasicCharacter] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gie",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ccn",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ejs",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fxv",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gts",
+      "label": "2D animation / sprite",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [
+        [
+          "Editor.AleCore.Data.ClientParticlesParameters",
+          1
+        ],
+        [
+          "Core.World.Metadata.Maps.MapMetadata",
+          1
+        ],
+        [
+          "Editor.AleCore.Data.Staging.StagingManager",
+          1
+        ]
+      ],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fzk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "iv",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ev",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gx",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyj",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fv",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ewn",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eqq",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "de",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "je",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gg",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "kz",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jf",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ju",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtu",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "hn",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "evj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dun",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dta",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jy",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dug",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyn",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fcz",
+      "label": "Protocol service [Roleplay] (3 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "kf",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fn",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "cl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ec",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "kx",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ks",
+      "label": "Protocol service [Inventory] (2 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ba",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fr",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fzf",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "kj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtc",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fxz",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bt",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "efo",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "exu",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ll",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "btq",
+      "label": "Protocol service [InfiniteDream] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gqo",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gee",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gov",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyf",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ezt",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eff",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dws",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "exd",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ea",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fmy",
+      "label": "Protocol service [WatchEquipment] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ig",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dg",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "cf",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyt",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gkc",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "efj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bi",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jc",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ed",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fxx",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ewd",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "edp",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jv",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fow",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ell",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fd",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "duj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "iw",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyi",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "esn",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ewt",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fzn",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "cp",
+      "label": "Protocol service [Inventory] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fxy",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyo",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fu",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gia",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fj",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ih",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyh",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eia",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyk",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fah",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "du",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bsx",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ebh",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eb",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fys",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "foi",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bb",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fxw",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtr",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dz",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ho",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ewp",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ccd",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bu",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "eyt",
+      "label": "Protocol service [MarkedCells] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "evk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "faw",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fya",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "edk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyc",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "exr",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fem",
+      "label": "Protocol service [Roleplay] (2 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fxu",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fcf",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dy",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "bp",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ecr",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ch",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dd",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fyq",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "gil",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "evm",
+      "label": "Protocol service [FightEntities] (1 msg handlers)",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "jh",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "fzd",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "hk",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "erl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ej",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "hl",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "ezp",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    },
+    {
+      "asm": "Core",
+      "obf": "dtq",
+      "label": "?",
+      "score": 0,
+      "methods": [],
+      "typeRefs": [],
+      "children": [],
+      "domains": []
+    }
+  ]
+}
