@@ -95,3 +95,43 @@ The hooks defined via the UI should be in there with the right `className` (full
 1. Configure an entry against a class whose method is hot but throws (use a wrong signature on purpose).
 2. Start → expect a `network-auto-revert` event after 50 throws/sec, status reverts to disarmed for that entry.
 3. Open Configure → that entry is now ❌ stale.
+
+## v1.4 Plugin Scripts (2026-05-07)
+
+This section is to be filled by the user during manual smoke testing on a real IL2CPP target.
+
+### Setup
+1. Start backend: `cd app && npm run dev`
+2. Attach to a Unity/IL2CPP target via the web-app at `http://localhost:3001`.
+3. After attach, confirm the profile dir contains:
+   - `<profile>/plugins/scripts/_types/toolkit.d.ts` (auto-generated)
+   - `<profile>/plugins/scripts/tsconfig.json` (auto-generated)
+
+### Authoring
+1. Create `<profile>/plugins/scripts/auto-travel.ts`:
+   ```ts
+   import { defineScript } from "@toolkit/scripts";
+
+   export default defineScript({
+       name: "autoTravel",
+       description: "Travel to a specific map by mapId.",
+       params: { mapId: { type: "number", label: "Map ID", required: true } },
+       run: async ({ mapId }, toolkit) => {
+           const player = await toolkit.instances.find("PlayerManager");
+           toolkit.log("currentMapId before:", await toolkit.instances.read(player, "currentMapId"));
+           const mgr = await toolkit.instances.find("MapManager");
+           await toolkit.instances.call(mgr, "TravelTo", [mapId]);
+           return `→ map ${mapId}`;
+       },
+   });
+   ```
+2. Open the dir in VSCode → confirm autocomplete works on `toolkit.*`.
+
+### Smoke checklist
+- [ ] Profile bootstrap emits `_types/toolkit.d.ts` + `tsconfig.json`
+- [ ] Hot-reload picks up new file on save (~300ms)
+- [ ] `autoTravel` appears in the Scripts page list
+- [ ] Run with valid `mapId` triggers in-game travel
+- [ ] Compile error → ⚠ in list, error visible in detail
+- [ ] Runtime error → stack-trace points to `.ts` source line (not JS)
+- [ ] VSCode autocomplete works on `<profile>/plugins/scripts/` after first attach
