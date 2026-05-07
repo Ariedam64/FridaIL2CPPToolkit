@@ -20,6 +20,10 @@ function parseAgentSummary(raw: string): { className: string; handle: string } {
 }
 
 export function mountInstances(app: Express, deps: InstancesDeps): void {
+    // -----------------------------------------------------------------------
+    // Task 7: list / capture / delete
+    // -----------------------------------------------------------------------
+
     app.get("/api/instances/list", (_req, res) => {
         const reg = deps.session.instanceRegistry();
         res.json({ instances: reg ? reg.list() : [] });
@@ -159,5 +163,56 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
 
         if (!success) { res.status(500).json({ error: errorMsg }); return; }
         res.json({ result: callResult });
+    });
+
+    // -----------------------------------------------------------------------
+    // Task 9: read-only toggle + recipes CRUD
+    // -----------------------------------------------------------------------
+
+    app.get("/api/instances/read-only", (_req, res) => {
+        res.json({ enabled: deps.session.getReadOnly() });
+    });
+
+    app.post("/api/instances/read-only", (req, res) => {
+        const enabled = !!(req.body?.enabled);
+        deps.session.setReadOnly(enabled);
+        deps.session.emit("read-only-changed");
+        res.json({ enabled });
+    });
+
+    app.get("/api/instances/recipes", (_req, res) => {
+        const rs = deps.session.recipeStore();
+        res.json({ recipes: rs ? rs.list() : [] });
+    });
+
+    app.post("/api/instances/recipes", (req, res) => {
+        const rs = deps.session.recipeStore();
+        if (!rs) { res.status(503).json({ error: "no session" }); return; }
+        const { name, steps, description } = req.body ?? {};
+        if (typeof name !== "string" || !Array.isArray(steps)) {
+            res.status(400).json({ error: "name (string) + steps (array) required" });
+            return;
+        }
+        const recipe = rs.add(name, steps, description);
+        deps.session.emit("recipe-store-changed");
+        res.json({ recipe });
+    });
+
+    app.put("/api/instances/recipes/:id", (req, res) => {
+        const rs = deps.session.recipeStore();
+        if (!rs) { res.status(503).json({ error: "no session" }); return; }
+        if (!rs.get(req.params.id)) { res.status(404).json({ error: "not found" }); return; }
+        rs.update(req.params.id, req.body ?? {});
+        deps.session.emit("recipe-store-changed");
+        res.json({ recipe: rs.get(req.params.id) });
+    });
+
+    app.delete("/api/instances/recipes/:id", (req, res) => {
+        const rs = deps.session.recipeStore();
+        if (!rs) { res.status(503).json({ error: "no session" }); return; }
+        if (!rs.get(req.params.id)) { res.status(404).json({ error: "not found" }); return; }
+        rs.delete(req.params.id);
+        deps.session.emit("recipe-store-changed");
+        res.json({ ok: true });
     });
 }

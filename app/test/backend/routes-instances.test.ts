@@ -179,3 +179,58 @@ describe("instances routes — read / write / call", () => {
         expect(entries[0].callResult).toBe("void");
     });
 });
+
+describe("instances routes — read-only toggle", () => {
+    it("GET /api/instances/read-only returns current state", async () => {
+        const { app } = buildApp({ readOnly: true });
+        const res = await request(app).get("/api/instances/read-only");
+        expect(res.status).toBe(200);
+        expect(res.body.enabled).toBe(true);
+    });
+
+    it("POST /api/instances/read-only flips the flag", async () => {
+        const { app, session } = buildApp({ readOnly: true });
+        const res = await request(app).post("/api/instances/read-only").send({ enabled: false });
+        expect(res.status).toBe(200);
+        expect(res.body.enabled).toBe(false);
+        expect(session.getReadOnly()).toBe(false);
+    });
+});
+
+describe("instances routes — recipes CRUD", () => {
+    const sampleSteps = [
+        { op: "captureViaGC", className: "Player", index: 0, asKey: "p" },
+    ];
+
+    it("GET /api/instances/recipes returns all", async () => {
+        const { app, recipes } = buildApp();
+        recipes.add("a", sampleSteps as any);
+        recipes.add("b", sampleSteps as any);
+        const res = await request(app).get("/api/instances/recipes");
+        expect(res.body.recipes).toHaveLength(2);
+    });
+
+    it("POST /api/instances/recipes creates a recipe", async () => {
+        const { app, recipes } = buildApp();
+        const res = await request(app).post("/api/instances/recipes").send({ name: "test", steps: sampleSteps });
+        expect(res.status).toBe(200);
+        expect(res.body.recipe.id).toBeDefined();
+        expect(recipes.list()).toHaveLength(1);
+    });
+
+    it("PUT /api/instances/recipes/:id updates a recipe", async () => {
+        const { app, recipes } = buildApp();
+        const r = recipes.add("a", sampleSteps as any);
+        const res = await request(app).put(`/api/instances/recipes/${r.id}`).send({ name: "renamed" });
+        expect(res.status).toBe(200);
+        expect(recipes.get(r.id)?.name).toBe("renamed");
+    });
+
+    it("DELETE /api/instances/recipes/:id removes it", async () => {
+        const { app, recipes } = buildApp();
+        const r = recipes.add("a", sampleSteps as any);
+        const res = await request(app).delete(`/api/instances/recipes/${r.id}`);
+        expect(res.status).toBe(200);
+        expect(recipes.list()).toHaveLength(0);
+    });
+});
