@@ -110,6 +110,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                     <button class="pill" id="cd-bookmark">${icons.star()}</button>
                     <button class="pill" id="cd-note">${icons.note()} Note</button>
                     <button class="pill" id="cd-copy-obf">${icons.clipboard()} Copy</button>
+                    <button class="pill" id="cd-instances">${icons.crosshair()} Instances</button>
                     <button class="pill primary" id="cd-rename">${icons.pencil()} Rename</button>
                 </div>
             </div>
@@ -235,6 +236,9 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
         });
         host.querySelector("#cd-copy-obf")?.addEventListener("click", () => {
             void navigator.clipboard.writeText(fullName);
+        });
+        host.querySelector("#cd-instances")?.addEventListener("click", () => {
+            location.hash = `#/instances?class=${encodeURIComponent(fullName)}`;
         });
     }
 

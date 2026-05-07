@@ -1,7 +1,7 @@
 // app/frontend/components/nav-icons.ts
 import { icons } from "../core/icons.js";
 
-export type NavTab = "explorer" | "hooks" | "network" | "bookmarks" | "migrations";
+export type NavTab = "explorer" | "hooks" | "network" | "bookmarks" | "migrations" | "instances";
 
 export interface NavIconsConfig {
     onSelect(tab: NavTab): void;
@@ -16,6 +16,7 @@ export function renderNavIcons(host: HTMLElement, cfg: NavIconsConfig): { setAct
         <div class="nav-icon" data-tab="network" title="Network">${icons.network(18)}</div>
         <div class="nav-icon" data-tab="bookmarks" title="Bookmarks">${icons.star(18)}</div>
         <div class="nav-icon" data-tab="migrations" title="Migrations">${icons.refresh(18)}</div>
+        <div class="nav-icon" data-tab="instances" title="Instances">${icons.crosshair(18)}</div>
     `;
     let activeTab: NavTab = "explorer";
 
