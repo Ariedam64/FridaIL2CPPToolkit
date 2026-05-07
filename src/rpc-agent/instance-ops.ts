@@ -352,6 +352,14 @@ export interface ScanMatch {
     fieldValue: string;
 }
 
+export interface ValueScanOptions {
+    classFilter?: string;
+    maxMatches?: number;
+    skipFramework?: boolean;
+    /** Type names to include in the scan; if omitted, narrows by value type. */
+    typeFilter?: string[];
+}
+
 function valueMatches(actual: unknown, expected: string | number | boolean): boolean {
     if (typeof actual === "number" || typeof actual === "bigint") {
         const n = typeof actual === "bigint" ? Number(actual) : actual;
@@ -388,75 +396,93 @@ function isFrameworkClass(className: string): boolean {
 }
 
 /**
- * Cheat Engine-style first-scan: walk every IL2CPP class, pre-filter by
- * field type, enumerate live instances of candidates, and return matches.
- * Emits scan-progress events via send() every PROGRESS_EVERY candidate classes.
+ * Cheat Engine-style first-scan: captures a SINGLE heap snapshot via
+ * Il2Cpp.MemorySnapshot.capture() (one heap walk, ~100x faster than
+ * repeated gc.choose per class) and scans all objects for a matching field.
+ * Emits scan-progress events via send() every 1000 objects.
  */
 export function valueScan(
     value: string | number | boolean,
-    options: { classFilter?: string; maxMatches?: number; skipFramework?: boolean } = {},
+    options: ValueScanOptions = {},
 ): Promise<ScanMatch[]> {
     return inVm(() => {
         const maxMatches = options.maxMatches ?? 500;
         const skipFramework = options.skipFramework !== false;  // default true
         const classRegex = options.classFilter ? new RegExp(options.classFilter, "i") : null;
+        const typeFilter = options.typeFilter && options.typeFilter.length > 0
+            ? new Set(options.typeFilter)
+            : null;
         const matches: ScanMatch[] = [];
 
-        // Pass 1: collect candidate classes (cheap — no GC enumeration yet).
-        const candidates: Array<{ klass: Il2Cpp.Class; fields: Array<{ name: string; typeName: string }> }> = [];
-        for (const asm of Il2Cpp.domain.assemblies) {
-            for (const klass of asm.image.classes) {
-                if (skipFramework && isFrameworkClass(klass.name)) continue;
-                if (classRegex && !classRegex.test(klass.name)) continue;
-                let candidateFields: Array<{ name: string; typeName: string }> = [];
-                try {
-                    for (const f of klass.fields) {
-                        if (f.isStatic) continue;
-                        const typeName = (f.type?.name ?? "") as string;
-                        if (fieldTypeMatchesValue(typeName, value)) {
+        // Single heap freeze + walk — much faster than per-class gc.choose.
+        send({ type: "scan-progress", scanned: 0, total: 0, found: 0, phase: "snapshot" });
+        const snapshot = Il2Cpp.MemorySnapshot.capture();
+        try {
+            const allObjects = snapshot.objects;
+            const total = allObjects.length;
+            send({ type: "scan-progress", scanned: 0, total, found: 0, phase: "scanning" });
+
+            // Cache class field metadata to avoid recomputing for each instance.
+            const classFieldsCache = new Map<string, Array<{ name: string; typeName: string }> | null>();
+
+            const PROGRESS_EVERY = 1000;
+            for (let i = 0; i < allObjects.length; i++) {
+                if (i % PROGRESS_EVERY === 0) {
+                    send({ type: "scan-progress", scanned: i, total, found: matches.length, phase: "scanning" });
+                }
+                if (matches.length >= maxMatches) break;
+
+                const obj = allObjects[i];
+                let klass: Il2Cpp.Class;
+                try { klass = obj.class; } catch { continue; }
+                const cn = klass.name as string;
+
+                if (skipFramework && isFrameworkClass(cn)) continue;
+                if (classRegex && !classRegex.test(cn)) continue;
+
+                // Compute / cache candidate fields for this class.
+                let candidateFields = classFieldsCache.get(cn);
+                if (candidateFields === undefined) {
+                    candidateFields = [];
+                    try {
+                        for (const f of klass.fields) {
+                            if (f.isStatic) continue;
+                            const typeName = (f.type?.name ?? "") as string;
+                            if (typeFilter) {
+                                if (!typeFilter.has(typeName)) continue;
+                            } else {
+                                if (!fieldTypeMatchesValue(typeName, value)) continue;
+                            }
                             candidateFields.push({ name: f.name, typeName });
                         }
+                    } catch {
+                        candidateFields = null;
                     }
-                } catch { continue; }
-                if (candidateFields.length === 0) continue;
-                candidates.push({ klass, fields: candidateFields });
-            }
-        }
+                    classFieldsCache.set(cn, candidateFields);
+                }
+                if (!candidateFields || candidateFields.length === 0) continue;
 
-        const total = candidates.length;
-        send({ type: "scan-progress", scanned: 0, total, found: 0 });
-
-        // Pass 2: GC-enumerate each candidate and check fields.
-        let scanned = 0;
-        const PROGRESS_EVERY = 50;
-        outer: for (const { klass, fields } of candidates) {
-            scanned++;
-            if (scanned % PROGRESS_EVERY === 0) {
-                send({ type: "scan-progress", scanned, total, found: matches.length });
-            }
-            let instances: Il2Cpp.Object[] = [];
-            try { instances = Il2Cpp.gc.choose(klass); } catch { continue; }
-            if (instances.length === 0) continue;
-
-            for (const inst of instances) {
-                for (const cf of fields) {
+                for (const cf of candidateFields) {
                     try {
-                        const v = inst.field(cf.name).value;
+                        const v = obj.field(cf.name).value;
                         if (valueMatches(v, value)) {
                             matches.push({
-                                className: klass.name,
-                                handle: String(inst.handle),
+                                className: cn,
+                                handle: String(obj.handle),
                                 fieldName: cf.name,
                                 fieldType: cf.typeName,
                                 fieldValue: String(v),
                             });
-                            if (matches.length >= maxMatches) break outer;
+                            if (matches.length >= maxMatches) break;
                         }
                     } catch { /* skip */ }
                 }
             }
+
+            send({ type: "scan-progress", scanned: total, total, found: matches.length, phase: "done", done: true });
+        } finally {
+            snapshot.free();
         }
-        send({ type: "scan-progress", scanned, total, found: matches.length, done: true });
         return matches;
     });
 }
