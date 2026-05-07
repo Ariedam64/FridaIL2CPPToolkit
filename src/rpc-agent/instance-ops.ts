@@ -432,94 +432,92 @@ function isFrameworkClass(className: string): boolean {
     return /^(System\.|UnityEngine\.|Unity\.|Mono\.|Microsoft\.|netstandard\.|mscorlib\.)/.test(className);
 }
 
-/**
- * Cheat Engine-style first-scan: captures a SINGLE heap snapshot via
- * Il2Cpp.MemorySnapshot.capture() (one heap walk, ~100x faster than
- * repeated gc.choose per class) and scans all objects for a matching field.
- * Emits scan-progress events via send() every 1000 objects.
- */
 export function valueScan(
     value: string | number | boolean,
     options: ValueScanOptions = {},
 ): Promise<ScanMatch[]> {
     return inVm(() => {
         const maxMatches = options.maxMatches ?? 500;
-        const skipFramework = options.skipFramework !== false;  // default true
+        const skipFramework = options.skipFramework !== false;
         const classRegex = options.classFilter ? new RegExp(options.classFilter, "i") : null;
         const typeFilter = options.typeFilter && options.typeFilter.length > 0
             ? new Set(options.typeFilter)
             : null;
         const matches: ScanMatch[] = [];
 
-        // Single heap freeze + walk — much faster than per-class gc.choose.
         send({ type: "scan-progress", scanned: 0, total: 0, found: 0, phase: "snapshot" });
-        const snapshot = Il2Cpp.MemorySnapshot.capture();
+
+        // gc.choose on System.Object enumerates the entire C# managed heap.
+        // MemorySnapshot only captures Unity-side objects and misses domain C# classes.
+        let rootKlass: Il2Cpp.Class;
         try {
-            const allObjects = snapshot.objects;
-            const total = allObjects.length;
-            send({ type: "scan-progress", scanned: 0, total, found: 0, phase: "scanning" });
-
-            // Cache class field metadata to avoid recomputing for each instance.
-            const classFieldsCache = new Map<string, Array<{ name: string; typeName: string }> | null>();
-
-            const PROGRESS_EVERY = 1000;
-            for (let i = 0; i < allObjects.length; i++) {
-                if (i % PROGRESS_EVERY === 0) {
-                    send({ type: "scan-progress", scanned: i, total, found: matches.length, phase: "scanning" });
-                }
-                if (matches.length >= maxMatches) break;
-
-                const obj = allObjects[i];
-                let klass: Il2Cpp.Class;
-                try { klass = obj.class; } catch { continue; }
-                const cn = klass.name as string;
-
-                if (skipFramework && isFrameworkClass(cn)) continue;
-                if (classRegex && !classRegex.test(cn)) continue;
-
-                // Compute / cache candidate fields for this class.
-                let candidateFields = classFieldsCache.get(cn);
-                if (candidateFields === undefined) {
-                    candidateFields = [];
-                    try {
-                        for (const f of iterAllFields(klass)) {
-                            if (f.isStatic) continue;
-                            const typeName = (f.type?.name ?? "") as string;
-                            if (typeFilter) {
-                                if (!typeFilter.has(typeName)) continue;
-                            } else {
-                                if (!fieldTypeMatchesValue(typeName, value)) continue;
-                            }
-                            candidateFields.push({ name: f.name, typeName });
-                        }
-                    } catch {
-                        candidateFields = null;
-                    }
-                    classFieldsCache.set(cn, candidateFields);
-                }
-                if (!candidateFields || candidateFields.length === 0) continue;
-
-                for (const cf of candidateFields) {
-                    try {
-                        const v = obj.field(cf.name).value;
-                        if (valueMatches(v, value)) {
-                            matches.push({
-                                className: cn,
-                                handle: String(obj.handle),
-                                fieldName: cf.name,
-                                fieldType: cf.typeName,
-                                fieldValue: String(v),
-                            });
-                            if (matches.length >= maxMatches) break;
-                        }
-                    } catch { /* skip */ }
-                }
-            }
-
-            send({ type: "scan-progress", scanned: total, total, found: matches.length, phase: "done", done: true });
-        } finally {
-            snapshot.free();
+            rootKlass = Il2Cpp.corlib.class("System.Object");
+        } catch (err) {
+            send({ type: "scan-progress", scanned: 0, total: 0, found: 0, phase: "done", done: true });
+            throw new Error(`unable to resolve System.Object: ${err instanceof Error ? err.message : String(err)}`);
         }
+        const allObjects = Il2Cpp.gc.choose(rootKlass);
+        const total = allObjects.length;
+        send({ type: "scan-progress", scanned: 0, total, found: 0, phase: "scanning" });
+
+        // Cache class candidate fields. Map of className -> field list (or null when class has none).
+        const classFieldsCache = new Map<string, Array<{ name: string; typeName: string }> | null>();
+
+        const PROGRESS_EVERY = 5000;
+        for (let i = 0; i < total; i++) {
+            if (i % PROGRESS_EVERY === 0) {
+                send({ type: "scan-progress", scanned: i, total, found: matches.length, phase: "scanning" });
+            }
+            if (matches.length >= maxMatches) break;
+
+            const obj = allObjects[i];
+            let klass: Il2Cpp.Class;
+            try { klass = obj.class; } catch { continue; }
+            const cn = klass.name;
+
+            if (skipFramework && isFrameworkClass(cn)) continue;
+            if (classRegex && !classRegex.test(cn)) continue;
+
+            // Compute / cache candidate fields for this class (walks parent chain via iterAllFields).
+            let candidateFields = classFieldsCache.get(cn);
+            if (candidateFields === undefined) {
+                candidateFields = [];
+                try {
+                    for (const f of iterAllFields(klass)) {
+                        if (f.isStatic) continue;
+                        const typeName = (f.type?.name ?? "") as string;
+                        if (typeFilter) {
+                            if (!typeFilter.has(typeName)) continue;
+                        } else {
+                            if (!fieldTypeMatchesValue(typeName, value)) continue;
+                        }
+                        candidateFields.push({ name: f.name, typeName });
+                    }
+                } catch {
+                    candidateFields = null;
+                }
+                classFieldsCache.set(cn, candidateFields);
+            }
+            if (!candidateFields || candidateFields.length === 0) continue;
+
+            for (const cf of candidateFields) {
+                try {
+                    const v = obj.field(cf.name).value;
+                    if (valueMatches(v, value)) {
+                        matches.push({
+                            className: cn,
+                            handle: String(obj.handle),
+                            fieldName: cf.name,
+                            fieldType: cf.typeName,
+                            fieldValue: String(v),
+                        });
+                        if (matches.length >= maxMatches) break;
+                    }
+                } catch { /* skip unreadable */ }
+            }
+        }
+
+        send({ type: "scan-progress", scanned: total, total, found: matches.length, phase: "done", done: true });
         return matches;
     });
 }
@@ -800,5 +798,38 @@ export function dictGet(className: string, fieldName: string, key: any): Promise
             return stringifyValue(v);
         }
         return "(not in dict)";
+    });
+}
+
+/** Debug: scan one specific instance (by handle) using the same logic as valueScan. */
+export function debugScanInstance(className: string, handle: string, value: string | number | boolean): Promise<{found: boolean; reason: string; fields: Array<{name: string; typeName: string; value: string; matched: boolean}>}> {
+    return inVm(() => {
+        let klass: Il2Cpp.Class | null = null;
+        for (const asm of Il2Cpp.domain.assemblies) {
+            for (const k of asm.image.classes) {
+                if (k.name === className) { klass = k; break; }
+            }
+            if (klass) break;
+        }
+        if (!klass) return { found: false, reason: "class not found", fields: [] };
+
+        const instances = Il2Cpp.gc.choose(klass);
+        const inst = instances.find((i) => String(i.handle) === handle);
+        if (!inst) return { found: false, reason: "handle not in gc.choose", fields: [] };
+
+        const out: Array<{name: string; typeName: string; value: string; matched: boolean}> = [];
+        for (const f of iterAllFields(inst.class)) {
+            if (f.isStatic) continue;
+            const typeName = (f.type?.name ?? "") as string;
+            try {
+                const v = inst.field(f.name).value;
+                const valStr = String(v);
+                const matched = valueMatches(v, value);
+                out.push({ name: f.name, typeName, value: valStr, matched });
+            } catch (err) {
+                out.push({ name: f.name, typeName, value: `<err: ${String(err).slice(0, 60)}>`, matched: false });
+            }
+        }
+        return { found: true, reason: "ok", fields: out };
     });
 }
