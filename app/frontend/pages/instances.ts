@@ -145,6 +145,7 @@ function render(): void {
             .ip-history-tag { display:inline-block; padding:1px 5px; border-radius:3px; font-size:9px; font-weight:600; margin-right:6px; }
             .ip-history-tag.write { background:rgba(99,102,241,0.15); color:var(--accent); }
             .ip-history-tag.call { background:rgba(245,158,11,0.15); color:var(--warning); }
+            .ip-instance-del:hover { background:var(--bg-hover); color:var(--danger); }
         </style>
         <div class="ip-toolbar">
             <button class="ip-pill" id="ip-new-capture">${icons.crosshair(12)} New capture</button>
@@ -175,10 +176,30 @@ function renderSidebar(): void {
         const isActive = inst.key === _activeKey;
         const div = document.createElement("div");
         div.className = `ip-instance ${isActive ? "active" : ""} ${inst.isAlive ? "" : "dead"}`;
+        div.style.position = "relative";
         div.innerHTML = `
             <div class="key">${escape(inst.key)}</div>
             <div class="meta">${escape(inst.className)}@${escape(inst.handle)} ${inst.isAlive ? "" : "(dead)"}</div>
+            <button class="ip-instance-del" data-del title="Remove this capture" style="position:absolute;top:6px;right:6px;background:transparent;border:none;color:var(--text-faint);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:3px;display:none">×</button>
         `;
+        div.addEventListener("mouseenter", () => {
+            const btn = div.querySelector<HTMLButtonElement>("[data-del]");
+            if (btn) btn.style.display = "inline-block";
+        });
+        div.addEventListener("mouseleave", () => {
+            const btn = div.querySelector<HTMLButtonElement>("[data-del]");
+            if (btn) btn.style.display = "none";
+        });
+        div.querySelector<HTMLButtonElement>("[data-del]")?.addEventListener("click", async (ev) => {
+            ev.stopPropagation();
+            if (!confirm(`Remove capture "${inst.key}"?`)) return;
+            try {
+                await api.deleteInstance(inst.key);
+                // The WS event "instance-registry-changed" will refresh the sidebar.
+            } catch (err) {
+                alert(`Delete failed: ${err instanceof Error ? err.message : String(err)}`);
+            }
+        });
         div.addEventListener("click", () => {
             _activeKey = inst.key;
             void loadActiveFields().then(render);
