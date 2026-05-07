@@ -157,7 +157,87 @@ function renderReviewZone(): HTMLElement {
 function renderAutoZone(): HTMLElement {
     const wrap = document.createElement("div");
     wrap.innerHTML = `<div class="mig-zone-title">AUTOs (${_state.auto.length}) — applied automatically</div>`;
-    return wrap; // populated by Task 18
+
+    // Group records by parent class. A class record is its own parent.
+    // Members (kind=method/field) are grouped under their parentClassMigration.
+    const classRecords = _state.auto.filter((r) => r.key.kind === "class");
+    const memberRecords = _state.auto.filter((r) => r.key.kind !== "class");
+
+    // For unchanged classes (no class record but with member migrations under them),
+    // we synthesize a header row by parentClassMigration.
+    const seenParents = new Set(classRecords.map((r) => r.oldObf));
+    const orphanParents = new Map<string, AutoRecord[]>();
+    for (const m of memberRecords) {
+        const parent = m.parentClassMigration ?? "(no class)";
+        if (seenParents.has(parent)) continue;
+        const list = orphanParents.get(parent) ?? [];
+        list.push(m);
+        orphanParents.set(parent, list);
+    }
+
+    for (const cls of classRecords) {
+        const myMembers = memberRecords.filter((m) => m.parentClassMigration === cls.oldObf);
+        wrap.appendChild(renderClassRollup(cls.oldObf, cls.newObf, cls.label, cls.reason, myMembers, true));
+    }
+    for (const [parent, members] of orphanParents) {
+        wrap.appendChild(renderClassRollup(parent, parent, "(class unchanged)", "members migrated only", members, false));
+    }
+    return wrap;
+}
+
+function renderClassRollup(
+    oldObf: string,
+    newObf: string,
+    label: string,
+    reason: string,
+    members: AutoRecord[],
+    showClassRow: boolean,
+): HTMLElement {
+    const div = document.createElement("div");
+    div.className = "mig-row auto";
+
+    const methodCount = members.filter((m) => m.key.kind === "method").length;
+    const fieldCount = members.filter((m) => m.key.kind === "field").length;
+    const expanded = _expandedClasses.has(newObf);
+
+    const header = showClassRow
+        ? `<div>${kindIcon("class")} <strong class="mig-label">${escape(label)}</strong>
+              <span class="mig-old">${escape(oldObf)}</span> <span class="mig-arrow">→</span> <span>${escape(newObf)}</span>
+              <span style="color:var(--text-faint);font-size:10px;margin-left:8px">${escape(reason)}</span>
+           </div>`
+        : `<div>${kindIcon("class")} <span class="mig-old">${escape(newObf)}</span>
+              <span style="color:var(--text-faint);font-size:10px;margin-left:8px">(class unchanged)</span>
+           </div>`;
+
+    const summary = members.length > 0
+        ? `<div style="margin-top:4px;font-size:11px;color:var(--text-faint)">
+             +${methodCount} methods auto · +${fieldCount} fields auto
+             <button class="mig-pill" data-action="toggle-breakdown" style="margin-left:8px">${expanded ? "Hide" : "Show"} breakdown</button>
+           </div>`
+        : "";
+
+    div.innerHTML = header + summary;
+
+    if (members.length > 0 && expanded) {
+        const bd = document.createElement("div");
+        bd.className = "mig-breakdown";
+        for (const m of members) {
+            const row = document.createElement("div");
+            row.className = "mig-breakdown-row";
+            row.innerHTML = `${kindIcon(m.key.kind)} <strong class="mig-label">${escape(m.label)}</strong>
+                <span class="mig-old">${escape(m.oldObf)}</span> <span class="mig-arrow">→</span> <span>${escape(m.newObf)}</span>
+                <span style="color:var(--text-faint);font-size:10px;margin-left:6px">${escape(m.reason)}</span>`;
+            bd.appendChild(row);
+        }
+        div.appendChild(bd);
+    }
+
+    div.querySelector<HTMLButtonElement>('[data-action="toggle-breakdown"]')?.addEventListener("click", () => {
+        if (_expandedClasses.has(newObf)) _expandedClasses.delete(newObf);
+        else _expandedClasses.add(newObf);
+        render();
+    });
+    return div;
 }
 
 function renderLostZone(): HTMLElement {
