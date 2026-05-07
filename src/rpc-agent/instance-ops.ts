@@ -294,6 +294,19 @@ export function readAllFieldsStructured(className: string): Promise<AgentFieldRe
                     } else {
                         out.push({ name, typeName, kind: "nested", preview: `→ ${cn}`, nestedClass: cn, isWritable: false });
                     }
+                } else if (
+                    /^System\.(Int|UInt)(16|32|64)$|^System\.(Single|Double|Byte|SByte)$/.test(typeName)
+                ) {
+                    // Frida wraps Int64/UInt64 (and other wide numerics under some configurations) as
+                    // wrapper objects. Detect by typeName + rely on String(v).
+                    const s = String(v);
+                    out.push({
+                        name, typeName,
+                        kind: isEnum ? "enum" : "scalar",
+                        preview: s,
+                        rawValue: s,
+                        isWritable,
+                    });
                 } else {
                     out.push({ name, typeName, kind: "unknown", preview: String(v), isWritable });
                 }
@@ -351,6 +364,19 @@ export function previewInstance(
                         preview: String(v),
                         rawValue: typeof v === "bigint" ? (v as bigint).toString() : (v as number | boolean),
                         enumNumeric: isEnum && typeof v === "number" ? v : undefined,
+                        isWritable: false,
+                    });
+                } else if (
+                    /^System\.(Int|UInt)(16|32|64)$|^System\.(Single|Double|Byte|SByte)$/.test(typeName)
+                ) {
+                    // Frida wraps Int64/UInt64 (and other wide numerics under some configurations) as
+                    // wrapper objects. Detect by typeName + rely on String(v).
+                    const s = String(v);
+                    out.push({
+                        name, typeName,
+                        kind: isEnum ? "enum" : "scalar",
+                        preview: s,
+                        rawValue: s,
                         isWritable: false,
                     });
                 }
