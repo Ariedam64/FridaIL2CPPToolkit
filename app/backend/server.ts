@@ -16,6 +16,7 @@ import { mountInstances } from "./routes/instances.js";
 import { mountScripts } from "./routes/scripts.js";
 import { mountNetworkEventBus } from "./core/network/event-bus.js";
 import { mountWsBridge } from "./ws-bridge.js";
+import { mountAllPluginBackends } from "./plugins/registry.js";
 
 const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const HOST = "127.0.0.1";
@@ -42,6 +43,7 @@ mountScripts(app, {
     loader: () => session.scriptLoader(),
     runner: () => session.scriptRunner(),
 });
+mountAllPluginBackends(app, { session });
 mountNetworkEventBus(session);
 
 const server = http.createServer(app);
