@@ -800,36 +800,3 @@ export function dictGet(className: string, fieldName: string, key: any): Promise
         return "(not in dict)";
     });
 }
-
-/** Debug: scan one specific instance (by handle) using the same logic as valueScan. */
-export function debugScanInstance(className: string, handle: string, value: string | number | boolean): Promise<{found: boolean; reason: string; fields: Array<{name: string; typeName: string; value: string; matched: boolean}>}> {
-    return inVm(() => {
-        let klass: Il2Cpp.Class | null = null;
-        for (const asm of Il2Cpp.domain.assemblies) {
-            for (const k of asm.image.classes) {
-                if (k.name === className) { klass = k; break; }
-            }
-            if (klass) break;
-        }
-        if (!klass) return { found: false, reason: "class not found", fields: [] };
-
-        const instances = Il2Cpp.gc.choose(klass);
-        const inst = instances.find((i) => String(i.handle) === handle);
-        if (!inst) return { found: false, reason: "handle not in gc.choose", fields: [] };
-
-        const out: Array<{name: string; typeName: string; value: string; matched: boolean}> = [];
-        for (const f of iterAllFields(inst.class)) {
-            if (f.isStatic) continue;
-            const typeName = (f.type?.name ?? "") as string;
-            try {
-                const v = inst.field(f.name).value;
-                const valStr = String(v);
-                const matched = valueMatches(v, value);
-                out.push({ name: f.name, typeName, value: valStr, matched });
-            } catch (err) {
-                out.push({ name: f.name, typeName, value: `<err: ${String(err).slice(0, 60)}>`, matched: false });
-            }
-        }
-        return { found: true, reason: "ok", fields: out };
-    });
-}
