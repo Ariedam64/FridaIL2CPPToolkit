@@ -392,3 +392,56 @@ describe("matchFingerprints — pass 2 (auto classes get fields/methods migrated
         expect(memberLost.every((r) => r.reason.includes("parent class lost"))).toBe(true);
     });
 });
+
+describe("matchFingerprints — full Dofus-like scenario", () => {
+    it("encoder class with method+field labels migrates fully across builds", () => {
+        const oldEncoder = cls("fzc", {
+            token: "0x2001000",
+            methodCount: 3,
+            methods: [
+                { obfName: "Encode", token: "0x600A001", paramTypes: ["IMessage"], returnType: "void", paramCount: 1, declIndex: 0, isStatic: false },
+                { obfName: "Decode", token: "0x600A002", paramTypes: ["byte[]"], returnType: "IMessage", paramCount: 1, declIndex: 1, isStatic: false },
+                { obfName: "Reset", token: "0x600A003", paramTypes: [], returnType: "void", paramCount: 0, declIndex: 2, isStatic: false },
+            ],
+            fields: [
+                { obfName: "emjv", typeName: "System.Int32", declIndex: 0, isStatic: false, isPublic: true },
+                { obfName: "emkh", typeName: "System.String", declIndex: 1, isStatic: false, isPublic: true },
+            ],
+        });
+        const newEncoder = cls("xyz", {
+            token: "0x2001000",
+            methodCount: 3,
+            methods: [
+                { obfName: "a", token: "0x600A001", paramTypes: ["IMessage"], returnType: "void", paramCount: 1, declIndex: 0, isStatic: false },
+                { obfName: "b", token: "0x600A002", paramTypes: ["byte[]"], returnType: "IMessage", paramCount: 1, declIndex: 1, isStatic: false },
+                { obfName: "c", token: "0x600A003", paramTypes: [], returnType: "void", paramCount: 0, declIndex: 2, isStatic: false },
+            ],
+            fields: [
+                { obfName: "p", typeName: "System.Int32", declIndex: 0, isStatic: false, isPublic: true },
+                { obfName: "q", typeName: "System.String", declIndex: 1, isStatic: false, isPublic: true },
+            ],
+        });
+
+        const result = matchFingerprints({
+            oldFps: [oldEncoder],
+            newFps: [newEncoder],
+            oldLabels: { fzc: "Encoder" },
+            oldMethodLabels: { "fzc.Encode": "encode", "fzc.Decode": "decode" },
+            oldFieldLabels: { "fzc.emjv": "playerId", "fzc.emkh": "playerName" },
+        });
+
+        // 1 class auto + 2 method auto + 2 field auto = 5
+        expect(result.auto).toHaveLength(5);
+        expect(result.review).toHaveLength(0);
+        expect(result.lost).toHaveLength(0);
+
+        // Spot-check each migration
+        const cls_ = result.auto.find((r) => r.key.kind === "class")!;
+        expect(cls_.newObf).toBe("xyz");
+        const playerIdRec = result.auto.find((r) => r.label === "playerId")!;
+        expect(playerIdRec.key).toEqual({ kind: "field", className: "xyz", fieldName: "p" });
+        const encodeRec = result.auto.find((r) => r.label === "encode")!;
+        expect(encodeRec.key).toEqual({ kind: "method", className: "xyz", methodName: "a" });
+        expect(encodeRec.reason).toBe("token match");
+    });
+});
