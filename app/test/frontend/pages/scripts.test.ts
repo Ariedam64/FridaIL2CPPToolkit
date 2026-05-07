@@ -3,39 +3,45 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 
 vi.mock("../../../frontend/core/ws.js", () => ({ subscribe: () => () => {} }));
 
-import { renderScriptsPage } from "../../../frontend/pages/scripts";
+const SCRIPTS_PAYLOAD = {
+    scripts: [
+        { id: "echo", status: "loaded", definition: { name: "echo", description: "echoes", params: { msg: { type: "string", required: true } } }, filePath: "/p/echo.ts", loadedAt: "" },
+        { id: "boom", status: "compile-error", error: "boom", filePath: "/p/boom.ts", loadedAt: "" },
+    ],
+};
+
+function setupFetch() {
+    (globalThis as { fetch?: unknown }).fetch = vi.fn(async (url: string) => {
+        if (url === "/api/scripts") {
+            return {
+                ok: true,
+                json: async () => SCRIPTS_PAYLOAD,
+            } as Response;
+        }
+        return { ok: false, status: 404, json: async () => ({}) } as Response;
+    }) as never;
+    return (globalThis as { fetch: ReturnType<typeof vi.fn> }).fetch;
+}
 
 describe("scripts page", () => {
     let host: HTMLElement;
 
     beforeEach(() => {
+        vi.resetModules();
         host = document.createElement("div") as HTMLElement;
         document.body.appendChild(host);
-
-        // Mock fetch for /api/scripts
-        (globalThis as { fetch?: unknown }).fetch = vi.fn(async (url: string) => {
-            if (url === "/api/scripts") {
-                return {
-                    ok: true,
-                    json: async () => ({
-                        scripts: [
-                            { id: "echo", status: "loaded", definition: { name: "echo", description: "echoes", params: { msg: { type: "string", required: true } } }, filePath: "/p/echo.ts", loadedAt: "" },
-                            { id: "boom", status: "compile-error", error: "boom", filePath: "/p/boom.ts", loadedAt: "" },
-                        ],
-                    }),
-                } as Response;
-            }
-            return { ok: false, status: 404, json: async () => ({}) } as Response;
-        }) as never;
+        setupFetch();
     });
 
     it("renders the script list", async () => {
+        const { renderScriptsPage } = await import("../../../frontend/pages/scripts");
         await renderScriptsPage(host);
         const items = host.querySelectorAll("[data-testid='script-item']");
         expect(items.length).toBe(2);
     });
 
     it("clicking a loaded script shows the param form", async () => {
+        const { renderScriptsPage } = await import("../../../frontend/pages/scripts");
         await renderScriptsPage(host);
         const echoItem = host.querySelector("[data-script-id='echo']") as HTMLElement;
         echoItem.click();
@@ -44,6 +50,7 @@ describe("scripts page", () => {
     });
 
     it("compile-error script shows error inline, no run button", async () => {
+        const { renderScriptsPage } = await import("../../../frontend/pages/scripts");
         await renderScriptsPage(host);
         const boomItem = host.querySelector("[data-script-id='boom']") as HTMLElement;
         boomItem.click();
@@ -52,7 +59,8 @@ describe("scripts page", () => {
     });
 
     it("submitting form posts to /api/scripts/:id/run", async () => {
-        const fetchMock = (globalThis as { fetch: ReturnType<typeof vi.fn> }).fetch;
+        const fetchMock = setupFetch();
+        const { renderScriptsPage } = await import("../../../frontend/pages/scripts");
         await renderScriptsPage(host);
         (host.querySelector("[data-script-id='echo']") as HTMLElement).click();
         (host.querySelector("[data-param='msg']") as HTMLInputElement).value = "hello";
@@ -70,9 +78,13 @@ describe("scripts page", () => {
     });
 
     it("appends WS log events to the console", async () => {
+        const { renderScriptsPage } = await import("../../../frontend/pages/scripts");
         await renderScriptsPage(host);
+        // Make detail panel render (which creates the console element).
+        (host.querySelector("[data-script-id='echo']") as HTMLElement).click();
+
         // Simulate a WS event arriving
-        const evt = new CustomEvent("script-log", {
+        const evt = new (window.CustomEvent as unknown as typeof CustomEvent)("script-log", {
             detail: { runId: "r-99", level: "info", args: ["hello", 42], ts: "" },
         });
         host.dispatchEvent(evt);

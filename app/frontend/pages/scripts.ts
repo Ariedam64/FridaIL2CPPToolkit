@@ -21,6 +21,7 @@ interface RegistryEntry {
 
 let scripts: RegistryEntry[] = [];
 let selected: string | null = null;
+let _listenersAttached = false;
 
 export async function renderScriptsPage(host: HTMLElement): Promise<void> {
     host.innerHTML = `
@@ -33,9 +34,12 @@ export async function renderScriptsPage(host: HTMLElement): Promise<void> {
     await refresh(host);
 
     // WS event hook-up. main.ts is responsible for dispatching CustomEvents on this host.
-    host.addEventListener("script-list-changed", () => { void refresh(host); });
-    host.addEventListener("script-log",   ((e: Event) => appendLog(host, (e as CustomEvent).detail)) as EventListener);
-    host.addEventListener("script-result", ((e: Event) => appendResult(host, (e as CustomEvent).detail)) as EventListener);
+    if (!_listenersAttached) {
+        _listenersAttached = true;
+        host.addEventListener("script-list-changed", () => { void refresh(host); });
+        host.addEventListener("script-log",   ((e: Event) => appendLog(host, (e as CustomEvent).detail)) as EventListener);
+        host.addEventListener("script-result", ((e: Event) => appendResult(host, (e as CustomEvent).detail)) as EventListener);
+    }
 }
 
 export function mountScriptsPage(host: HTMLElement): void {
@@ -43,12 +47,17 @@ export function mountScriptsPage(host: HTMLElement): void {
 }
 
 async function refresh(host: HTMLElement): Promise<void> {
-    const r = await fetch("/api/scripts");
-    const data = await r.json() as { scripts: RegistryEntry[] };
-    scripts = data.scripts;
-    renderList(host);
-    if (selected && !scripts.find((s) => s.id === selected)) selected = null;
-    if (selected) renderDetail(host, scripts.find((s) => s.id === selected)!);
+    try {
+        const r = await fetch("/api/scripts");
+        const data = await r.json() as { scripts: RegistryEntry[] };
+        scripts = data.scripts;
+        renderList(host);
+        if (selected && !scripts.find((s) => s.id === selected)) selected = null;
+        if (selected) renderDetail(host, scripts.find((s) => s.id === selected)!);
+    } catch (err) {
+        const list = host.querySelector("[data-testid='list']") as HTMLElement | null;
+        if (list) list.innerHTML = `<div style="padding:8px;color:#f87171">Failed to load scripts: ${escapeHtml(err instanceof Error ? err.message : String(err))}</div>`;
+    }
 }
 
 function renderList(host: HTMLElement): void {
