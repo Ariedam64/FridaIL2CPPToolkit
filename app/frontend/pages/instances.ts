@@ -15,6 +15,7 @@ let _activeAlive = true;
 let _activeError: string | null = null;
 let _readOnly = true;
 let _history: InstanceHistoryEntry[] = [];
+let _listenersAttached = false;
 
 export function mountInstancesPage(host: HTMLElement): void {
     _hostEl = host;
@@ -22,9 +23,22 @@ export function mountInstancesPage(host: HTMLElement): void {
     host.style.display = "flex";
     host.style.flexDirection = "column";
     void loadAll();
-    subscribe("instance-registry-changed", () => { void loadInstances(); });
-    subscribe("instance-history-changed", () => { void loadHistory(); });
-    subscribe("read-only-changed", () => { void loadReadOnly(); });
+
+    if (!_listenersAttached) {
+        _listenersAttached = true;
+        subscribe("instance-registry-changed", () => { void loadInstances(); });
+        subscribe("instance-history-changed", () => { void loadHistory(); });
+        subscribe("read-only-changed", () => { void loadReadOnly(); });
+        window.addEventListener("instances:open-wizard", ((ev: CustomEvent) => {
+            openCaptureWizard({
+                prefillClassName: ev.detail?.className,
+                instances: _instances,
+                onSubmitted: () => { void loadInstances(); },
+            });
+        }) as EventListener);
+        window.addEventListener("instances:open-recipes", () => { void openRecipesModal(); });
+    }
+
     setTimeout(() => {
         const hash = window.location.hash;
         const pickedMatch = hash.match(/[?&]picked=([^&]+)/);
@@ -51,14 +65,6 @@ export function mountInstancesPage(host: HTMLElement): void {
             window.dispatchEvent(new CustomEvent("instances:open-wizard", { detail: { className } }));
         }
     }, 0);
-    window.addEventListener("instances:open-wizard", ((ev: CustomEvent) => {
-        openCaptureWizard({
-            prefillClassName: ev.detail?.className,
-            instances: _instances,
-            onSubmitted: () => { void loadInstances(); },
-        });
-    }) as EventListener);
-    window.addEventListener("instances:open-recipes", () => { void openRecipesModal(); });
 }
 
 async function loadAll(): Promise<void> {
