@@ -2,6 +2,7 @@ import { EventEmitter } from "node:events";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as esbuild from "esbuild";
+import chokidar, { type FSWatcher } from "chokidar";
 import type { RegistryEntry, ScriptDefinition } from "./types";
 import { defineScript } from "./types";
 
@@ -11,6 +12,7 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as
 export class ScriptLoader extends EventEmitter {
     private entries = new Map<string, RegistryEntry>();         // id → entry
     private definitions = new Map<string, ScriptDefinition>();  // id → live def (with run fn)
+    private watcher: FSWatcher | null = null;
 
     constructor(private readonly dir: string) {
         super();
@@ -110,6 +112,23 @@ export class ScriptLoader extends EventEmitter {
         }
 
         const def = candidate as ScriptDefinition;
+
+        // Duplicate-name guard: another loaded entry with the same `name`?
+        for (const existing of this.entries.values()) {
+            if (existing.id === id) continue;
+            if (existing.status === "loaded" && existing.definition?.name === def.name) {
+                const dupEntry: RegistryEntry = {
+                    id, filePath, status: "validation-error",
+                    error: `duplicate name '${def.name}' (already used by ${existing.id})`,
+                    loadedAt,
+                };
+                this.entries.set(id, dupEntry);
+                this.definitions.delete(id);
+                this.emit("change", dupEntry);
+                return dupEntry;
+            }
+        }
+
         this.definitions.set(id, def);
         const entry: RegistryEntry = {
             id, filePath, status: "loaded",
@@ -130,8 +149,57 @@ export class ScriptLoader extends EventEmitter {
         this.emit("remove", id);
     }
 
-    dispose(): void {
-        // Subclasses (T4) may override to stop chokidar.
+    async start(): Promise<void> {
+        if (this.watcher) return;
+        // Ensure dir exists; chokidar may throw on missing path with awaitWriteFinish.
+        await fs.mkdir(this.dir, { recursive: true });
+
+        // Track in-flight loadFile promises so we can await them in start().
+        const pending: Promise<RegistryEntry>[] = [];
+
+        // Watch the directory directly (glob patterns do not work reliably on Windows with
+        // chokidar v4). We filter for top-level *.ts files in the event handlers instead.
+        this.watcher = chokidar.watch(this.dir, {
+            ignoreInitial: false,
+            depth: 0,
+            awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
+            ignored: (p: string) => {
+                const base = path.basename(p);
+                return base.startsWith("_") || base.startsWith(".");
+            },
+        });
+
+        const isWatchedTs = (p: string) =>
+            p.endsWith(".ts") && path.dirname(p) === this.dir;
+
+        // During initial scan (before "ready"), collect promises so start() can await them.
+        let initialScanDone = false;
+        this.watcher.on("add", (p) => {
+            if (!isWatchedTs(p)) return;
+            const promise = this.loadFile(p);
+            if (!initialScanDone) pending.push(promise);
+            else void promise;
+        });
+        this.watcher.on("change", (p) => {
+            if (!isWatchedTs(p)) return;
+            void this.loadFile(p);
+        });
+        this.watcher.on("unlink", (p) => {
+            if (!isWatchedTs(p)) return;
+            this.removeFile(p);
+        });
+
+        // Wait until chokidar has emitted the initial scan, then await all initial loads.
+        await new Promise<void>((resolve) => this.watcher!.once("ready", resolve));
+        initialScanDone = true;
+        await Promise.all(pending);
+    }
+
+    async dispose(): Promise<void> {
+        if (this.watcher) {
+            await this.watcher.close();
+            this.watcher = null;
+        }
         this.entries.clear();
         this.definitions.clear();
         this.removeAllListeners();
