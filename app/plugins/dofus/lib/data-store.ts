@@ -1,0 +1,108 @@
+import * as fs from "node:fs";
+import * as path from "node:path";
+
+export interface MapInfoEntry {
+    mapId: number; posX: number; posY: number;
+    subAreaId: number; worldMap: number;
+    nameId: number; name: string;
+}
+
+export interface AreasFile {
+    areas: Record<string, { id: number; name: string }>;
+    subAreas: Record<string, { id: number; areaId: number; name: string }>;
+    worlds: Record<string, { id: number; name: string }>;
+}
+
+export interface WorldMeta { id: number; name: string; mapCount: number }
+
+export interface WorldMap {
+    mapId: number; posX: number; posY: number;
+    subAreaId: number; areaId: number; name: string;
+}
+
+export interface MapDetail extends WorldMap {
+    neighbours: number[];
+    cells: Array<[number, number, number, number, number]>;
+}
+
+const LRU_MAX = 50;
+
+export class DofusDataStore {
+    public dataReady = false;
+    private mapsIndex: MapInfoEntry[] = [];
+    private areasIndex: AreasFile = { areas: {}, subAreas: {}, worlds: {} };
+    private worldsIndex: WorldMeta[] = [];
+    private mapsByWorld = new Map<number, WorldMap[]>();
+    private detailCache = new Map<number, MapDetail>();   // insertion-order LRU
+
+    constructor(private readonly dataDir: string) {
+        try {
+            this.mapsIndex = JSON.parse(fs.readFileSync(path.join(dataDir, "maps-information.json"), "utf8"));
+            this.areasIndex = JSON.parse(fs.readFileSync(path.join(dataDir, "areas.json"), "utf8"));
+            this.indexByWorld();
+            this.dataReady = true;
+        } catch (err) {
+            console.error("[dofus] DofusDataStore failed to load:", (err as Error).message);
+        }
+    }
+
+    private indexByWorld(): void {
+        const counts = new Map<number, number>();
+        for (const m of this.mapsIndex) {
+            counts.set(m.worldMap, (counts.get(m.worldMap) ?? 0) + 1);
+            const arr = this.mapsByWorld.get(m.worldMap) ?? [];
+            const subArea = this.areasIndex.subAreas[String(m.subAreaId)];
+            arr.push({
+                mapId: m.mapId, posX: m.posX, posY: m.posY,
+                subAreaId: m.subAreaId, areaId: subArea?.areaId ?? 0,
+                name: m.name,
+            });
+            this.mapsByWorld.set(m.worldMap, arr);
+        }
+        this.worldsIndex = Array.from(counts.entries()).map(([id, mapCount]) => ({
+            id, mapCount, name: this.areasIndex.worlds[String(id)]?.name ?? `World ${id}`,
+        })).sort((a, b) => a.id - b.id);
+    }
+
+    listWorlds(): WorldMeta[] {
+        return this.worldsIndex.slice();
+    }
+
+    knowsWorld(worldId: number): boolean {
+        return this.mapsByWorld.has(worldId);
+    }
+
+    listMapsByWorld(worldId: number): WorldMap[] {
+        return this.mapsByWorld.get(worldId)?.slice() ?? [];
+    }
+
+    async loadMapDetail(mapId: number): Promise<MapDetail | null> {
+        const cached = this.detailCache.get(mapId);
+        if (cached) {
+            // Refresh LRU position
+            this.detailCache.delete(mapId);
+            this.detailCache.set(mapId, cached);
+            return cached;
+        }
+        const meta = this.mapsIndex.find((m) => m.mapId === mapId);
+        if (!meta) return null;
+        const file = path.join(this.dataDir, "maps", `${mapId}.json`);
+        if (!fs.existsSync(file)) return null;
+        const raw = JSON.parse(await fs.promises.readFile(file, "utf8")) as { n?: number[]; c: Array<[number, number, number, number, number]> };
+        const subArea = this.areasIndex.subAreas[String(meta.subAreaId)];
+        const detail: MapDetail = {
+            mapId: meta.mapId, posX: meta.posX, posY: meta.posY,
+            subAreaId: meta.subAreaId, areaId: subArea?.areaId ?? 0,
+            name: meta.name,
+            neighbours: raw.n ?? [],
+            cells: raw.c,
+        };
+        // LRU insert + evict oldest if over capacity
+        this.detailCache.set(mapId, detail);
+        if (this.detailCache.size > LRU_MAX) {
+            const oldest = this.detailCache.keys().next().value;
+            if (oldest !== undefined) this.detailCache.delete(oldest);
+        }
+        return detail;
+    }
+}
