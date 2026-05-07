@@ -12,6 +12,7 @@ const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor as
 export class ScriptLoader extends EventEmitter {
     private entries = new Map<string, RegistryEntry>();         // id → entry
     private definitions = new Map<string, ScriptDefinition>();  // id → live def (with run fn)
+    private compiledById = new Map<string, string>();           // id → compiled JS (with inline sourcemap)
     private watcher: FSWatcher | null = null;
     private _disposed = false;
 
@@ -44,6 +45,11 @@ export class ScriptLoader extends EventEmitter {
     /** Returns the live ScriptDefinition (with `run`) for execution. */
     getDefinition(id: string): ScriptDefinition | null {
         return this.definitions.get(id) ?? null;
+    }
+
+    /** Returns the compiled JS (with inline sourcemap) for stack-trace remapping. */
+    getCompiled(id: string): string | null {
+        return this.compiledById.get(id) ?? null;
     }
 
     async loadFile(filePath: string): Promise<RegistryEntry> {
@@ -81,6 +87,9 @@ export class ScriptLoader extends EventEmitter {
             };
             return this.commitEntry(entry, null);
         }
+
+        // Store compiled JS for source-map remapping (only on successful compile).
+        this.compiledById.set(id, compiled.code);
 
         // 2. Execute the JS in a curated context (no real sandbox; defensive only).
         const moduleObj = { exports: {} as Record<string, unknown> };
@@ -148,6 +157,7 @@ export class ScriptLoader extends EventEmitter {
         if (!this.entries.has(id)) return;
         this.entries.delete(id);
         this.definitions.delete(id);
+        this.compiledById.delete(id);
         this.emit("remove", id);
     }
 
@@ -206,6 +216,7 @@ export class ScriptLoader extends EventEmitter {
         }
         this.entries.clear();
         this.definitions.clear();
+        this.compiledById.clear();
         this.removeAllListeners();
     }
 }

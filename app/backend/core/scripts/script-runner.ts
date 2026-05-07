@@ -1,5 +1,7 @@
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
+import * as path from "node:path";
+import { SourceMapConsumer } from "source-map";
 import { validateParamValues } from "./param-validator";
 import type { ScriptLoader } from "./script-loader";
 import type { Toolkit, RunResult, ScriptLog, ScriptDefinition } from "./types";
@@ -23,7 +25,7 @@ export class ScriptRunner extends EventEmitter {
     private waiters = new Map<string, Promise<void>>();  // runId → promise
 
     constructor(
-        private readonly loader: Pick<ScriptLoader, "getDefinition" | "get">,
+        private readonly loader: Pick<ScriptLoader, "getDefinition" | "get" | "getCompiled">,
         private readonly deps: RunnerDeps,
         private readonly buildToolkit: BuildToolkit,
     ) {
@@ -87,7 +89,17 @@ export class ScriptRunner extends EventEmitter {
                 }
             } catch (err) {
                 const message = err instanceof Error ? err.message : String(err);
-                const stack   = err instanceof Error ? err.stack   : undefined;
+                let stack    = err instanceof Error ? err.stack   : undefined;
+
+                // Re-map stack to user .ts source if loader can supply the compiled JS + path.
+                const loaderWithCompiled = this.loader as { getCompiled?: (id: string) => string | null };
+                const compiled = loaderWithCompiled.getCompiled?.(scriptId);
+                const entry = this.loader.get(scriptId);
+                if (stack && compiled && entry?.filePath) {
+                    try { stack = await remapStack(stack, compiled, entry.filePath); }
+                    catch { /* fall back to raw stack */ }
+                }
+
                 result = {
                     runId, scriptId, status: "error",
                     error: { message, stack },
@@ -113,5 +125,48 @@ export class ScriptRunner extends EventEmitter {
 
     isRunning(scriptId: string): boolean {
         return this.running.has(scriptId);
+    }
+}
+
+/** Parse `//# sourceMappingURL=data:application/json;base64,<...>` from compiled JS. */
+function extractInlineSourceMap(js: string): string | null {
+    const m = js.match(/\/\/# sourceMappingURL=data:application\/json[^,]*,([A-Za-z0-9+/=]+)/);
+    if (!m) return null;
+    try {
+        return Buffer.from(m[1], "base64").toString("utf8");
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Re-map each `<anonymous>:LINE:COL` pattern in the stack to the original .ts source.
+ *
+ * The compiled JS is executed via `new AsyncFunction(...)`. The AsyncFunction constructor
+ * prepends a 2-line preamble (`async function anonymous(...\n) {\n`) before the user code,
+ * so the line numbers in the stack are offset by +2 relative to the compiled JS.
+ * We subtract that offset before looking up the sourcemap.
+ */
+async function remapStack(stack: string, compiledJs: string, originalPath: string): Promise<string> {
+    const rawMap = extractInlineSourceMap(compiledJs);
+    if (!rawMap) return stack;
+    const consumer = await new SourceMapConsumer(rawMap);
+    // AsyncFunction preamble: "async function anonymous(...\n) {\n" = 2 lines before user code.
+    const ASYNC_FN_PREAMBLE_LINES = 2;
+    try {
+        return stack.split("\n").map((line) => {
+            const m = line.match(/<anonymous>:(\d+):(\d+)/);
+            if (!m) return line;
+            const lineNo = parseInt(m[1], 10) - ASYNC_FN_PREAMBLE_LINES;
+            const colNo  = parseInt(m[2], 10);
+            if (lineNo < 1) return line;
+            const orig = consumer.originalPositionFor({ line: lineNo, column: colNo });
+            if (orig.source && orig.line) {
+                return line.replace(/<anonymous>:\d+:\d+/, `${path.basename(originalPath)}:${orig.line}:${orig.column}`);
+            }
+            return line;
+        }).join("\n");
+    } finally {
+        consumer.destroy();
     }
 }
