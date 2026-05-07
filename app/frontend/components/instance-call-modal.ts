@@ -58,16 +58,45 @@ export function openCallModal(opts: CallModalOptions): void {
             opts.onResult(r.result);
             // Replace modal contents with the result so the user can read it.
             const modal = overlay.querySelector<HTMLElement>("div");  // first child div = modal panel
-            if (modal) {
-                modal.innerHTML = `
-                    <h3 style="margin-top:0">Result: ${escape(opts.instanceKey)}.${escape(opts.methodName)}()</h3>
-                    <pre style="background:var(--bg-elevated);padding:10px;border-radius:4px;font-family:var(--font-code);font-size:12px;max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-word">${escape(r.result)}</pre>
-                    <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:14px">
-                        <button class="ip-pill" data-close-result>Close</button>
-                    </div>
-                `;
-                modal.querySelector<HTMLButtonElement>("[data-close-result]")?.addEventListener("click", () => overlay.remove());
-            }
+            if (!modal) return;
+
+            // Detect if the result looks like an object reference: "ClassName@0xHANDLE".
+            const refMatch = r.result.match(/^(.+?)@(0x[0-9a-fA-F]+)$/);
+            const isRef = !!refMatch;
+
+            const captureButtonHtml = isRef
+                ? `<button class="ip-pill" data-capture-result style="background:var(--accent);color:var(--bg)">Add to instances</button>`
+                : "";
+
+            modal.innerHTML = `
+                <h3 style="margin-top:0">Result: ${escape(opts.instanceKey)}.${escape(opts.methodName)}()</h3>
+                <pre style="background:var(--bg-elevated);padding:10px;border-radius:4px;font-family:var(--font-code);font-size:12px;max-height:300px;overflow:auto;white-space:pre-wrap;word-break:break-word">${escape(r.result)}</pre>
+                ${isRef ? `<div style="font-size:11px;color:var(--text-faint);margin-bottom:8px">⚠ Adding to instances re-invokes the method (side effects will fire again).</div>` : ""}
+                <div style="display:flex;gap:6px;justify-content:flex-end;margin-top:14px">
+                    <button class="ip-pill" data-close-result>Close</button>
+                    ${captureButtonHtml}
+                </div>
+            `;
+
+            modal.querySelector<HTMLButtonElement>("[data-close-result]")?.addEventListener("click", () => overlay.remove());
+            modal.querySelector<HTMLButtonElement>("[data-capture-result]")?.addEventListener("click", async () => {
+                if (!refMatch) return;
+                // Auto-generate asKey: "<instanceKey>.<methodName>"
+                const asKey = `${opts.instanceKey}.${opts.methodName}`;
+                try {
+                    await api.captureInstance({
+                        op: "captureMethodReturn",
+                        ownerKey: opts.instanceKey,
+                        methodName: opts.methodName,
+                        args,
+                        asKey,
+                    });
+                    overlay.remove();
+                    location.hash = `#/instances?picked=${encodeURIComponent(asKey)}`;
+                } catch (captureErr) {
+                    alert(`Capture failed: ${captureErr instanceof Error ? captureErr.message : String(captureErr)}`);
+                }
+            });
         } catch (err) {
             alert(`Call failed: ${err instanceof Error ? err.message : String(err)}`);
         }
