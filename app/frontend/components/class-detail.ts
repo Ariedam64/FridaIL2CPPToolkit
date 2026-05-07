@@ -270,16 +270,17 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                     btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--text-faint);font-size:10px">(none)</span>`;
                     btn.title = "GC found no live instances — try via Hook on a tick method";
                 } else {
-                    // Look for "(total N)" suffix; otherwise count as "≥1".
+                    // Count `[N] …` lines; use the "total M" trailer when truncated.
+                    const instanceLines = lines.filter((l) => /^\[\d+\] /.test(l));
                     const totalMatch = lines.join(" ").match(/total (\d+)/);
-                    const count = totalMatch ? parseInt(totalMatch[1], 10) : 1;
+                    const count = totalMatch ? parseInt(totalMatch[1], 10) : instanceLines.length;
+                    const isTruncated = !!totalMatch;
                     liveInstanceCount = count;
-                    btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--success);font-size:10px">(${count}${count === 1 && !totalMatch ? "+" : ""} live)</span>`;
-                    btn.title = `${count}${count === 1 && !totalMatch ? "+" : ""} live instance${count === 1 && !totalMatch ? "(s)" : count === 1 ? "" : "s"} via GC — click to capture`;
+                    btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--success);font-size:10px">(${count}${isTruncated ? "+" : ""} live)</span>`;
+                    btn.title = `${count}${isTruncated ? "+" : ""} live instance${count === 1 ? "" : "s"} via GC — click to ${count === 1 ? "capture" : "pick"}`;
+                    btn.dataset.instances = JSON.stringify(instanceLines);
                 }
-                // Store the instance lines (excluding the "more" / "(none" markers) for picker UX.
-                const instanceLines = lines.filter((l) => /^\[\d+\] /.test(l));
-                btn.dataset.instances = JSON.stringify(instanceLines);
+                // (instanceLines already stored inside the else branch above)
             } catch {
                 // Probe failed (no session, agent disconnected, etc.) — keep default label.
             }
