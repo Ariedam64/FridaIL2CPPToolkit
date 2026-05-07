@@ -4,13 +4,31 @@
 
 import "frida-il2cpp-bridge";
 
+interface FieldFingerprint {
+    obfName: string;
+    typeName: string;
+    declIndex: number;
+    isStatic: boolean;
+    isPublic: boolean;
+}
+
+interface MethodFingerprint {
+    obfName: string;
+    token: string | null;
+    paramTypes: string[];
+    returnType: string;
+    paramCount: number;
+    declIndex: number;
+    isStatic: boolean;
+}
+
 interface ClassFingerprint {
     obfName: string;
     token: string | null;
     parents: string[];
     methodCount: number;
-    methodSignatures: string[];
-    fieldTypes: string[];
+    fields: FieldFingerprint[];
+    methods: MethodFingerprint[];
 }
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
@@ -39,31 +57,48 @@ function fingerprint(klass: Il2Cpp.Class): ClassFingerprint {
     if (klass.parent) parents.push(klass.parent.name);
     for (const iface of klass.interfaces) parents.push(iface.name);
 
-    const methodSigs: string[] = [];
-    for (const m of klass.methods) {
-        try {
-            const params = m.parameters.map((p) => p.type.name).join(",");
-            const ret = m.returnType.name;
-            methodSigs.push(`${m.name}(${params})→${ret}`);
-        } catch {
-            // skip
-        }
-    }
-    methodSigs.sort();
-
-    const fieldTypes: string[] = [];
+    const fields: FieldFingerprint[] = [];
+    let fieldIdx = 0;
     for (const f of klass.fields) {
         try {
-            fieldTypes.push(`${f.name}:${f.type.name}`);
+            const flags = (f as unknown as { flags?: number }).flags ?? 0;
+            fields.push({
+                obfName: f.name,
+                typeName: f.type.name,
+                declIndex: fieldIdx,
+                isStatic: !!(f as unknown as { isStatic?: boolean }).isStatic,
+                isPublic: (flags & 0x0006) === 0x0006,
+            });
+        } catch {
+            // skip unreadable field
+        }
+        fieldIdx++;
+    }
+
+    const methods: MethodFingerprint[] = [];
+    let methodIdx = 0;
+    for (const m of klass.methods) {
+        try {
+            const params = m.parameters.map((p) => p.type.name);
+            const ret = m.returnType.name;
+            const t = (m as unknown as { token?: number }).token;
+            methods.push({
+                obfName: m.name,
+                token: typeof t === "number" ? "0x" + t.toString(16).toUpperCase() : null,
+                paramTypes: params,
+                returnType: ret,
+                paramCount: params.length,
+                declIndex: methodIdx,
+                isStatic: !!(m as unknown as { isStatic?: boolean }).isStatic,
+            });
         } catch {
             // skip
         }
+        methodIdx++;
     }
-    fieldTypes.sort();
 
     let token: string | null = null;
     try {
-        // frida-il2cpp-bridge exposes klass.token as a number; encode hex.
         const t = (klass as unknown as { token?: number }).token;
         if (typeof t === "number") {
             token = "0x" + t.toString(16).toUpperCase();
@@ -77,7 +112,7 @@ function fingerprint(klass: Il2Cpp.Class): ClassFingerprint {
         token,
         parents: parents.sort(),
         methodCount: klass.methods.length,
-        methodSignatures: methodSigs,
-        fieldTypes,
+        fields,
+        methods,
     };
 }
