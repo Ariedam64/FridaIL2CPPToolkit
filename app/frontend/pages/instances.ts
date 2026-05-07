@@ -270,18 +270,22 @@ function renderViewer(): void {
                 mc.innerHTML = `<div style="color:var(--text-faint);font-size:11px;padding:4px 0">No instance methods found.</div>`;
                 return;
             }
+            // Group overloads by name to disambiguate via param-type signature only when needed.
+            const nameCounts = new Map<string, number>();
+            for (const m of methods) nameCounts.set(m.name, (nameCounts.get(m.name) ?? 0) + 1);
+
             for (const m of methods) {
                 const row = document.createElement("div");
                 row.className = "ip-field-row";
-                // Build a readable signature: ReturnType name(Type1 p1, Type2 p2)
+                // Full signature for the tooltip; param-types only compact label when overloaded.
                 const returnShort = m.returnType.replace(/^System\./, "");
-                const paramsStr = m.parameters.length === 0
-                    ? ""
-                    : m.parameters.map((p) => `${p.typeName.replace(/^System\./, "")} ${p.name || "_"}`).join(", ");
-                const sig = `${returnShort} ${m.name}(${paramsStr})`;
+                const paramTypesShort = m.parameters.map((p) => p.typeName.replace(/^System\./, "")).join(", ");
+                const fullSig = `${returnShort} ${m.name}(${m.parameters.map((p) => `${p.typeName.replace(/^System\./, "")} ${p.name || "_"}`).join(", ")})`;
+                const overloadHint = (nameCounts.get(m.name) ?? 1) > 1
+                    ? `<span style="color:var(--text-faint);font-size:10px;margin-left:6px">(${escape(paramTypesShort)})</span>`
+                    : "";
                 row.innerHTML = `
-                    <span class="ip-field-name" style="min-width:140px">${escape(m.name)}</span>
-                    <span class="ip-field-type" style="min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escape(sig)}">${escape(sig)}</span>
+                    <span class="ip-field-name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escape(fullSig)}">${escape(m.name)}${overloadHint}</span>
                     <button class="ip-pill" data-call="${escape(m.name)}">Call</button>
                 `;
                 const callBtn = row.querySelector<HTMLButtonElement>(`[data-call]`);
