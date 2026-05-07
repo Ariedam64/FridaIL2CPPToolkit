@@ -61,13 +61,13 @@ function fingerprint(klass: Il2Cpp.Class): ClassFingerprint {
     let fieldIdx = 0;
     for (const f of klass.fields) {
         try {
-            const flags = (f as unknown as { flags?: number }).flags ?? 0;
+            const flags = f.flags;
             fields.push({
                 obfName: f.name,
                 typeName: f.type.name,
                 declIndex: fieldIdx,
-                isStatic: !!(f as unknown as { isStatic?: boolean }).isStatic,
-                isPublic: (flags & 0x0006) === 0x0006,
+                isStatic: f.isStatic,
+                isPublic: (flags & 0x0007) === 0x0006,
             });
         } catch {
             // skip unreadable field
@@ -89,10 +89,10 @@ function fingerprint(klass: Il2Cpp.Class): ClassFingerprint {
                 returnType: ret,
                 paramCount: params.length,
                 declIndex: methodIdx,
-                isStatic: !!(m as unknown as { isStatic?: boolean }).isStatic,
+                isStatic: m.isStatic,
             });
         } catch {
-            // skip
+            // skip unreadable method
         }
         methodIdx++;
     }
