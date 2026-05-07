@@ -26,6 +26,12 @@ describe("ScriptLoader watch lifecycle", () => {
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
+    it("start() is idempotent (calling twice is a no-op)", async () => {
+        // First start was already called in beforeEach. Calling again should not throw or corrupt state.
+        await loader.start();
+        expect(loader.list()).toHaveLength(0);  // no entries from a duplicate scan
+    });
+
     it("loads files already present at start()", async () => {
         // First disposing the auto-started loader, then re-creating with pre-existing files.
         await loader.dispose();

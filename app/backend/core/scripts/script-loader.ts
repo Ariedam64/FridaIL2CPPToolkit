@@ -13,9 +13,24 @@ export class ScriptLoader extends EventEmitter {
     private entries = new Map<string, RegistryEntry>();         // id → entry
     private definitions = new Map<string, ScriptDefinition>();  // id → live def (with run fn)
     private watcher: FSWatcher | null = null;
+    private _disposed = false;
 
     constructor(private readonly dir: string) {
         super();
+    }
+
+    /**
+     * Atomically commit a completed loadFile result into state.
+     * Skipped entirely if dispose() was called while the load was in-flight,
+     * preventing zombie entries from re-populating cleared maps.
+     */
+    private commitEntry(entry: RegistryEntry, def: ScriptDefinition | null): RegistryEntry {
+        if (this._disposed) return entry;
+        this.entries.set(entry.id, entry);
+        if (def) this.definitions.set(entry.id, def);
+        else this.definitions.delete(entry.id);
+        this.emit("change", entry);
+        return entry;
     }
 
     list(): RegistryEntry[] {
@@ -35,6 +50,11 @@ export class ScriptLoader extends EventEmitter {
         const id = path.basename(filePath, ".ts");
         const loadedAt = new Date().toISOString();
 
+        // Early disposal guard — loader was disposed before we even started.
+        if (this._disposed) {
+            return { id, filePath, status: "compile-error", error: "loader disposed", loadedAt };
+        }
+
         let source: string;
         try {
             source = await fs.readFile(filePath, "utf8");
@@ -44,10 +64,7 @@ export class ScriptLoader extends EventEmitter {
                 error: `read failed: ${(err as Error).message}`,
                 loadedAt,
             };
-            this.entries.set(id, entry);
-            this.definitions.delete(id);
-            this.emit("change", entry);
-            return entry;
+            return this.commitEntry(entry, null);
         }
 
         // 1. Compile TS → CJS JS with inline sourcemap.
@@ -62,10 +79,7 @@ export class ScriptLoader extends EventEmitter {
                 id, filePath, status: "compile-error",
                 error: (err as Error).message, loadedAt,
             };
-            this.entries.set(id, entry);
-            this.definitions.delete(id);
-            this.emit("change", entry);
-            return entry;
+            return this.commitEntry(entry, null);
         }
 
         // 2. Execute the JS in a curated context (no real sandbox; defensive only).
@@ -87,10 +101,7 @@ export class ScriptLoader extends EventEmitter {
                 id, filePath, status: "validation-error",
                 error: (err as Error).message, loadedAt,
             };
-            this.entries.set(id, entry);
-            this.definitions.delete(id);
-            this.emit("change", entry);
-            return entry;
+            return this.commitEntry(entry, null);
         }
 
         // 3. Pull `default` export (from `export default …`) or fallback to module.exports.
@@ -105,10 +116,7 @@ export class ScriptLoader extends EventEmitter {
                 id, filePath, status: "validation-error",
                 error: validationError, loadedAt,
             };
-            this.entries.set(id, entry);
-            this.definitions.delete(id);
-            this.emit("change", entry);
-            return entry;
+            return this.commitEntry(entry, null);
         }
 
         const def = candidate as ScriptDefinition;
@@ -122,22 +130,16 @@ export class ScriptLoader extends EventEmitter {
                     error: `duplicate name '${def.name}' (already used by ${existing.id})`,
                     loadedAt,
                 };
-                this.entries.set(id, dupEntry);
-                this.definitions.delete(id);
-                this.emit("change", dupEntry);
-                return dupEntry;
+                return this.commitEntry(dupEntry, null);
             }
         }
 
-        this.definitions.set(id, def);
         const entry: RegistryEntry = {
             id, filePath, status: "loaded",
             definition: { name: def.name, description: def.description, params: def.params, timeoutMs: def.timeoutMs },
             loadedAt,
         };
-        this.entries.set(id, entry);
-        this.emit("change", entry);
-        return entry;
+        return this.commitEntry(entry, def);
     }
 
     /** Remove an entry (by id). Used on file unlink. */
@@ -164,6 +166,7 @@ export class ScriptLoader extends EventEmitter {
             depth: 0,
             awaitWriteFinish: { stabilityThreshold: 100, pollInterval: 50 },
             ignored: (p: string) => {
+                if (p === this.dir) return false;  // never ignore the root itself
                 const base = path.basename(p);
                 return base.startsWith("_") || base.startsWith(".");
             },
@@ -196,6 +199,7 @@ export class ScriptLoader extends EventEmitter {
     }
 
     async dispose(): Promise<void> {
+        this._disposed = true;  // set first so any in-flight loadFile() calls skip commitEntry
         if (this.watcher) {
             await this.watcher.close();
             this.watcher = null;

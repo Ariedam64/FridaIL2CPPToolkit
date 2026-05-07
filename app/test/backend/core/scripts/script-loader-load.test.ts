@@ -13,8 +13,8 @@ describe("ScriptLoader.loadFile", () => {
         loader = new ScriptLoader(dir);
     });
 
-    afterEach(() => {
-        loader.dispose();
+    afterEach(async () => {
+        await loader.dispose();
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
