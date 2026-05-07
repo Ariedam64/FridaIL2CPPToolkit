@@ -242,8 +242,30 @@ function renderClassRollup(
 
 function renderLostZone(): HTMLElement {
     const wrap = document.createElement("div");
-    wrap.innerHTML = `<div class="mig-zone-title">LOST (${_state.lost.length})</div>`;
-    return wrap; // populated by Task 19
+    if (_state.lost.length === 0) {
+        wrap.innerHTML = `<div class="mig-zone-title">LOST (0)</div>`;
+        return wrap;
+    }
+    wrap.innerHTML = `<div class="mig-zone-title">LOST (${_state.lost.length})
+        <button class="mig-pill" id="mig-lost-toggle" style="margin-left:8px">${_lostExpanded ? "Hide" : "Show"} details</button>
+    </div>`;
+    if (_lostExpanded) {
+        for (const l of _state.lost) {
+            const div = document.createElement("div");
+            div.className = "mig-row lost";
+            div.innerHTML = `${kindIcon(l.key.kind)} <strong class="mig-label">${escape(l.label)}</strong>
+                <span class="mig-old">${escape(l.oldObf)}</span>
+                <span style="color:var(--text-faint);font-size:11px;margin-left:8px">${escape(l.reason)}</span>`;
+            wrap.appendChild(div);
+        }
+    }
+    setTimeout(() => {
+        document.getElementById("mig-lost-toggle")?.addEventListener("click", () => {
+            _lostExpanded = !_lostExpanded;
+            render();
+        });
+    }, 0);
+    return wrap;
 }
 
 function bindToolbar(): void {
