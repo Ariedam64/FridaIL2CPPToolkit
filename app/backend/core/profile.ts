@@ -157,17 +157,41 @@ export class ProfileManager {
     }
 
     async loadProfileLabels(gameName: string, buildId: string): Promise<Record<string, string>> {
+        const data = await this.readLabelsFile(gameName, buildId);
+        const out: Record<string, string> = {};
+        for (const [obf, entry] of Object.entries(data.classes ?? {})) {
+            out[obf] = entry.label;
+        }
+        return out;
+    }
+
+    async loadProfileMethodLabels(gameName: string, buildId: string): Promise<Record<string, string>> {
+        const data = await this.readLabelsFile(gameName, buildId);
+        const out: Record<string, string> = {};
+        for (const [k, entry] of Object.entries(data.methods ?? {})) {
+            out[k] = entry.label;
+        }
+        return out;
+    }
+
+    async loadProfileFieldLabels(gameName: string, buildId: string): Promise<Record<string, string>> {
+        const data = await this.readLabelsFile(gameName, buildId);
+        const out: Record<string, string> = {};
+        for (const [k, entry] of Object.entries(data.fields ?? {})) {
+            out[k] = entry.label;
+        }
+        return out;
+    }
+
+    private async readLabelsFile(gameName: string, buildId: string): Promise<{
+        classes?: Record<string, { label: string }>;
+        methods?: Record<string, { label: string }>;
+        fields?: Record<string, { label: string }>;
+    }> {
         const labelsPath = path.join(this.profilesRoot, gameName, buildId, "labels.json");
         if (!fs.existsSync(labelsPath)) return {};
         try {
-            const data = JSON.parse(await fs.promises.readFile(labelsPath, "utf-8")) as {
-                classes?: Record<string, { label: string }>;
-            };
-            const out: Record<string, string> = {};
-            for (const [obf, entry] of Object.entries(data.classes ?? {})) {
-                out[obf] = entry.label;
-            }
-            return out;
+            return JSON.parse(await fs.promises.readFile(labelsPath, "utf-8"));
         } catch {
             return {};
         }
