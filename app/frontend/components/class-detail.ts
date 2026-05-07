@@ -1,6 +1,7 @@
 // app/frontend/components/class-detail.ts
 import { api } from "../core/api.js";
 import { icons } from "../core/icons.js";
+import { openInstancePicker } from "./instance-picker-modal.js";
 
 interface MethodEntry { isStatic: boolean; returnType: string; name: string; params: string; }
 interface FieldEntry { isStatic: boolean; type: string; name: string; }
@@ -239,11 +240,16 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
             void navigator.clipboard.writeText(fullName);
         });
         host.querySelector("#cd-instances")?.addEventListener("click", () => {
-            if (liveInstanceCount && liveInstanceCount > 0) {
-                // Auto-capture via GC at index 0 — skip the wizard.
+            const btn = host.querySelector<HTMLButtonElement>("#cd-instances");
+            const instances: string[] = btn?.dataset.instances ? JSON.parse(btn.dataset.instances) : [];
+            if (liveInstanceCount === 1 || instances.length === 1) {
+                // Single instance: auto-capture, no friction.
                 location.hash = `#/instances?class=${encodeURIComponent(fullName)}&auto=1`;
+            } else if (liveInstanceCount && liveInstanceCount > 1 && instances.length > 1) {
+                // Multiple: show picker modal.
+                openInstancePicker(fullName, instances);
             } else {
-                // No live instances (or probe failed) — open wizard so user can pick captureViaHook.
+                // No live instances (0) or probe failed — open wizard so user can pick captureViaHook.
                 location.hash = `#/instances?class=${encodeURIComponent(fullName)}`;
             }
         });
@@ -251,7 +257,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
         // Probe live instance count for the Instances button.
         void (async () => {
             try {
-                const { result } = await api.rpc<string[]>("listInstances", [fullName, 1]);
+                const { result } = await api.rpc<string[]>("listInstances", [fullName, 20]);
                 const btn = host.querySelector<HTMLButtonElement>("#cd-instances");
                 if (!btn) return;
                 // Parse the agent's response. It returns either
@@ -271,6 +277,9 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                     btn.innerHTML = `${icons.crosshair()} Instances <span style="color:var(--success);font-size:10px">(${count}${count === 1 && !totalMatch ? "+" : ""} live)</span>`;
                     btn.title = `${count}${count === 1 && !totalMatch ? "+" : ""} live instance${count === 1 && !totalMatch ? "(s)" : count === 1 ? "" : "s"} via GC — click to capture`;
                 }
+                // Store the instance lines (excluding the "more" / "(none" markers) for picker UX.
+                const instanceLines = lines.filter((l) => /^\[\d+\] /.test(l));
+                btn.dataset.instances = JSON.stringify(instanceLines);
             } catch {
                 // Probe failed (no session, agent disconnected, etc.) — keep default label.
             }

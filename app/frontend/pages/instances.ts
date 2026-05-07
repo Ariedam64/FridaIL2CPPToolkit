@@ -12,6 +12,7 @@ let _instances: CapturedInstanceLite[] = [];
 let _activeKey: string | null = null;
 let _activeFields: FieldReadLite[] = [];
 let _activeAlive = true;
+let _activeError: string | null = null;
 let _readOnly = true;
 let _history: InstanceHistoryEntry[] = [];
 
@@ -26,6 +27,16 @@ export function mountInstancesPage(host: HTMLElement): void {
     subscribe("read-only-changed", () => { void loadReadOnly(); });
     setTimeout(() => {
         const hash = window.location.hash;
+        const pickedMatch = hash.match(/[?&]picked=([^&]+)/);
+        if (pickedMatch) {
+            // Already captured via picker — just activate it.
+            const key = decodeURIComponent(pickedMatch[1]);
+            void loadInstances().then(() => {
+                _activeKey = key;
+                void loadActiveFields().then(render);
+            });
+            return;
+        }
         const m = hash.match(/[?&]class=([^&]+)/);
         if (!m) return;
         const className = decodeURIComponent(m[1]);
@@ -67,12 +78,17 @@ async function loadInstances(): Promise<void> {
 }
 
 async function loadActiveFields(): Promise<void> {
-    if (!_activeKey) { _activeFields = []; return; }
+    if (!_activeKey) { _activeFields = []; _activeError = null; return; }
     try {
         const r = await api.readInstanceFields(_activeKey);
         _activeAlive = r.alive;
         _activeFields = r.fields;
-    } catch { _activeFields = []; _activeAlive = false; }
+        _activeError = r.error ?? null;
+    } catch (e) {
+        _activeFields = [];
+        _activeAlive = false;
+        _activeError = e instanceof Error ? e.message : String(e);
+    }
 }
 
 async function loadHistory(): Promise<void> {
@@ -186,7 +202,7 @@ function renderViewer(): void {
     if (!inst) { v.innerHTML = ""; return; }
     v.innerHTML = `
         <h3 style="margin-top:0;font-family:var(--font-code);font-size:14px">${escape(inst.key)} → ${escape(inst.className)}@${escape(inst.handle)}</h3>
-        ${!_activeAlive ? `<div style="color:var(--danger);font-size:11px;margin-bottom:8px">⚠ instance appears dead — re-capture to refresh</div>` : ""}
+        ${!_activeAlive ? `<div style="color:var(--danger);font-size:11px;margin-bottom:8px">⚠ instance appears dead${_activeError ? `: <code>${escape(_activeError)}</code>` : " — re-capture to refresh"}</div>` : ""}
         <div class="ip-section-title">Fields (${_activeFields.length})</div>
         <div id="ip-fields"></div>
         <div class="ip-section-title" style="margin-top:18px">Methods (call)</div>
