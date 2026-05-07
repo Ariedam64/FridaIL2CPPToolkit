@@ -162,16 +162,47 @@ function splitTarget(target: string): [string, string] {
     return [target.slice(0, dot), target.slice(dot + 1)];
 }
 
-function buildNetwork(_deps: ToolkitDeps): Toolkit["network"] {
+function buildNetwork(deps: ToolkitDeps): Toolkit["network"] {
     return {
-        async send(_messageType: string, _payload: Record<string, unknown>): Promise<void> {
-            throw new Error("network.send: not yet implemented (T7)");
+        async send(messageType, payload) {
+            await deps.agentCall("sendPacket", [messageType, payload]);
         },
-        async onceReceive(_messageType: string, _opts?: { timeoutMs?: number }): Promise<NetworkPacket> {
-            throw new Error("network.onceReceive: not yet implemented (T7)");
+        async onceReceive(messageType, opts) {
+            if (!deps.frameStore) throw new Error("not attached: no frame store");
+            const timeoutMs = opts?.timeoutMs ?? 30_000;
+            return new Promise<NetworkPacket>((resolve, reject) => {
+                const listener = (frame: import("../network/types.js").NetworkFrame) => {
+                    if (frame.typeKey.className !== messageType) return;
+                    clearTimeout(timer);
+                    deps.frameStore!.off("frame", listener);
+                    resolve({
+                        id: frame.id,
+                        direction: frame.direction,
+                        messageType: frame.typeKey.className,
+                        payload: frame.fields,
+                        ts: frame.timestamp,
+                    });
+                };
+                const timer = setTimeout(() => {
+                    deps.frameStore!.off("frame", listener);
+                    reject(new Error(`timeout waiting for packet '${messageType}' after ${timeoutMs}ms`));
+                }, timeoutMs);
+                deps.frameStore!.on("frame", listener);
+            });
         },
-        async recent(_messageType?: string, _limit?: number): Promise<NetworkPacket[]> {
-            throw new Error("network.recent: not yet implemented (T7)");
+        async recent(messageType, limit) {
+            if (!deps.frameStore) throw new Error("not attached: no frame store");
+            const all = deps.frameStore.list({ limit: limit ?? 100 });
+            const filtered = messageType
+                ? all.filter((f) => f.typeKey.className === messageType)
+                : all;
+            return filtered.map((f): NetworkPacket => ({
+                id: f.id,
+                direction: f.direction,
+                messageType: f.typeKey.className,
+                payload: f.fields,
+                ts: f.timestamp,
+            }));
         },
     };
 }

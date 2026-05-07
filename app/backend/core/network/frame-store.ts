@@ -29,6 +29,7 @@ export class FrameStore extends EventEmitter {
         this.head = (this.head + 1) % this.capacity;
         if (this.size < this.capacity) this.size++;
         this.emit("frame-added", frame);
+        this.emit("frame", frame);
         return frame;
     }
 
