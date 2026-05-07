@@ -410,7 +410,7 @@ export class Session extends EventEmitter {
         this.currentRecipeStore = null;
         this.currentScanMatches = [];
         if (this.currentScriptLoader) { void this.currentScriptLoader.dispose(); this.currentScriptLoader = null; }
-        this.currentScriptRunner = null;
+        if (this.currentScriptRunner) { this.currentScriptRunner.dispose(); this.currentScriptRunner = null; }
         this.instancesReadOnly = true;
         this.emit("profile-detached");
     }

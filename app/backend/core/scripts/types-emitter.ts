@@ -64,7 +64,7 @@ const TSCONFIG = {
     compilerOptions: {
         target: "ES2022",
         module: "esnext",
-        moduleResolution: "node",
+        moduleResolution: "bundler",
         strict: true,
         noEmit: true,
         skipLibCheck: true,

@@ -87,9 +87,9 @@ function buildInstances(deps: ToolkitDeps): Toolkit["instances"] {
         },
         async list() {
             const reg = requireRegistry();
-            return reg.list().map((m): InstanceHandle => ({
-                className: m.className, handle: m.handle, key: m.key,
-            }));
+            return reg.list()
+                .filter((c) => c.isAlive)
+                .map((m): InstanceHandle => ({ className: m.className, handle: m.handle, key: m.key }));
         },
     };
 }

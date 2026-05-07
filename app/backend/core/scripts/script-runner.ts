@@ -132,6 +132,17 @@ export class ScriptRunner extends EventEmitter {
     isRunning(scriptId: string): boolean {
         return this.running.has(scriptId);
     }
+
+    /**
+     * Cancel all in-flight runs and remove all event listeners.
+     * Must be called before the runner is discarded (e.g. on session detach) to
+     * prevent stale log/result events from firing after the session is torn down.
+     */
+    dispose(): void {
+        this.running.clear();
+        this.waiters.clear();
+        this.removeAllListeners();
+    }
 }
 
 /** Parse `//# sourceMappingURL=data:application/json;base64,<...>` from compiled JS. */

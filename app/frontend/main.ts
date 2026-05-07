@@ -86,9 +86,11 @@ subscribe("profile-detached", refreshProfile);
 void refreshProfile();
 
 // Forward script WS events to the active page host as CustomEvents.
+// WS messages arrive as { type, payload } envelopes — unwrap to pass only the
+// payload as the CustomEvent detail so page handlers receive the actual data object.
 for (const type of ["script-list-changed", "script-log", "script-result"] as const) {
-    subscribe(type, (payload) => {
-        pageHost.dispatchEvent(new CustomEvent(type, { detail: payload }));
+    subscribe(type, (msg) => {
+        pageHost.dispatchEvent(new CustomEvent(type, { detail: msg.payload ?? msg }));
     });
 }
 
