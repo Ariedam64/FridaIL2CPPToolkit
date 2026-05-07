@@ -75,4 +75,27 @@ describe("ScriptLoader.loadFile", () => {
         expect(entry.status).toBe("validation-error");
         expect(entry.error).toMatch(/require/);
     });
+
+    it("emits 'change' event with the returned entry", async () => {
+        const events: import("../../../../backend/core/scripts/types").RegistryEntry[] = [];
+        loader.on("change", (e) => events.push(e));
+        writeScript("evtest", `
+            import { defineScript } from "@toolkit/scripts";
+            export default defineScript({ name: "evtest", params: {}, run: async () => null });
+        `);
+        const entry = await loader.loadFile(path.join(dir, "evtest.ts"));
+        expect(events).toHaveLength(1);
+        expect(events[0]).toBe(entry);  // same reference
+    });
+
+    it("list() and get() reflect loaded entry; getDefinition() returns live run fn", async () => {
+        writeScript("listed", `
+            import { defineScript } from "@toolkit/scripts";
+            export default defineScript({ name: "listed", params: {}, run: async () => null });
+        `);
+        await loader.loadFile(path.join(dir, "listed.ts"));
+        expect(loader.list()).toHaveLength(1);
+        expect(loader.get("listed")?.status).toBe("loaded");
+        expect(typeof loader.getDefinition("listed")?.run).toBe("function");
+    });
 });

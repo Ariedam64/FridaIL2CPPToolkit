@@ -72,7 +72,7 @@ export class ScriptLoader extends EventEmitter {
         // require shim: allow ONLY "@toolkit/scripts" (resolved to { defineScript }), throw on everything else.
         // This is required because esbuild compiles `import { defineScript } from "@toolkit/scripts"` to
         // `require("@toolkit/scripts")` — without this special case, the very first valid script fails.
-        const requireStub = (modId: string): { defineScript: typeof defineScript } | never => {
+        const requireStub = (modId: string): { defineScript: typeof defineScript } => {
             if (modId === "@toolkit/scripts") return { defineScript };
             throw new Error(`require('${modId}') not allowed in scripts`);
         };
