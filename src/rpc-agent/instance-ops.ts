@@ -9,6 +9,25 @@ function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
 }
 
 /**
+ * Yield every field declared on `klass` AND inherited from its parent chain,
+ * up to System.Object. Fixes the IL2CPP limitation that `klass.fields` returns
+ * only declared (not inherited) fields.
+ */
+function* iterAllFields(klass: Il2Cpp.Class): Generator<Il2Cpp.Field> {
+    let current: Il2Cpp.Class | null = klass;
+    let depth = 0;
+    while (current && depth < 20) {
+        try {
+            for (const f of current.fields) yield f;
+        } catch { /* class-level access threw — stop walking */ break; }
+        try {
+            current = current.parent;
+        } catch { current = null; }
+        depth++;
+    }
+}
+
+/**
  * Hook `tickMethod` once on `className` to steal the first `this` and store
  * it in the captured registry. Resolves to a summary like "Player@0x1234".
  */
@@ -176,7 +195,7 @@ export function dumpInstanceAsString(className: string): Promise<string> {
         const inst = getCaptured(className);
         const lines: string[] = [`# ${inst.class.name} (instance)`, ""];
         lines.push(`**Fields (instance)**`, "");
-        for (const f of inst.class.fields) {
+        for (const f of iterAllFields(inst.class)) {
             if (f.isStatic) continue;
             try {
                 const v = stringifyValue(inst.field(f.name).value);
@@ -199,7 +218,7 @@ export function readAllFields(className: string): Promise<string[]> {
         const inst = getCaptured(className);
         const out: string[] = [];
         out.push(`class: ${inst.class.name}`);
-        for (const f of inst.class.fields) {
+        for (const f of iterAllFields(inst.class)) {
             if (f.isStatic) continue;
             try {
                 const v = stringifyValue(inst.field(f.name).value);
@@ -233,7 +252,7 @@ export function readAllFieldsStructured(className: string): Promise<AgentFieldRe
     return inVm(() => {
         const inst = getCaptured(className);
         const out: AgentFieldRead[] = [];
-        for (const f of inst.class.fields) {
+        for (const f of iterAllFields(inst.class)) {
             if (f.isStatic) continue;
             const name = f.name as string;
             const typeName = (f.type?.name ?? "?") as string;
@@ -312,7 +331,7 @@ export function previewInstance(
         }
         const inst = instances[idx];
         const out: AgentFieldRead[] = [];
-        for (const f of inst.class.fields) {
+        for (const f of iterAllFields(inst.class)) {
             if (f.isStatic) continue;
             if (out.length >= maxFields) break;
             const name = f.name as string;
@@ -463,7 +482,7 @@ export function valueScan(
                 if (candidateFields === undefined) {
                     candidateFields = [];
                     try {
-                        for (const f of klass.fields) {
+                        for (const f of iterAllFields(klass)) {
                             if (f.isStatic) continue;
                             const typeName = (f.type?.name ?? "") as string;
                             if (typeFilter) {
