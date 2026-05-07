@@ -11,10 +11,42 @@ const cls = (
     token: null,
     parents: [],
     methodCount: 0,
-    methodSignatures: [],
-    fieldTypes: [],
+    fields: [],
+    methods: [],
     ...overrides,
 });
+
+// Convert the old test helper format (fieldTypes: ["x:int"]) to
+// FieldFingerprint[] for tests written before v1.3.
+const fieldsFromTypes = (specs: string[]): import("../../../backend/core/types").FieldFingerprint[] =>
+    specs.map((s, i) => {
+        const [name, type] = s.split(":");
+        return {
+            obfName: name,
+            typeName: type,
+            declIndex: i,
+            isStatic: false,
+            isPublic: true,
+        };
+    });
+
+// Convert ["a(int)int", "b(string)bool"] to MethodFingerprint[].
+const methodsFromSigs = (sigs: string[]): import("../../../backend/core/types").MethodFingerprint[] =>
+    sigs.map((sig, i) => {
+        const m = sig.match(/^(\w+)\(([^)]*)\)(.+)$/);
+        if (!m) throw new Error(`bad sig: ${sig}`);
+        const [, name, paramsRaw, ret] = m;
+        const paramTypes = paramsRaw === "" ? [] : paramsRaw.split(",");
+        return {
+            obfName: name,
+            token: null,
+            paramTypes,
+            returnType: ret,
+            paramCount: paramTypes.length,
+            declIndex: i,
+            isStatic: false,
+        };
+    });
 
 describe("matchFingerprints", () => {
     it("auto-migrates when token matches exactly", () => {
@@ -36,23 +68,23 @@ describe("matchFingerprints", () => {
             token: null,
             parents: ["base1"],
             methodCount: 17,
-            methodSignatures: ["a(int)int", "b(string)bool", "c()void"],
-            fieldTypes: ["x:int", "y:string"],
+            methods: methodsFromSigs(["a(int)int", "b(string)bool", "c()void"]),
+            fields: fieldsFromTypes(["x:int", "y:string"]),
         })];
         const newFps = [
             cls("dxr", {
                 token: null,
                 parents: ["base1"],
                 methodCount: 17,
-                methodSignatures: ["a(int)int", "b(string)bool", "c()void"],
-                fieldTypes: ["x:int", "y:string"],
+                methods: methodsFromSigs(["a(int)int", "b(string)bool", "c()void"]),
+                fields: fieldsFromTypes(["x:int", "y:string"]),
             }),
             cls("zzz", {
                 token: null,
                 parents: ["unrelated"],
                 methodCount: 5,
-                methodSignatures: ["different()void"],
-                fieldTypes: [],
+                methods: methodsFromSigs(["different()void"]),
+                fields: fieldsFromTypes([]),
             }),
         ];
         const labels = { egq: "HaapiService" };
@@ -66,19 +98,19 @@ describe("matchFingerprints", () => {
     it("flags review when multiple candidates score >= 0.60 but none reaches 0.95", () => {
         const oldFps = [cls("egq", {
             methodCount: 5,
-            methodSignatures: ["a()void", "b()void", "c()void", "d()void", "e()void"],
-            fieldTypes: ["x:int"],
+            methods: methodsFromSigs(["a()void", "b()void", "c()void", "d()void", "e()void"]),
+            fields: fieldsFromTypes(["x:int"]),
         })];
         const newFps = [
             cls("aaa", {
                 methodCount: 5,
-                methodSignatures: ["a()void", "b()void", "c()void", "d()void", "e()void"],
-                fieldTypes: ["x:long"],
+                methods: methodsFromSigs(["a()void", "b()void", "c()void", "d()void", "e()void"]),
+                fields: fieldsFromTypes(["x:long"]),
             }),
             cls("bbb", {
                 methodCount: 5,
-                methodSignatures: ["a()void", "b()void", "c()void", "d()void", "f()void"],
-                fieldTypes: ["x:int"],
+                methods: methodsFromSigs(["a()void", "b()void", "c()void", "d()void", "f()void"]),
+                fields: fieldsFromTypes(["x:int"]),
             }),
         ];
         const labels = { egq: "HaapiService" };
@@ -93,14 +125,14 @@ describe("matchFingerprints", () => {
     it("marks lost when no candidate matches above 0.60", () => {
         const oldFps = [cls("egq", {
             methodCount: 17,
-            methodSignatures: ["specific()void"],
-            fieldTypes: ["uniqueField:int"],
+            methods: methodsFromSigs(["specific()void"]),
+            fields: fieldsFromTypes(["uniqueField:int"]),
         })];
         const newFps = [
             cls("aaa", {
                 methodCount: 1,
-                methodSignatures: ["totally_different()void"],
-                fieldTypes: ["other:string"],
+                methods: methodsFromSigs(["totally_different()void"]),
+                fields: fieldsFromTypes(["other:string"]),
             }),
         ];
         const labels = { egq: "HaapiService" };
