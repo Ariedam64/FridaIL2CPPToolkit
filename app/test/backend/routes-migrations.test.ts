@@ -290,3 +290,41 @@ describe("migrations routes — reject class cascades members to LOST", () => {
         expect(migrations.result.lost.length).toBeGreaterThanOrEqual(2);
     });
 });
+
+describe("POST /api/migrations/accept-top-all", () => {
+    it("accepts the top candidate for every review item", async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mig-bulk-"));
+        const labelStore = new LabelStore(path.join(tmpDir, "labels.json"));
+        const review = [
+            { key: { kind: "class", className: "fzc" }, label: "Encoder", oldObf: "fzc", candidates: [{ newObf: "abc", score: 0.92, reason: "..." }] },
+            { key: { kind: "field", className: "newCls", fieldName: "" }, label: "playerId", oldObf: "oldCls.emjv", candidates: [{ newObf: "newCls.aaa", score: 0.85, reason: "..." }], parentClassMigration: "oldCls" },
+        ];
+        const migrations = { result: { auto: [], review, lost: [] } };
+        const session: any = {
+            profile: () => ({ labels: labelStore }),
+            migrations: () => migrations,
+            applyClassPass2: () => ({ auto: [], review: [], lost: [] }),
+            emit: () => {},
+        };
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session });
+
+        const res = await request(local).post("/api/migrations/accept-top-all").send({});
+        expect(res.status).toBe(200);
+        expect(res.body.acceptedCount).toBe(2);
+        expect(migrations.result.review).toHaveLength(0);
+        expect(migrations.result.auto).toHaveLength(2);
+        expect(labelStore.get({ kind: "class", className: "abc" })).toBe("Encoder");
+        expect(labelStore.get({ kind: "field", className: "newCls", fieldName: "aaa" })).toBe("playerId");
+    });
+
+    it("returns 503 when no migrations active", async () => {
+        const session: any = { profile: () => null, migrations: () => null };
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session });
+        const res = await request(local).post("/api/migrations/accept-top-all").send({});
+        expect(res.status).toBe(503);
+    });
+});

@@ -106,4 +106,49 @@ export function mountMigrations(app: Express, deps: MigrationsDeps): void {
         deps.session.emit("migration-updated");
         res.json({ ok: true, cascaded });
     });
+
+    app.post("/api/migrations/accept-top-all", (_req, res) => {
+        const p = deps.session.profile();
+        const m = deps.session.migrations();
+        if (!p || !m) { res.status(503).json({ error: "no migrations or no profile" }); return; }
+
+        let accepted = 0;
+        // Iterate on a snapshot — we mutate review[] inside the loop.
+        const snapshot = m.result.review.slice();
+        for (const entry of snapshot) {
+            if (entry.candidates.length === 0) continue;
+            const top = entry.candidates[0];
+
+            // Build the destination LabelKey from the entry's key shape + top.newObf.
+            let destKey: LabelKey;
+            if (entry.key.kind === "class") {
+                destKey = { kind: "class", className: top.newObf };
+            } else if (entry.key.kind === "method") {
+                const dot = top.newObf.lastIndexOf(".");
+                destKey = { kind: "method", className: top.newObf.slice(0, dot), methodName: top.newObf.slice(dot + 1) };
+            } else {
+                const dot = top.newObf.lastIndexOf(".");
+                destKey = { kind: "field", className: top.newObf.slice(0, dot), fieldName: top.newObf.slice(dot + 1) };
+            }
+
+            p.labels.set(destKey, entry.label);
+            const idx = m.result.review.findIndex((r) => r.oldObf === entry.oldObf);
+            if (idx >= 0) m.result.review.splice(idx, 1);
+            m.result.auto.push({
+                key: destKey,
+                label: entry.label,
+                oldObf: entry.oldObf,
+                newObf: top.newObf,
+                reason: "user accepted (bulk top)",
+                parentClassMigration: entry.parentClassMigration,
+            });
+            if (destKey.kind === "class") {
+                deps.session.applyClassPass2(entry.oldObf, destKey.className);
+            }
+            accepted++;
+        }
+        p.labels.scheduleFlush();
+        deps.session.emit("migration-updated");
+        res.json({ ok: true, acceptedCount: accepted });
+    });
 }
