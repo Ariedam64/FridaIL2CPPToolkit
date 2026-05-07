@@ -12,7 +12,7 @@ import * as path from "node:path";
 import { FridaClient } from "./frida-client.js";
 import { ProfileManager, type Profile } from "./core/profile.js";
 import { detectBuildId } from "./core/detect.js";
-import { matchFingerprints } from "./core/migrations.js";
+import { matchFingerprints, matchClassMembers } from "./core/migrations.js";
 import { HookStore } from "./core/hooks/hook-store.js";
 import { FrameStore } from "./core/network/frame-store.js";
 import { SerializerConfigStore } from "./core/network/serializer-config.js";
@@ -38,6 +38,8 @@ export class Session extends EventEmitter {
         result: MigrationResult;
         oldFps: ClassFingerprint[];
         currentFps: ClassFingerprint[];
+        oldMethodLabels: Record<string, string>;
+        oldFieldLabels: Record<string, string>;
     } | null = null;
     private disposeListeners: Array<() => void> = [];
     private attachInFlight: Promise<Profile> | null = null;
@@ -68,6 +70,40 @@ export class Session extends EventEmitter {
 
     migrations(): { result: MigrationResult } | null {
         return this.currentMigrations ? { result: this.currentMigrations.result } : null;
+    }
+
+    /**
+     * After a class is accepted in REVIEW → AUTO, run pass 2 (match its fields and
+     * methods) and insert the resulting records into the live MigrationResult.
+     * Returns the records that were inserted, for the WS broadcast payload.
+     */
+    applyClassPass2(oldClassObf: string, newClassObf: string): {
+        auto: import("./core/types.js").MigrationAutoRecord[];
+        review: import("./core/types.js").MigrationReviewRecord[];
+        lost: import("./core/types.js").MigrationLostRecord[];
+    } {
+        const empty = { auto: [], review: [], lost: [] };
+        if (!this.currentMigrations || !this.currentProfile) return empty;
+        const oldCls = this.currentMigrations.oldFps.find((f) => f.obfName === oldClassObf);
+        const newCls = this.currentMigrations.currentFps.find((f) => f.obfName === newClassObf);
+        if (!oldCls || !newCls) return empty;
+
+        const sub = matchClassMembers(
+            oldCls,
+            newCls,
+            this.currentMigrations.oldMethodLabels,
+            this.currentMigrations.oldFieldLabels,
+        );
+        // Apply auto labels immediately
+        for (const r of sub.auto) {
+            this.currentProfile.labels.set(r.key, r.label);
+        }
+        this.currentProfile.labels.scheduleFlush();
+        // Insert into live result
+        this.currentMigrations.result.auto.push(...sub.auto);
+        this.currentMigrations.result.review.push(...sub.review);
+        this.currentMigrations.result.lost.push(...sub.lost);
+        return sub;
     }
 
     async attach(pid: number): Promise<Profile> {
@@ -132,7 +168,10 @@ export class Session extends EventEmitter {
                     profile.labels.set(m.key, m.label);
                 }
                 await profile.labels.flush();
-                this.currentMigrations = { result, oldFps, currentFps };
+                this.currentMigrations = {
+                    result, oldFps, currentFps,
+                    oldMethodLabels, oldFieldLabels,
+                };
             }
         }
 

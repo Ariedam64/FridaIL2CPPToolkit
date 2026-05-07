@@ -25,6 +25,7 @@ function makeFakeSession(opts: { hasProfile: boolean; hasMigrations: boolean }) 
         profile: () => profile,
         migrations: () => migrations,
         labelStore,
+        applyClassPass2: (_oldObf: string, _newObf: string) => ({ auto: [], review: [], lost: [] }),
     };
 }
 
@@ -110,6 +111,7 @@ describe("migrations routes — polymorphic accept", () => {
             profile: () => profile,
             migrations: () => migrations,
             labelStore,
+            applyClassPass2: (_oldObf: string, _newObf: string) => ({ auto: [], review: [], lost: [] }),
         };
     }
 
@@ -185,5 +187,65 @@ describe("migrations routes — polymorphic accept", () => {
             .send({ oldObf: "ecu", newObf: "egq" });
         expect(res.status).toBe(200);
         expect(session.labelStore.get({ kind: "class", className: "egq" })).toBe("OldClass");
+    });
+});
+
+describe("migrations routes — accept class triggers pass 2", () => {
+    function makeFakeSessionWithPass2() {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mig-pass2-"));
+        const labelStore = new LabelStore(path.join(tmpDir, "labels.json"));
+        const profile: any = { labels: labelStore };
+        const review = [
+            {
+                key: { kind: "class", className: "fzc" },
+                label: "Encoder",
+                oldObf: "fzc",
+                candidates: [{ newObf: "abc", score: 0.92, reason: "..." }],
+            },
+        ];
+        const migrations = { result: { auto: [], review, lost: [] } };
+        const pass2Calls: any[] = [];
+        return {
+            profile: () => profile,
+            migrations: () => migrations,
+            labelStore,
+            applyClassPass2: (oldObf: string, newObf: string) => {
+                pass2Calls.push({ oldObf, newObf });
+                const inserted = {
+                    auto: [
+                        {
+                            key: { kind: "field", className: newObf, fieldName: "p" },
+                            label: "playerId",
+                            oldObf: "fzc.emjv",
+                            newObf: `${newObf}.p`,
+                            reason: "type+ordinal",
+                            parentClassMigration: oldObf,
+                        },
+                    ],
+                    review: [],
+                    lost: [],
+                };
+                migrations.result.auto.push(...inserted.auto);
+                return inserted;
+            },
+            pass2Calls,
+        };
+    }
+
+    it("accept class triggers applyClassPass2 with old+new obf", async () => {
+        const session = makeFakeSessionWithPass2();
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session: session as any });
+
+        const res = await request(local)
+            .post("/api/migrations/accept")
+            .send({
+                key: { kind: "class", className: "abc" },
+                oldObf: "fzc",
+            });
+        expect(res.status).toBe(200);
+        expect(session.pass2Calls).toEqual([{ oldObf: "fzc", newObf: "abc" }]);
+        expect(res.body.pass2.auto).toHaveLength(1);
     });
 });

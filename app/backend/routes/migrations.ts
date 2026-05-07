@@ -57,7 +57,14 @@ export function mountMigrations(app: Express, deps: MigrationsDeps): void {
             parentClassMigration: entry.parentClassMigration,
         });
 
-        res.json({ ok: true });
+        // If a class was accepted, trigger pass 2 (members migrate now).
+        let pass2Records: ReturnType<typeof deps.session.applyClassPass2> | null = null;
+        if (key.kind === "class") {
+            pass2Records = deps.session.applyClassPass2(entry.oldObf, key.className);
+        }
+
+        res.json({ ok: true, pass2: pass2Records });
+        return;
     });
 
     app.post("/api/migrations/reject", (req, res) => {
