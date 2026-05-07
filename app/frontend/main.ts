@@ -9,6 +9,7 @@ import { mountMigrationsPage } from "./pages/migrations.js";
 import { mountHooksPage } from "./pages/hooks.js";
 import { mountNetworkPage } from "./pages/network.js";
 import { mountInstancesPage } from "./pages/instances.js";
+import { mountScriptsPage } from "./pages/scripts.js";
 import { showProcessPicker } from "./components/process-picker.js";
 import { bindPaletteShortcut } from "./components/command-palette.js";
 
@@ -48,6 +49,7 @@ function mountPage(tab: NavTab): void {
     else if (tab === "bookmarks") mountBookmarksPage(pageHost);
     else if (tab === "migrations") mountMigrationsPage(pageHost);
     else if (tab === "instances") mountInstancesPage(pageHost);
+    else if (tab === "scripts") mountScriptsPage(pageHost);
 }
 
 const navHandle = renderNavIcons(document.getElementById("nav-icons-host")!, {
@@ -82,6 +84,13 @@ connectWs();
 subscribe("profile-attached", refreshProfile);
 subscribe("profile-detached", refreshProfile);
 void refreshProfile();
+
+// Forward script WS events to the active page host as CustomEvents.
+for (const type of ["script-list-changed", "script-log", "script-result"] as const) {
+    subscribe(type, (payload) => {
+        pageHost.dispatchEvent(new CustomEvent(type, { detail: payload }));
+    });
+}
 
 const initialTab = (location.hash.replace(/^#\//, "").split("?")[0] || "explorer") as NavTab;
 navHandle.setActive(initialTab);
