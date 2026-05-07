@@ -4,6 +4,9 @@
     --bg-elevated:    #0d0d12;
     --bg-tile:        #14141c;
     --bg-tile-hover:  #1a1a24;
+    /* Alias: v1.4 modals/components were written using --bg before the named scale stabilized.
+       Mapping it to --bg-panel gives them an opaque dark surface (was rendering transparent). */
+    --bg:             #0a0a0f;
     --border:         #18181f;
     --border-strong:  #1f1f2a;
     --text-primary:   #f0f6fc;
