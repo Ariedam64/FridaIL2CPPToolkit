@@ -106,6 +106,41 @@ export class Session extends EventEmitter {
         return sub;
     }
 
+    /**
+     * After a class is rejected in REVIEW → LOST, mark all its labeled fields/methods
+     * as LOST too (they had no class to migrate against).
+     */
+    applyClassRejectCascade(oldClassObf: string): import("./core/types.js").MigrationLostRecord[] {
+        if (!this.currentMigrations) return [];
+        const out: import("./core/types.js").MigrationLostRecord[] = [];
+        for (const [k, label] of Object.entries(this.currentMigrations.oldMethodLabels)) {
+            if (k.startsWith(oldClassObf + ".")) {
+                const methodName = k.slice(oldClassObf.length + 1);
+                out.push({
+                    key: { kind: "method", className: oldClassObf, methodName },
+                    oldObf: k,
+                    label,
+                    reason: "parent class rejected by user",
+                    parentClassMigration: oldClassObf,
+                });
+            }
+        }
+        for (const [k, label] of Object.entries(this.currentMigrations.oldFieldLabels)) {
+            if (k.startsWith(oldClassObf + ".")) {
+                const fieldName = k.slice(oldClassObf.length + 1);
+                out.push({
+                    key: { kind: "field", className: oldClassObf, fieldName },
+                    oldObf: k,
+                    label,
+                    reason: "parent class rejected by user",
+                    parentClassMigration: oldClassObf,
+                });
+            }
+        }
+        this.currentMigrations.result.lost.push(...out);
+        return out;
+    }
+
     async attach(pid: number): Promise<Profile> {
         if (this.attachInFlight) {
             // A previous attach is still in flight. Wait for it to finish or fail,

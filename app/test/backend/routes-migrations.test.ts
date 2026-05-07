@@ -26,6 +26,8 @@ function makeFakeSession(opts: { hasProfile: boolean; hasMigrations: boolean }) 
         migrations: () => migrations,
         labelStore,
         applyClassPass2: (_oldObf: string, _newObf: string) => ({ auto: [], review: [], lost: [] }),
+        applyClassRejectCascade: (_oldObf: string) => [],
+        emit: (_event: string) => false,
     };
 }
 
@@ -112,6 +114,8 @@ describe("migrations routes — polymorphic accept", () => {
             migrations: () => migrations,
             labelStore,
             applyClassPass2: (_oldObf: string, _newObf: string) => ({ auto: [], review: [], lost: [] }),
+            applyClassRejectCascade: (_oldObf: string) => [],
+            emit: (_event: string) => false,
         };
     }
 
@@ -229,6 +233,8 @@ describe("migrations routes — accept class triggers pass 2", () => {
                 return inserted;
             },
             pass2Calls,
+            applyClassRejectCascade: (_oldObf: string) => [],
+            emit: (_event: string) => false,
         };
     }
 
@@ -247,5 +253,40 @@ describe("migrations routes — accept class triggers pass 2", () => {
         expect(res.status).toBe(200);
         expect(session.pass2Calls).toEqual([{ oldObf: "fzc", newObf: "abc" }]);
         expect(res.body.pass2.auto).toHaveLength(1);
+    });
+});
+
+describe("migrations routes — reject class cascades members to LOST", () => {
+    it("rejecting a class invokes applyClassRejectCascade and adds members to lost", async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mig-reject-"));
+        const labelStore = new LabelStore(path.join(tmpDir, "labels.json"));
+        const review = [{
+            key: { kind: "class", className: "fzc" },
+            label: "Encoder",
+            oldObf: "fzc",
+            candidates: [{ newObf: "abc", score: 0.7, reason: "..." }],
+        }];
+        const migrations = { result: { auto: [], review, lost: [] } };
+        const cascadeReturn = [
+            { key: { kind: "field", className: "fzc", fieldName: "emjv" }, oldObf: "fzc.emjv", label: "playerId", reason: "parent class rejected by user", parentClassMigration: "fzc" },
+        ];
+        const session: any = {
+            profile: () => ({ labels: labelStore }),
+            migrations: () => migrations,
+            applyClassRejectCascade: (oldObf: string) => {
+                migrations.result.lost.push(...(cascadeReturn as any));
+                return cascadeReturn;
+            },
+            emit: (_event: string) => false,
+        };
+        const local = express();
+        local.use(express.json());
+        mountMigrations(local, { session });
+
+        const res = await request(local).post("/api/migrations/reject").send({ oldObf: "fzc" });
+        expect(res.status).toBe(200);
+        expect(res.body.cascaded).toHaveLength(1);
+        // class itself + the cascaded field
+        expect(migrations.result.lost.length).toBeGreaterThanOrEqual(2);
     });
 });

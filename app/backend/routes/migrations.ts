@@ -63,6 +63,7 @@ export function mountMigrations(app: Express, deps: MigrationsDeps): void {
             pass2Records = deps.session.applyClassPass2(entry.oldObf, key.className);
         }
 
+        deps.session.emit("migration-updated");
         res.json({ ok: true, pass2: pass2Records });
         return;
     });
@@ -70,16 +71,39 @@ export function mountMigrations(app: Express, deps: MigrationsDeps): void {
     app.post("/api/migrations/reject", (req, res) => {
         const m = deps.session.migrations();
         if (!m) { res.status(503).json({ error: "no migrations" }); return; }
-        const { oldObf } = req.body ?? {};
-        if (typeof oldObf !== "string") { res.status(400).json({ error: "oldObf required" }); return; }
-        const idx = m.result.review.findIndex(r => r.oldObf === oldObf);
+
+        const body = req.body ?? {};
+        let key: LabelKey;
+        let oldObf: string;
+        if (body.key && typeof body.oldObf === "string") {
+            key = body.key as LabelKey;
+            oldObf = body.oldObf;
+        } else if (typeof body.oldObf === "string") {
+            key = { kind: "class", className: body.oldObf };
+            oldObf = body.oldObf;
+        } else {
+            res.status(400).json({ error: "expected {key,oldObf} or {oldObf}" });
+            return;
+        }
+
+        const idx = m.result.review.findIndex((r) => r.oldObf === oldObf);
         if (idx < 0) { res.status(404).json({ error: "no pending review" }); return; }
         const entry = m.result.review[idx];
         m.result.review.splice(idx, 1);
         m.result.lost.push({
-            key: entry.key, label: entry.label, oldObf: entry.oldObf,
+            key,
+            label: entry.label,
+            oldObf: entry.oldObf,
             reason: "user rejected",
+            parentClassMigration: entry.parentClassMigration,
         });
-        res.json({ ok: true });
+
+        let cascaded: import("../core/types.js").MigrationLostRecord[] = [];
+        if (key.kind === "class") {
+            cascaded = deps.session.applyClassRejectCascade(entry.oldObf);
+        }
+
+        deps.session.emit("migration-updated");
+        res.json({ ok: true, cascaded });
     });
 }
