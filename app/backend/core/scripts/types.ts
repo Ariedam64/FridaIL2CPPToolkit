@@ -4,6 +4,7 @@
 export type ParamSpec =
     | { type: "string";  label?: string; required?: boolean; default?: string;  placeholder?: string }
     | { type: "number";  label?: string; required?: boolean; default?: number;  min?: number; max?: number }
+    // Note: boolean and enum have no `required` field by design — boolean always resolves to true/false (no "missing"); enum always provides a default or reads from a select widget.
     | { type: "boolean"; label?: string; default?: boolean }
     | { type: "enum";    label?: string; values: readonly string[]; default?: string };
 

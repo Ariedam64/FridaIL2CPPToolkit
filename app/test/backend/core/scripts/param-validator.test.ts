@@ -63,4 +63,22 @@ describe("validateParamValues", () => {
         const r = validateParamValues({ b: { type: "boolean" } }, { b: true });
         expect(r.ok).toBe(true);
     });
+
+    it("applies default: 0 (falsy number default)", () => {
+        const r = validateParamValues({ count: { type: "number", default: 0 } }, {});
+        expect(r.ok).toBe(true);
+        if (r.ok) expect(r.values).toEqual({ count: 0 });
+    });
+
+    it("applies default: '' (empty-string default)", () => {
+        const r = validateParamValues({ name: { type: "string", default: "" } }, {});
+        expect(r.ok).toBe(true);
+        if (r.ok) expect(r.values).toEqual({ name: "" });
+    });
+
+    it("rejects null as a value (not treated as missing)", () => {
+        const r = validateParamValues({ x: { type: "string", required: true } }, { x: null });
+        expect(r.ok).toBe(false);
+        if (!r.ok) expect(r.error).toMatch(/x.*null/);
+    });
 });

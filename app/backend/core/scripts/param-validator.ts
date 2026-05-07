@@ -19,12 +19,15 @@ export function validateParamValues(
         const present = key in raw;
         const value = raw[key];
 
-        if (!present || value === undefined || value === null) {
+        if (present && value === null) {
+            return { ok: false, error: `${key}: null is not a valid value` };
+        }
+        if (!present || value === undefined) {
             if ("default" in spec && spec.default !== undefined) {
                 out[key] = spec.default;
                 continue;
             }
-            if (spec.type !== "boolean" && (spec as { required?: boolean }).required) {
+            if ("required" in spec && spec.required) {
                 return { ok: false, error: `missing required param: ${key}` };
             }
             continue;  // optional, no default → omit
@@ -44,9 +47,8 @@ function validateOne(key: string, spec: ParamSpec, value: unknown): string | nul
             if (typeof value !== "string") return `${key} expected string, got ${typeof value}`;
             return null;
         case "number":
-            if (typeof value !== "number" || !Number.isFinite(value)) {
-                return `${key} expected number, got ${typeof value}`;
-            }
+            if (typeof value !== "number") return `${key} expected number, got ${typeof value}`;
+            if (!Number.isFinite(value)) return `${key} expected finite number, got ${String(value)}`;
             if (spec.min !== undefined && value < spec.min) return `${key} below min ${spec.min}`;
             if (spec.max !== undefined && value > spec.max) return `${key} above max ${spec.max}`;
             return null;
@@ -54,9 +56,8 @@ function validateOne(key: string, spec: ParamSpec, value: unknown): string | nul
             if (typeof value !== "boolean") return `${key} expected boolean, got ${typeof value}`;
             return null;
         case "enum":
-            if (typeof value !== "string" || !spec.values.includes(value)) {
-                return `${key} value '${String(value)}' not in [${spec.values.join(", ")}]`;
-            }
+            if (typeof value !== "string") return `${key} expected string (enum), got ${typeof value}`;
+            if (!spec.values.includes(value)) return `${key} value '${value}' not in [${spec.values.join(", ")}]`;
             return null;
     }
 }
