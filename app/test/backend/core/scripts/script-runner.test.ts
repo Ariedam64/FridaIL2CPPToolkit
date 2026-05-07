@@ -112,6 +112,21 @@ describe("ScriptRunner", () => {
         expect((results[0] as { error?: { message: string } }).error?.message).toMatch(/not serializable/);
     });
 
+    it("captures non-Error throws (string, number) and produces String(err) message", async () => {
+        const def: ScriptDefinition = {
+            name: "weird", params: {},
+            run: async () => { throw "string error"; },
+        };
+        runner = new ScriptRunner(fakeLoader({ weird: def }) as never, { instanceRegistry: null, hookStore: null, frameStore: null, agentCall: async () => null, resolveLabel: (l) => l }, fakeBuildToolkit as never);
+        runner.on("result", (r) => results.push(r));
+        const { runId } = await runner.start("weird", {});
+        await runner.waitFor(runId);
+        const r = results[0] as { status: string; error: { message: string; stack?: string } };
+        expect(r.status).toBe("error");
+        expect(r.error.message).toBe("string error");
+        expect(r.error.stack).toBeUndefined();
+    });
+
     it("allows two different scripts to run in parallel", async () => {
         const a: ScriptDefinition = { name: "a", params: {}, run: async () => { await new Promise((r) => setTimeout(r, 30)); return "a"; } };
         const b: ScriptDefinition = { name: "b", params: {}, run: async () => "b" };

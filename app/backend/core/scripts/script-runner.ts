@@ -49,26 +49,26 @@ export class ScriptRunner extends EventEmitter {
         const t0 = Date.now();
 
         const done = (async () => {
-            const emitLog = (log: Omit<ScriptLog, "runId" | "ts">): void => {
-                const event: ScriptLog = { ...log, runId, ts: new Date().toISOString() };
-                this.emit("log", event);
-            };
-
-            const toolkit = this.buildToolkit({ ...this.deps, runId, emitLog });
-
-            const timeoutMs = def.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+            let result: RunResult | undefined;
             let timer: ReturnType<typeof setTimeout> | null = null;
-            const timeoutPromise = new Promise<typeof TIMEOUT_SENTINEL>((resolve) => {
-                timer = setTimeout(() => resolve(TIMEOUT_SENTINEL), timeoutMs);
-            });
 
-            let result: RunResult;
             try {
+                const emitLog = (log: Omit<ScriptLog, "runId" | "ts">): void => {
+                    const event: ScriptLog = { ...log, runId, ts: new Date().toISOString() };
+                    this.emit("log", event);
+                };
+
+                const toolkit = this.buildToolkit({ ...this.deps, runId, emitLog });
+
+                const timeoutMs = def.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+                const timeoutPromise = new Promise<typeof TIMEOUT_SENTINEL>((resolve) => {
+                    timer = setTimeout(() => resolve(TIMEOUT_SENTINEL), timeoutMs);
+                });
+
                 const winner = await Promise.race([
                     def.run(validated.values, toolkit),
                     timeoutPromise,
                 ]);
-                if (timer) clearTimeout(timer);
 
                 if (winner === TIMEOUT_SENTINEL) {
                     result = { runId, scriptId, status: "timeout", startedAt, durationMs: Date.now() - t0 };
@@ -77,27 +77,29 @@ export class ScriptRunner extends EventEmitter {
                         const serialized = JSON.parse(JSON.stringify(winner ?? null));
                         result = { runId, scriptId, status: "ok", result: serialized, startedAt, durationMs: Date.now() - t0 };
                     } catch (err) {
+                        const message = err instanceof Error ? err.message : String(err);
                         result = {
                             runId, scriptId, status: "error",
-                            error: { message: `result not serializable: ${(err as Error).message}` },
+                            error: { message: `result not serializable: ${message}` },
                             startedAt, durationMs: Date.now() - t0,
                         };
                     }
                 }
             } catch (err) {
-                if (timer) clearTimeout(timer);
-                const e = err as Error;
+                const message = err instanceof Error ? err.message : String(err);
+                const stack   = err instanceof Error ? err.stack   : undefined;
                 result = {
                     runId, scriptId, status: "error",
-                    error: { message: e.message, stack: e.stack },
+                    error: { message, stack },
                     startedAt, durationMs: Date.now() - t0,
                 };
             } finally {
+                if (timer) clearTimeout(timer);
                 this.running.delete(scriptId);
                 this.waiters.delete(runId);
             }
 
-            this.emit("result", result);
+            this.emit("result", result!);
         })();
 
         this.waiters.set(runId, done);
