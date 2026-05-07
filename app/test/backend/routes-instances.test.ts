@@ -105,3 +105,77 @@ describe("instances routes — list / capture / delete", () => {
         expect(res.status).toBe(404);
     });
 });
+
+describe("instances routes — read / write / call", () => {
+    it("POST /api/instances/:key/read-fields returns FieldRead[]", async () => {
+        const { app, registry } = buildApp({
+            agent: {
+                readAllFieldsStructured: async () => [
+                    { name: "health", typeName: "Int32", kind: "scalar", preview: "100", rawValue: 100, isWritable: true },
+                    { name: "name",   typeName: "String", kind: "string", preview: '"foo"', rawValue: "foo", isWritable: true },
+                ],
+            },
+        });
+        registry.set("p", "Player", "0x1", "captureViaGC");
+        const res = await request(app).post("/api/instances/p/read-fields");
+        expect(res.status).toBe(200);
+        expect(res.body.alive).toBe(true);
+        expect(res.body.fields).toHaveLength(2);
+    });
+
+    it("POST /api/instances/:key/read-fields → 404 if key missing", async () => {
+        const { app } = buildApp();
+        const res = await request(app).post("/api/instances/missing/read-fields");
+        expect(res.status).toBe(404);
+    });
+
+    it("POST /api/instances/:key/write-field requires Read-Only OFF", async () => {
+        const { app, registry } = buildApp({ readOnly: true });
+        registry.set("p", "Player", "0x1", "captureViaGC");
+        const res = await request(app).post("/api/instances/p/write-field").send({ fieldName: "health", value: 9999 });
+        expect(res.status).toBe(403);
+    });
+
+    it("POST /api/instances/:key/write-field happy path snapshots before/after + history", async () => {
+        const reads: any[] = [];
+        const { app, registry, history } = buildApp({
+            readOnly: false,
+            agent: {
+                readField: async (_k: string, fieldName: string) => { reads.push(fieldName); return reads.length === 1 ? "100" : "9999"; },
+                writeField: async () => "9999",
+            },
+        });
+        registry.set("p", "Player", "0x1", "captureViaGC");
+        const res = await request(app).post("/api/instances/p/write-field").send({ fieldName: "health", value: 9999 });
+        expect(res.status).toBe(200);
+        expect(res.body.before).toBe("100");
+        expect(res.body.after).toBe("9999");
+        const entries = history.list();
+        expect(entries).toHaveLength(1);
+        expect(entries[0].action).toBe("write");
+        expect(entries[0].before).toBe("100");
+        expect(entries[0].after).toBe("9999");
+    });
+
+    it("POST /api/instances/:key/call requires Read-Only OFF", async () => {
+        const { app, registry } = buildApp({ readOnly: true });
+        registry.set("p", "Player", "0x1", "captureViaGC");
+        const res = await request(app).post("/api/instances/p/call").send({ methodName: "Heal", args: [] });
+        expect(res.status).toBe(403);
+    });
+
+    it("POST /api/instances/:key/call happy path returns result + history entry", async () => {
+        const { app, registry, history } = buildApp({
+            readOnly: false,
+            agent: { callInstance: async () => "void" },
+        });
+        registry.set("p", "Player", "0x1", "captureViaGC");
+        const res = await request(app).post("/api/instances/p/call").send({ methodName: "Heal", args: [] });
+        expect(res.status).toBe(200);
+        expect(res.body.result).toBe("void");
+        const entries = history.list();
+        expect(entries).toHaveLength(1);
+        expect(entries[0].action).toBe("call");
+        expect(entries[0].callResult).toBe("void");
+    });
+});
