@@ -312,3 +312,83 @@ describe("matchClassMembers — methods (LENIENT)", () => {
         expect(result.lost[0].reason).toContain("no candidate above 0.60");
     });
 });
+
+describe("matchFingerprints — pass 2 (auto classes get fields/methods migrated)", () => {
+    it("emits field+method records for an auto-migrated class", () => {
+        const oldA = cls("oldA", {
+            token: "0x100",
+            methodCount: 1,
+            methods: methodsFromSigs(["v(int)void"]),
+            fields: fieldsFromTypes(["a:System.Int32"]),
+        });
+        const newA = cls("newA", {
+            token: "0x100",
+            methodCount: 1,
+            methods: methodsFromSigs(["w(int)void"]),
+            fields: fieldsFromTypes(["b:System.Int32"]),
+        });
+        const result = matchFingerprints({
+            oldFps: [oldA],
+            newFps: [newA],
+            oldLabels: { oldA: "Encoder" },
+            oldMethodLabels: { "oldA.v": "encodeInt" },
+            oldFieldLabels: { "oldA.a": "playerId" },
+        });
+        expect(result.auto.find((r) => r.key.kind === "class" && r.label === "Encoder")).toBeDefined();
+        expect(result.auto.find((r) => r.key.kind === "method" && r.label === "encodeInt")).toBeDefined();
+        expect(result.auto.find((r) => r.key.kind === "field" && r.label === "playerId")).toBeDefined();
+    });
+
+    it("does NOT emit member records for a class in REVIEW (suspended)", () => {
+        const oldA = cls("oldA", {
+            methodCount: 5,
+            methods: methodsFromSigs(["a()void", "b()void", "c()void", "d()void", "e()void"]),
+            fields: fieldsFromTypes(["x:int"]),
+        });
+        const newA = cls("aaa", {
+            methodCount: 5,
+            methods: methodsFromSigs(["a()void", "b()void", "c()void", "d()void", "e()void"]),
+            fields: fieldsFromTypes(["x:long"]),
+        });
+        const newB = cls("bbb", {
+            methodCount: 5,
+            methods: methodsFromSigs(["a()void", "b()void", "c()void", "d()void", "f()void"]),
+            fields: fieldsFromTypes(["x:int"]),
+        });
+        const result = matchFingerprints({
+            oldFps: [oldA],
+            newFps: [newA, newB],
+            oldLabels: { oldA: "ClassA" },
+            oldMethodLabels: { "oldA.a": "method_a" },
+            oldFieldLabels: { "oldA.x": "fieldX" },
+        });
+        // Class is in REVIEW — no member records yet
+        expect(result.review.length).toBe(1);
+        expect(result.auto.filter((r) => r.key.kind === "method")).toHaveLength(0);
+        expect(result.auto.filter((r) => r.key.kind === "field")).toHaveLength(0);
+    });
+
+    it("cascades fields/methods to LOST when their parent class is LOST", () => {
+        const oldA = cls("oldA", {
+            methodCount: 17,
+            methods: methodsFromSigs(["specific()void"]),
+            fields: fieldsFromTypes(["uniqueField:int"]),
+        });
+        const newA = cls("aaa", {
+            methodCount: 1,
+            methods: methodsFromSigs(["totally_different()void"]),
+            fields: fieldsFromTypes(["other:string"]),
+        });
+        const result = matchFingerprints({
+            oldFps: [oldA],
+            newFps: [newA],
+            oldLabels: { oldA: "ClassA" },
+            oldMethodLabels: { "oldA.specific": "specificLabel" },
+            oldFieldLabels: { "oldA.uniqueField": "fieldLabel" },
+        });
+        expect(result.lost.length).toBe(3); // class + method + field
+        const memberLost = result.lost.filter((r) => r.key.kind !== "class");
+        expect(memberLost).toHaveLength(2);
+        expect(memberLost.every((r) => r.reason.includes("parent class lost"))).toBe(true);
+    });
+});

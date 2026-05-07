@@ -25,6 +25,10 @@ export interface MatchInput {
     oldFps: ClassFingerprint[];
     newFps: ClassFingerprint[];
     oldLabels: Record<string, string>;
+    /** Method labels keyed by `${classObf}.${methodObf}`. Optional, defaults to {}. */
+    oldMethodLabels?: Record<string, string>;
+    /** Field labels keyed by `${classObf}.${fieldObf}`. Optional, defaults to {}. */
+    oldFieldLabels?: Record<string, string>;
 }
 
 const AUTO_THRESHOLD = 0.95;
@@ -32,12 +36,48 @@ const REVIEW_THRESHOLD = 0.60;
 
 export function matchFingerprints(input: MatchInput): MigrationResult {
     const { oldFps, newFps, oldLabels } = input;
+    const oldMethodLabels = input.oldMethodLabels ?? {};
+    const oldFieldLabels = input.oldFieldLabels ?? {};
     const result: MigrationResult = { auto: [], review: [], lost: [] };
 
     const newByToken = new Map<string, ClassFingerprint>();
     for (const fp of newFps) {
         if (fp.token) newByToken.set(fp.token, fp);
     }
+
+    const runPass2 = (oldCls: ClassFingerprint, newCls: ClassFingerprint): void => {
+        const sub = matchClassMembers(oldCls, newCls, oldMethodLabels, oldFieldLabels);
+        result.auto.push(...sub.auto);
+        result.review.push(...sub.review);
+        result.lost.push(...sub.lost);
+    };
+
+    const cascadeLost = (oldCls: ClassFingerprint, reason: string): void => {
+        for (const [k, label] of Object.entries(oldMethodLabels)) {
+            if (k.startsWith(oldCls.obfName + ".")) {
+                const methodName = k.slice(oldCls.obfName.length + 1);
+                result.lost.push({
+                    key: { kind: "method", className: oldCls.obfName, methodName },
+                    oldObf: k,
+                    label,
+                    reason,
+                    parentClassMigration: oldCls.obfName,
+                });
+            }
+        }
+        for (const [k, label] of Object.entries(oldFieldLabels)) {
+            if (k.startsWith(oldCls.obfName + ".")) {
+                const fieldName = k.slice(oldCls.obfName.length + 1);
+                result.lost.push({
+                    key: { kind: "field", className: oldCls.obfName, fieldName },
+                    oldObf: k,
+                    label,
+                    reason,
+                    parentClassMigration: oldCls.obfName,
+                });
+            }
+        }
+    };
 
     for (const oldFp of oldFps) {
         const label = oldLabels[oldFp.obfName];
@@ -54,6 +94,7 @@ export function matchFingerprints(input: MatchInput): MigrationResult {
                     newObf: tokMatch.obfName,
                     reason: `token match (${oldFp.token})`,
                 });
+                runPass2(oldFp, tokMatch);
                 continue;
             }
         }
@@ -69,6 +110,7 @@ export function matchFingerprints(input: MatchInput): MigrationResult {
                 oldObf: oldFp.obfName,
                 reason: "no candidate above 0.60 similarity",
             });
+            cascadeLost(oldFp, `parent class lost: ${oldFp.obfName}`);
             continue;
         }
 
@@ -82,6 +124,7 @@ export function matchFingerprints(input: MatchInput): MigrationResult {
                 newObf: top.newFp.obfName,
                 reason: `unique structural match (score=${top.score.toFixed(3)})`,
             });
+            runPass2(oldFp, top.newFp);
         } else {
             result.review.push({
                 key, label,
@@ -92,6 +135,7 @@ export function matchFingerprints(input: MatchInput): MigrationResult {
                     reason: `structural similarity ${c.score.toFixed(3)}`,
                 })),
             });
+            // Members suspended — not emitted yet. Routes will trigger pass 2 on accept.
         }
     }
 
