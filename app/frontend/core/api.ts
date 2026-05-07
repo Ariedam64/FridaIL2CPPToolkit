@@ -46,8 +46,17 @@ export const api = {
     clearAllHooks() { return call<{ count: number }>("POST", "/api/hooks/clear-all"); },
 
     getMigrations() { return call<any>("GET", "/api/migrations"); },
-    acceptMigration(oldObf: string, newObf: string) { return call("POST", "/api/migrations/accept", { oldObf, newObf }); },
-    rejectMigration(oldObf: string) { return call("POST", "/api/migrations/reject", { oldObf }); },
+    acceptMigration(payload: { key: import("./types.js").LabelKeyLite; oldObf: string }) {
+        return call<{ ok: boolean; pass2?: { auto: any[]; review: any[]; lost: any[] } | null }>(
+            "POST", "/api/migrations/accept", payload,
+        );
+    },
+    rejectMigration(payload: { key: import("./types.js").LabelKeyLite; oldObf: string }) {
+        return call<{ ok: boolean; cascaded?: any[] }>("POST", "/api/migrations/reject", payload);
+    },
+    acceptTopForAllReviews() {
+        return call<{ ok: boolean; acceptedCount: number }>("POST", "/api/migrations/accept-top-all", {});
+    },
 
     getNetworkFrames(opts: { limit?: number; sinceId?: string; filter?: string; direction?: "in" | "out" } = {}) {
         const q = new URLSearchParams();

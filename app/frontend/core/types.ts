@@ -103,3 +103,10 @@ export interface NetSerializerConfig {
 export function encodeNetTypeKey(k: NetTypeKey): string {
     return `${k.ns ?? ""}~${k.className}`;
 }
+
+export interface LabelKeyLite {
+    kind: "class" | "method" | "field";
+    className: string;
+    methodName?: string;
+    fieldName?: string;
+}
