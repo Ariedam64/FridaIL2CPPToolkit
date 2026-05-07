@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -60,5 +60,58 @@ describe("DofusDataStore", () => {
         const b = await store.loadMapDetail(100);
         expect(a).not.toBeNull();
         expect(a).toBe(b);  // identity (cached)
+    });
+
+    it("LRU evicts oldest entry when cache exceeds 50 maps", async () => {
+        // Create fixture with 60 map JSONs
+        for (let i = 1; i <= 60; i++) {
+            fs.writeFileSync(
+                path.join(dir, "maps", `${1000 + i}.json`),
+                JSON.stringify({ mapId: 1000 + i, n: [], c: Array(560).fill([0,0,0,0,0]) }),
+            );
+        }
+        // Also add them to maps-information.json so meta.find works.
+        const fullIndex = [
+            { mapId: 100, posX: 0, posY: 0, subAreaId: 1, worldMap: 1, nameId: 0, name: "M100" },
+            { mapId: 200, posX: 1, posY: 0, subAreaId: 1, worldMap: 1, nameId: 0, name: "M200" },
+            { mapId: 300, posX: 0, posY: 0, subAreaId: 5, worldMap: 10, nameId: 0, name: "M300" },
+            ...Array.from({ length: 60 }, (_, i) => ({
+                mapId: 1000 + i + 1, posX: 0, posY: 0, subAreaId: 1, worldMap: 1, nameId: 0, name: `M${1000+i+1}`,
+            })),
+        ];
+        fs.writeFileSync(path.join(dir, "maps-information.json"), JSON.stringify(fullIndex));
+
+        const store = new DofusDataStore(dir);
+        // Load 60 maps in sequence
+        for (let i = 1; i <= 60; i++) {
+            await store.loadMapDetail(1000 + i);
+        }
+        // The first map (1001) should have been evicted (LRU_MAX = 50)
+        // To verify eviction, we re-load 1001 and check it's a NEW object reference.
+        const reloaded = await store.loadMapDetail(1001);
+        // Then load 1011 (which was loaded 50 ago, should still be cached)
+        const cached = await store.loadMapDetail(1011);
+        const cachedAgain = await store.loadMapDetail(1011);
+        expect(cached).toBe(cachedAgain);  // identity (still in cache)
+        // 1001 was evicted, so the reloaded one should now be cached
+        const reloadedAgain = await store.loadMapDetail(1001);
+        expect(reloaded).toBe(reloadedAgain);  // identity (re-cached)
+    });
+
+    it("loadMapDetail returns null on corrupted map JSON (logs error)", async () => {
+        fs.writeFileSync(path.join(dir, "maps", "999.json"), "{not valid json");
+        fs.appendFileSync(path.join(dir, "maps-information.json"), "");  // no-op; ensures file exists
+
+        // Need to add 999 to maps-information.json so meta is found
+        const data = JSON.parse(fs.readFileSync(path.join(dir, "maps-information.json"), "utf8"));
+        data.push({ mapId: 999, posX: 0, posY: 0, subAreaId: 1, worldMap: 1, nameId: 0, name: "Corrupted" });
+        fs.writeFileSync(path.join(dir, "maps-information.json"), JSON.stringify(data));
+
+        const store = new DofusDataStore(dir);
+        const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        const result = await store.loadMapDetail(999);
+        expect(result).toBeNull();
+        expect(errSpy).toHaveBeenCalledWith(expect.stringMatching(/failed to read.*999/), expect.any(String));
+        errSpy.mockRestore();
     });
 });

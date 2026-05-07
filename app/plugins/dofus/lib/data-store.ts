@@ -33,6 +33,7 @@ export class DofusDataStore {
     private areasIndex: AreasFile = { areas: {}, subAreas: {}, worlds: {} };
     private worldsIndex: WorldMeta[] = [];
     private mapsByWorld = new Map<number, WorldMap[]>();
+    private mapsById = new Map<number, MapInfoEntry>();
     private detailCache = new Map<number, MapDetail>();   // insertion-order LRU
 
     constructor(private readonly dataDir: string) {
@@ -49,6 +50,7 @@ export class DofusDataStore {
     private indexByWorld(): void {
         const counts = new Map<number, number>();
         for (const m of this.mapsIndex) {
+            this.mapsById.set(m.mapId, m);
             counts.set(m.worldMap, (counts.get(m.worldMap) ?? 0) + 1);
             const arr = this.mapsByWorld.get(m.worldMap) ?? [];
             const subArea = this.areasIndex.subAreas[String(m.subAreaId)];
@@ -84,11 +86,17 @@ export class DofusDataStore {
             this.detailCache.set(mapId, cached);
             return cached;
         }
-        const meta = this.mapsIndex.find((m) => m.mapId === mapId);
+        const meta = this.mapsById.get(mapId);
         if (!meta) return null;
         const file = path.join(this.dataDir, "maps", `${mapId}.json`);
         if (!fs.existsSync(file)) return null;
-        const raw = JSON.parse(await fs.promises.readFile(file, "utf8")) as { n?: number[]; c: Array<[number, number, number, number, number]> };
+        let raw: { n?: number[]; c: Array<[number, number, number, number, number]> };
+        try {
+            raw = JSON.parse(await fs.promises.readFile(file, "utf8"));
+        } catch (err) {
+            console.error(`[dofus] failed to read/parse map ${mapId}.json:`, (err as Error).message);
+            return null;
+        }
         const subArea = this.areasIndex.subAreas[String(meta.subAreaId)];
         const detail: MapDetail = {
             mapId: meta.mapId, posX: meta.posX, posY: meta.posY,
