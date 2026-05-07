@@ -5,7 +5,7 @@
 import "frida-il2cpp-bridge";
 import { findClassExact } from "../lib";
 
-const MAX_FRAME_DEPTH = 2;
+const MAX_FRAME_DEPTH = 4;
 const MAX_FIELD_PREVIEW_CHARS = 80;
 const MAX_FRAME_BYTES = 50_000;
 const FLOOD_WINDOW_MS = 1000;
@@ -118,7 +118,17 @@ function walkFields(obj: any, depth: number): FrameField[] {
             } else if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
                 entry = { name, kind: isEnum ? "enum" : classifyType(typeName), preview: clip(String(v)) };
             } else if (isEnum) {
-                entry = { name, kind: "enum", preview: clip(String(v)) };
+                // For frida-il2cpp-bridge enum objects, the underlying integer lives in the
+                // `value__` field. Extract it for a useful preview; fall back to `String(v)`
+                // (typically the obfuscated symbol name) only if extraction fails.
+                let preview = String(v);
+                try {
+                    const underlying = v.field("value__").value;
+                    if (underlying !== null && underlying !== undefined) {
+                        preview = String(underlying);
+                    }
+                } catch { /* keep fallback */ }
+                entry = { name, kind: "enum", preview: clip(preview) };
             } else if (v.class) {
                 const cn = String(v.class.name);
                 if (cn.startsWith("RepeatedField") || cn.startsWith("List")
