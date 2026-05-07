@@ -76,13 +76,31 @@ export interface BuildIdResult {
 // Migrations
 // ---------------------------------------------------------------------------
 
+export interface FieldFingerprint {
+    obfName: string;
+    typeName: string;
+    declIndex: number;
+    isStatic: boolean;
+    isPublic: boolean;
+}
+
+export interface MethodFingerprint {
+    obfName: string;
+    token: string | null;
+    paramTypes: string[];
+    returnType: string;
+    paramCount: number;
+    declIndex: number;
+    isStatic: boolean;
+}
+
 export interface ClassFingerprint {
     obfName: string;
-    token: string | null;          // IL2CPP token, hex string
-    parents: string[];             // obf names of parents
+    token: string | null;
+    parents: string[];
     methodCount: number;
-    methodSignatures: string[];    // sorted, joined "(p1,p2)→ret"
-    fieldTypes: string[];          // sorted, joined "fieldName:type"
+    fields: FieldFingerprint[];
+    methods: MethodFingerprint[];
 }
 
 export interface MigrationResult {
