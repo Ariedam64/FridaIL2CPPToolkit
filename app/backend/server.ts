@@ -13,6 +13,7 @@ import { mountHooks } from "./routes/hooks.js";
 import { mountMigrations } from "./routes/migrations.js";
 import { mountNetwork } from "./routes/network.js";
 import { mountInstances } from "./routes/instances.js";
+import { mountScripts } from "./routes/scripts.js";
 import { mountNetworkEventBus } from "./core/network/event-bus.js";
 import { mountWsBridge } from "./ws-bridge.js";
 
@@ -37,6 +38,10 @@ mountHooks(app, { session });
 mountMigrations(app, { session });
 mountNetwork(app, { session });
 mountInstances(app, { session });
+mountScripts(app, {
+    loader: () => session.scriptLoader(),
+    runner: () => session.scriptRunner(),
+});
 mountNetworkEventBus(session);
 
 const server = http.createServer(app);

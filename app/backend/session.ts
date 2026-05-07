@@ -25,6 +25,10 @@ import { detectSerializers } from "./core/network/serializer-detector.js";
 import { InstanceRegistry } from "./core/instances/instance-registry.js";
 import { HistoryStore } from "./core/instances/history-store.js";
 import { RecipeStore } from "./core/instances/recipe-store.js";
+import { ScriptLoader } from "./core/scripts/script-loader.js";
+import { ScriptRunner } from "./core/scripts/script-runner.js";
+import { buildToolkit } from "./core/scripts/toolkit-api.js";
+import { emitScriptsTypes } from "./core/scripts/types-emitter.js";
 
 const PROFILE_ROOT =
     expandHome(process.env.FRIDA_TOOLKIT_PROFILE_ROOT ?? "") ||
@@ -48,6 +52,8 @@ export class Session extends EventEmitter {
     private currentHistoryStore: HistoryStore | null = null;
     private currentRecipeStore: RecipeStore | null = null;
     private currentScanMatches: import("./core/instances/types.js").ScanMatch[] = [];
+    private currentScriptLoader: ScriptLoader | null = null;
+    private currentScriptRunner: ScriptRunner | null = null;
     private instancesReadOnly = true;
     private disposeListeners: Array<() => void> = [];
     private attachInFlight: Promise<Profile> | null = null;
@@ -56,7 +62,19 @@ export class Session extends EventEmitter {
         super();
         this.fridaClient = new FridaClient(agentScriptPath);
         this.profileManager = new ProfileManager(PROFILE_ROOT);
-        this.fridaClient.on("agent-message", (payload) => this.emit("agent-message", payload));
+        this.fridaClient.on("agent-message", (payload) => {
+            this.emit("agent-message", payload);
+            if (
+                payload && typeof payload === "object" &&
+                (payload as { type?: string }).type === "hook-event" &&
+                this.currentHookStore
+            ) {
+                const p = payload as { type: string; hookId?: string; args?: unknown[]; ts?: number };
+                if (p.hookId) {
+                    this.currentHookStore.notifyAgentEvent(p.hookId, p.args ?? [], p.ts);
+                }
+            }
+        });
         this.fridaClient.on("detached", () => this.handleDetach());
     }
 
@@ -83,6 +101,8 @@ export class Session extends EventEmitter {
     instanceRegistry(): InstanceRegistry | null { return this.currentInstanceRegistry; }
     historyStore(): HistoryStore | null { return this.currentHistoryStore; }
     recipeStore(): RecipeStore | null { return this.currentRecipeStore; }
+    scriptLoader(): ScriptLoader | null { return this.currentScriptLoader; }
+    scriptRunner(): ScriptRunner | null { return this.currentScriptRunner; }
     getReadOnly(): boolean { return this.instancesReadOnly; }
     setReadOnly(v: boolean): void { this.instancesReadOnly = v; }
 
@@ -301,6 +321,29 @@ export class Session extends EventEmitter {
             this.currentRecipeStore.onChange(() => this.emit("recipe-store-changed")),
         );
 
+        const scriptsDir = path.join(profile.rootPath, "plugins", "scripts");
+        emitScriptsTypes(scriptsDir);
+        const loader = new ScriptLoader(scriptsDir);
+        await loader.start();
+        loader.on("change", (entry) => this.emit("script-list-changed", entry));
+        loader.on("remove", (id)    => this.emit("script-list-changed", { removed: id }));
+        this.currentScriptLoader = loader;
+
+        const runner = new ScriptRunner(
+            loader,
+            {
+                instanceRegistry: this.currentInstanceRegistry,
+                hookStore:        this.currentHookStore,
+                frameStore:       this.currentFrameStore,
+                agentCall:        (m, a) => this.fridaClient.call(m, a),
+                resolveLabel:     (l) => l, // v1.4: identity. Friendly→obf wiring deferred.
+            },
+            buildToolkit,
+        );
+        runner.on("log",    (e) => this.emit("script-log", e));
+        runner.on("result", (r) => this.emit("script-result", r));
+        this.currentScriptRunner = runner;
+
         // Forward label/annotation events so the WS bridge can broadcast them.
         // Capture disposers so they can be cleaned up on detach.
         this.disposeListeners.push(
@@ -355,6 +398,8 @@ export class Session extends EventEmitter {
         this.currentHistoryStore = null;
         this.currentRecipeStore = null;
         this.currentScanMatches = [];
+        if (this.currentScriptLoader) { void this.currentScriptLoader.dispose(); this.currentScriptLoader = null; }
+        this.currentScriptRunner = null;
         this.instancesReadOnly = true;
         this.emit("profile-detached");
     }

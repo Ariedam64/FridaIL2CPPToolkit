@@ -47,6 +47,9 @@ export function mountWsBridge(server: HttpServer, session: Session): void {
     session.on("instance-history-changed", () => broadcast({ type: "instance-history-changed" }));
     session.on("recipe-store-changed", () => broadcast({ type: "recipe-store-changed" }));
     session.on("read-only-changed", () => broadcast({ type: "read-only-changed", enabled: session.getReadOnly() }));
+    session.on("script-list-changed", (e: unknown) => broadcast({ type: "script-list-changed", payload: e }));
+    session.on("script-log",          (e: unknown) => broadcast({ type: "script-log",          payload: e }));
+    session.on("script-result",       (e: unknown) => broadcast({ type: "script-result",       payload: e }));
 
     // ---- network plugin events ----
     let lastFrameBroadcast = 0;
