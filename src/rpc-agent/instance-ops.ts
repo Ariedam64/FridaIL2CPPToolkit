@@ -344,6 +344,173 @@ export function previewInstance(
     });
 }
 
+export interface ScanMatch {
+    className: string;
+    handle: string;
+    fieldName: string;
+    fieldType: string;
+    fieldValue: string;
+}
+
+function valueMatches(actual: unknown, expected: string | number | boolean): boolean {
+    if (typeof actual === "number" || typeof actual === "bigint") {
+        const n = typeof actual === "bigint" ? Number(actual) : actual;
+        const e = typeof expected === "number" ? expected : Number(expected);
+        return !Number.isNaN(e) && n === e;
+    }
+    if (typeof actual === "boolean") {
+        return actual === (expected === true || expected === "true" || expected === 1);
+    }
+    if (typeof actual === "string") {
+        return actual === String(expected);
+    }
+    return false;
+}
+
+function isNumericLike(v: string | number | boolean): boolean {
+    if (typeof v === "number") return true;
+    if (typeof v === "string") return /^-?\d+(\.\d+)?$/.test(v);
+    return false;
+}
+
+function fieldTypeMatchesValue(typeName: string, value: string | number | boolean): boolean {
+    if (typeof value === "boolean") return typeName === "System.Boolean";
+    if (isNumericLike(value)) {
+        return /System\.(Int|UInt|Single|Double|Byte|SByte|Int16|UInt16|Int32|UInt32|Int64|UInt64|Float)/.test(typeName);
+    }
+    return typeName === "System.String";
+}
+
+/**
+ * Cheat Engine-style first-scan: walk every IL2CPP class, pre-filter by
+ * field type, enumerate live instances of candidates, and return matches.
+ */
+export function valueScan(
+    value: string | number | boolean,
+    options: { classFilter?: string; maxMatches?: number } = {},
+): Promise<ScanMatch[]> {
+    return inVm(() => {
+        const maxMatches = options.maxMatches ?? 500;
+        const classRegex = options.classFilter ? new RegExp(options.classFilter, "i") : null;
+        const matches: ScanMatch[] = [];
+
+        outer: for (const asm of Il2Cpp.domain.assemblies) {
+            for (const klass of asm.image.classes) {
+                if (classRegex && !classRegex.test(klass.name)) continue;
+
+                // Pre-filter: does this class have any non-static field with a matching type?
+                let candidateFields: Array<{ name: string; typeName: string }> = [];
+                try {
+                    for (const f of klass.fields) {
+                        if (f.isStatic) continue;
+                        const typeName = (f.type?.name ?? "") as string;
+                        if (fieldTypeMatchesValue(typeName, value)) {
+                            candidateFields.push({ name: f.name, typeName });
+                        }
+                    }
+                } catch { continue; }
+                if (candidateFields.length === 0) continue;
+
+                // Only now invoke gc.choose — this is the expensive call.
+                let instances: Il2Cpp.Object[] = [];
+                try { instances = Il2Cpp.gc.choose(klass); } catch { continue; }
+                if (instances.length === 0) continue;
+
+                for (const inst of instances) {
+                    for (const cf of candidateFields) {
+                        try {
+                            const v = inst.field(cf.name).value;
+                            if (valueMatches(v, value)) {
+                                matches.push({
+                                    className: klass.name,
+                                    handle: String(inst.handle),
+                                    fieldName: cf.name,
+                                    fieldType: cf.typeName,
+                                    fieldValue: String(v),
+                                });
+                                if (matches.length >= maxMatches) break outer;
+                            }
+                        } catch { /* skip unreadable */ }
+                    }
+                }
+            }
+        }
+        return matches;
+    });
+}
+
+/**
+ * Refine an existing scan by re-reading each match's CURRENT value and
+ * filtering to those equal to `newValue`. Mimics Cheat Engine's "Next Scan".
+ */
+export function valueScanFilter(
+    prevMatches: ScanMatch[],
+    newValue: string | number | boolean,
+): Promise<ScanMatch[]> {
+    return inVm(() => {
+        const out: ScanMatch[] = [];
+        const klassCache = new Map<string, Il2Cpp.Class>();
+
+        for (const m of prevMatches) {
+            let klass = klassCache.get(m.className);
+            if (!klass) {
+                try {
+                    for (const asm of Il2Cpp.domain.assemblies) {
+                        for (const k of asm.image.classes) {
+                            if (k.name === m.className) { klass = k; break; }
+                        }
+                        if (klass) break;
+                    }
+                } catch {}
+                if (klass) klassCache.set(m.className, klass);
+            }
+            if (!klass) continue;
+
+            // Find instance by handle in live set
+            let inst: Il2Cpp.Object | null = null;
+            try {
+                const instances = Il2Cpp.gc.choose(klass);
+                for (const i of instances) {
+                    if (String(i.handle) === m.handle) { inst = i; break; }
+                }
+            } catch {}
+            if (!inst) continue;
+
+            try {
+                const v = inst.field(m.fieldName).value;
+                if (valueMatches(v, newValue)) {
+                    out.push({ ...m, fieldValue: String(v) });
+                }
+            } catch {}
+        }
+        return out;
+    });
+}
+
+/**
+ * Capture an instance by its live handle (from a scan match), storing under asKey.
+ * Returns "ClassName@handle" summary or throws if the instance is no longer alive.
+ */
+export function captureByHandle(className: string, handle: string, asKey: string): Promise<string> {
+    return inVm(() => {
+        let klass: Il2Cpp.Class | null = null;
+        for (const asm of Il2Cpp.domain.assemblies) {
+            for (const k of asm.image.classes) {
+                if (k.name === className) { klass = k; break; }
+            }
+            if (klass) break;
+        }
+        if (!klass) throw new Error(`class not found: ${className}`);
+        const instances = Il2Cpp.gc.choose(klass);
+        const inst = instances.find((i) => String(i.handle) === handle);
+        if (!inst) throw new Error(`instance ${className}@${handle} no longer alive`);
+        setCaptured(asKey, inst);
+        const summary = `${inst.class.name}@${inst.handle}`;
+        console.log(`[capture] by handle: ${className}@${handle} stored as "${asKey}" → ${summary}`);
+        return summary;
+    });
+}
+
 export function writeField(className: string, fieldName: string, value: any): Promise<string> {
     return inVm(() => {
         const inst = getCaptured(className);

@@ -155,4 +155,25 @@ export const api = {
             "POST", "/api/instances/preview", { className, index, maxFields },
         );
     },
+    scanStart(value: string | number | boolean, options: { classFilter?: string; maxMatches?: number } = {}) {
+        return call<{ matches: import("./types.js").ScanMatchLite[] }>(
+            "POST", "/api/instances/scan/start", { value, ...options },
+        );
+    },
+    scanRefine(value: string | number | boolean) {
+        return call<{ matches: import("./types.js").ScanMatchLite[] }>(
+            "POST", "/api/instances/scan/refine", { value },
+        );
+    },
+    scanReset() {
+        return call<{ ok: boolean }>("POST", "/api/instances/scan/reset", {});
+    },
+    getScan() {
+        return call<{ matches: import("./types.js").ScanMatchLite[] }>("GET", "/api/instances/scan");
+    },
+    captureFromScan(matchIndex: number, asKey: string) {
+        return call<{ key: string; summary: string }>(
+            "POST", "/api/instances/scan/capture", { matchIndex, asKey },
+        );
+    },
 };

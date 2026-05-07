@@ -47,6 +47,7 @@ export class Session extends EventEmitter {
     private currentInstanceRegistry: InstanceRegistry | null = null;
     private currentHistoryStore: HistoryStore | null = null;
     private currentRecipeStore: RecipeStore | null = null;
+    private currentScanMatches: import("./core/instances/types.js").ScanMatch[] = [];
     private instancesReadOnly = true;
     private disposeListeners: Array<() => void> = [];
     private attachInFlight: Promise<Profile> | null = null;
@@ -84,6 +85,13 @@ export class Session extends EventEmitter {
     recipeStore(): RecipeStore | null { return this.currentRecipeStore; }
     getReadOnly(): boolean { return this.instancesReadOnly; }
     setReadOnly(v: boolean): void { this.instancesReadOnly = v; }
+
+    getScanMatches(): import("./core/instances/types.js").ScanMatch[] {
+        return this.currentScanMatches;
+    }
+    setScanMatches(matches: import("./core/instances/types.js").ScanMatch[]): void {
+        this.currentScanMatches = matches;
+    }
 
     async agentCall(method: string, args: unknown[]): Promise<unknown> {
         return this.fridaClient.call(method, args);
@@ -346,6 +354,7 @@ export class Session extends EventEmitter {
         this.currentInstanceRegistry = null;
         this.currentHistoryStore = null;
         this.currentRecipeStore = null;
+        this.currentScanMatches = [];
         this.instancesReadOnly = true;
         this.emit("profile-detached");
     }

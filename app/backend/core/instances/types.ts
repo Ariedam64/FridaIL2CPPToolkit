@@ -1,4 +1,17 @@
 // Shared types for the v1.4 Instances plugin.
+
+// ---------------------------------------------------------------------------
+// ScanMatch — result item from the Cheat Engine-style value scanner
+// ---------------------------------------------------------------------------
+
+export interface ScanMatch {
+    className: string;
+    handle: string;
+    fieldName: string;
+    fieldType: string;
+    fieldValue: string;
+}
+
 // See docs/superpowers/specs/2026-05-07-frida-toolkit-plugin-instances-design.md
 
 // ---------------------------------------------------------------------------

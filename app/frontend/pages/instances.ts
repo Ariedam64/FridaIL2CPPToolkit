@@ -5,6 +5,7 @@ import { icons } from "../core/icons.js";
 import { renderFieldRow } from "../components/instance-field-row.js";
 import { openCaptureWizard } from "../components/instance-capture-wizard-modal.js";
 import { openRecipesModal } from "../components/instance-recipes-modal.js";
+import { openScanModal } from "../components/instance-scan-modal.js";
 import type { CapturedInstanceLite, FieldReadLite, InstanceHistoryEntry } from "../core/types.js";
 import { prettyClassName } from "../core/il2cpp-pretty.js";
 
@@ -157,6 +158,7 @@ function render(): void {
         <div class="ip-toolbar">
             <button class="ip-pill" id="ip-new-capture">${icons.crosshair(12)} New capture</button>
             <button class="ip-pill" id="ip-recipes">${icons.folder(12)} Recipes</button>
+            <button class="ip-pill" id="ip-scan">${icons.search(12)} Scan</button>
             <button class="ip-pill ${_readOnly ? "active" : ""}" id="ip-toggle-ro">${_readOnly ? "🔒" : "🔓"} Read-Only</button>
             <button class="ip-pill" id="ip-refresh">${icons.refresh(12)} Refresh</button>
             <span style="flex:1"></span>
@@ -326,5 +328,8 @@ function bindToolbar(): void {
     });
     _hostEl.querySelector<HTMLButtonElement>("#ip-recipes")?.addEventListener("click", () => {
         window.dispatchEvent(new CustomEvent("instances:open-recipes"));
+    });
+    _hostEl.querySelector<HTMLButtonElement>("#ip-scan")?.addEventListener("click", () => {
+        openScanModal();
     });
 }

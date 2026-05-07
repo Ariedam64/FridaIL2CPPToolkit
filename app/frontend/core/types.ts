@@ -180,3 +180,15 @@ export interface InstanceRecipeReplayResult {
     steps: InstanceRecipeStepResult[];
     finalStatus: "ok" | "partial" | "failed";
 }
+
+// ---------------------------------------------------------------------------
+// ScanMatchLite — result item from the Cheat Engine-style value scanner
+// ---------------------------------------------------------------------------
+
+export interface ScanMatchLite {
+    className: string;
+    handle: string;
+    fieldName: string;
+    fieldType: string;
+    fieldValue: string;
+}

@@ -11,6 +11,8 @@ export interface InstancesDeps {
         getReadOnly: () => boolean;
         setReadOnly: (v: boolean) => void;
         emit: (event: string, ...args: unknown[]) => boolean;
+        getScanMatches: () => import("../core/instances/types.js").ScanMatch[];
+        setScanMatches: (matches: import("../core/instances/types.js").ScanMatch[]) => void;
     };
 }
 
@@ -278,5 +280,85 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
         deps.session.emit("instance-registry-changed");
         deps.session.emit("recipe-store-changed");
         res.json(result);
+    });
+
+    // -----------------------------------------------------------------------
+    // v1.4 Cheat Engine-style value scanner
+    // -----------------------------------------------------------------------
+
+    app.post("/api/instances/scan/start", async (req, res) => {
+        const { value, classFilter, maxMatches } = req.body ?? {};
+        if (value === undefined || value === null) {
+            res.status(400).json({ error: "value required" });
+            return;
+        }
+        try {
+            const matches = await deps.session.agentCall("valueScan", [value, { classFilter, maxMatches }]) as import("../core/instances/types.js").ScanMatch[];
+            deps.session.setScanMatches(matches);
+            deps.session.emit("instance-scan-changed");
+            res.json({ matches });
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
+    app.post("/api/instances/scan/refine", async (req, res) => {
+        const { value } = req.body ?? {};
+        if (value === undefined || value === null) {
+            res.status(400).json({ error: "value required" });
+            return;
+        }
+        const prev = deps.session.getScanMatches();
+        if (prev.length === 0) {
+            res.status(400).json({ error: "no active scan — call /scan/start first" });
+            return;
+        }
+        try {
+            const matches = await deps.session.agentCall("valueScanFilter", [prev, value]) as import("../core/instances/types.js").ScanMatch[];
+            deps.session.setScanMatches(matches);
+            deps.session.emit("instance-scan-changed");
+            res.json({ matches });
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
+    app.post("/api/instances/scan/reset", (_req, res) => {
+        deps.session.setScanMatches([]);
+        deps.session.emit("instance-scan-changed");
+        res.json({ ok: true });
+    });
+
+    app.get("/api/instances/scan", (_req, res) => {
+        res.json({ matches: deps.session.getScanMatches() });
+    });
+
+    app.post("/api/instances/scan/capture", async (req, res) => {
+        const { matchIndex, asKey } = req.body ?? {};
+        const matches = deps.session.getScanMatches();
+        if (typeof matchIndex !== "number" || matchIndex < 0 || matchIndex >= matches.length) {
+            res.status(400).json({ error: "invalid matchIndex" });
+            return;
+        }
+        if (typeof asKey !== "string" || !asKey) {
+            res.status(400).json({ error: "asKey required" });
+            return;
+        }
+        const m = matches[matchIndex];
+        try {
+            const summary = String(await deps.session.agentCall("captureByHandle", [m.className, m.handle, asKey]));
+            const reg = deps.session.instanceRegistry();
+            if (reg) {
+                // parse summary "Class@0xHANDLE" — reuse the route's parser if available
+                const mm = summary.match(/^(.+?)@(0x[0-9a-fA-F]+)/);
+                const cn = mm ? mm[1] : m.className;
+                const h = mm ? mm[2] : m.handle;
+                reg.set(asKey, cn, h, "captureViaGC");
+                deps.session.emit("instance-registry-changed");
+            }
+            res.json({ key: asKey, summary });
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
     });
 }
