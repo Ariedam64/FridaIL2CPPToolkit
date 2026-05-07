@@ -107,8 +107,13 @@ export function similarity(a: ClassFingerprint, b: ClassFingerprint): number {
     const mcMax = Math.max(a.methodCount, b.methodCount, 1);
     const methodCountScore = Math.max(0, 1 - mcDiff / mcMax);
 
-    const sigScore = jaccard(new Set(a.methodSignatures), new Set(b.methodSignatures));
-    const fieldScore = jaccard(new Set(a.fieldTypes), new Set(b.fieldTypes));
+    const aMethodSigs = a.methods.map((m) => `${m.obfName}(${m.paramTypes.join(",")})→${m.returnType}`);
+    const bMethodSigs = b.methods.map((m) => `${m.obfName}(${m.paramTypes.join(",")})→${m.returnType}`);
+    const sigScore = jaccard(new Set(aMethodSigs), new Set(bMethodSigs));
+
+    const aFieldKeys = a.fields.map((f) => `${f.obfName}:${f.typeName}`);
+    const bFieldKeys = b.fields.map((f) => `${f.obfName}:${f.typeName}`);
+    const fieldScore = jaccard(new Set(aFieldKeys), new Set(bFieldKeys));
 
     return parentScore * 0.20 + methodCountScore * 0.20 + sigScore * 0.30 + fieldScore * 0.30;
 }
