@@ -104,6 +104,12 @@
     background: linear-gradient(135deg, var(--indigo), var(--indigo-deep));
     box-shadow: var(--indigo-glow);
 }
+.nav-icon.unmatched {
+    opacity: 0.4;
+}
+.nav-icon.unmatched:hover {
+    opacity: 0.7;
+}
 .badge-count {
     position: absolute; top: 2px; right: 2px;
     background: var(--danger); color: white;

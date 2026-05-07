@@ -101,6 +101,7 @@ async function refreshProfile(): Promise<void> {
             connBadge.textContent = "disconnected";
             connBadge.classList.add("disconnected");
         }
+        navHandle.setPluginMatchState(cachedProfile?.gameName ?? null);
     } catch (e) { console.warn("getProfile failed:", e); }
 }
 

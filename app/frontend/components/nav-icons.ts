@@ -13,7 +13,7 @@ export interface NavIconsConfig {
     badges?: Partial<Record<string, number>>;
 }
 
-export function renderNavIcons(host: HTMLElement, cfg: NavIconsConfig): { setActive(t: NavTab): void; setBadge(t: NavTab, n: number): void } {
+export function renderNavIcons(host: HTMLElement, cfg: NavIconsConfig): { setActive(t: NavTab): void; setBadge(t: NavTab, n: number): void; setPluginMatchState(activeGameName: string | null): void } {
     host.className = "nav-icons";
 
     const builtin = `
@@ -58,11 +58,18 @@ export function renderNavIcons(host: HTMLElement, cfg: NavIconsConfig): { setAct
         if (n <= 0) { el.hidden = true; }
         else { el.hidden = false; el.textContent = String(n); }
     }
+    function setPluginMatchState(activeGameName: string | null): void {
+        plugins.forEach((p) => {
+            const el = host.querySelector<HTMLElement>(`.nav-icon.plugin-icon[data-tab="${p.id}"]`);
+            if (!el) return;
+            el.classList.toggle("unmatched", activeGameName !== p.gameName);
+        });
+    }
     setActive(activeTab);
     if (cfg.badges) {
         for (const [t, n] of Object.entries(cfg.badges)) setBadge(t, n ?? 0);
     }
-    return { setActive, setBadge };
+    return { setActive, setBadge, setPluginMatchState };
 }
 
 function escapeAttr(s: string): string {
