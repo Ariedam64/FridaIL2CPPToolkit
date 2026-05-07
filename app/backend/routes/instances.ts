@@ -39,10 +39,10 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
             let summary: string;
             switch (op) {
                 case "captureViaGC":
-                    summary = String(await deps.session.agentCall("captureViaGC", [body.className, body.index]));
+                    summary = String(await deps.session.agentCall("captureViaGC", [body.className, body.index, body.asKey]));
                     break;
                 case "captureViaHook":
-                    summary = String(await deps.session.agentCall("capture", [body.className, body.tickMethod, body.timeoutMs]));
+                    summary = String(await deps.session.agentCall("capture", [body.className, body.tickMethod, body.timeoutMs, body.asKey]));
                     break;
                 case "captureFieldValue":
                     summary = String(await deps.session.agentCall("captureFieldValue", [body.ownerKey, body.fieldName, body.asKey]));
@@ -249,8 +249,8 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
             return m ? { className: m[1], handle: m[2] } : { className: "Unknown", handle: raw };
         };
         const agent: ReplayAgent = {
-            captureViaGC: async (cn, idx) => parse(String(await deps.session.agentCall("captureViaGC", [cn, idx]))),
-            captureViaHook: async (cn, tm, ms) => parse(String(await deps.session.agentCall("capture", [cn, tm, ms]))),
+            captureViaGC: async (cn, idx, ak) => parse(String(await deps.session.agentCall("captureViaGC", [cn, idx, ak]))),
+            captureViaHook: async (cn, tm, ms, ak) => parse(String(await deps.session.agentCall("capture", [cn, tm, ms, ak]))),
             captureFieldValue: async (ok, fn, ak) => parse(String(await deps.session.agentCall("captureFieldValue", [ok, fn, ak]))),
             captureListElement: async (cn, fn, idx, ak) => parse(String(await deps.session.agentCall("captureListElement", [cn, fn, idx, ak]))),
             captureMethodReturn: async (ok, mn, args, ak) => parse(String(await deps.session.agentCall("captureMethodReturn", [ok, mn, args, ak]))),

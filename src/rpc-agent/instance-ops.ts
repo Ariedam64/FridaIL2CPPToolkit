@@ -12,8 +12,9 @@ function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
  * Hook `tickMethod` once on `className` to steal the first `this` and store
  * it in the captured registry. Resolves to a summary like "Player@0x1234".
  */
-export function capture(className: string, tickMethod: string, timeoutMs?: number): Promise<string> {
+export function capture(className: string, tickMethod: string, timeoutMs?: number, asKey?: string): Promise<string> {
     const ms = typeof timeoutMs === "number" && timeoutMs > 0 ? timeoutMs : 10000;
+    const key = asKey ?? className;
     return inVm(() => new Promise<string>((resolve, reject) => {
         const klass = findClass(className);
         if (!klass) return reject(notFoundClass(className));
@@ -34,15 +35,15 @@ export function capture(className: string, tickMethod: string, timeoutMs?: numbe
             if (!done) {
                 done = true;
                 clearTimeout(timer);
-                setCaptured(className, self);
+                setCaptured(key, self);
                 const summary = `${self.class.name}@${self.handle}`;
-                console.log(`[capture] stored ${className} → ${summary}`);
+                console.log(`[capture] stored ${className} → ${summary} (key=${key})`);
                 try { method.revert(); } catch {}
                 resolve(summary);
             }
             return self.method(tickMethod).invoke(...args);
         };
-        console.log(`[capture] armed on ${className}.${tickMethod}, waiting…`);
+        console.log(`[capture] armed on ${className}.${tickMethod}, waiting… (key=${key})`);
     }));
 }
 
@@ -79,7 +80,7 @@ export function listInstances(className: string, max = 20): Promise<string[]> {
  * Pick one live instance via GC and store it in the captured registry.
  * Defaults to the first (index=0). Use listInstances() first if multiple.
  */
-export function captureViaGC(className: string, index = 0): Promise<string> {
+export function captureViaGC(className: string, index = 0, asKey?: string): Promise<string> {
     return inVm(() => {
         const klass = findClass(className);
         if (!klass) throw notFoundClass(className);
@@ -88,9 +89,10 @@ export function captureViaGC(className: string, index = 0): Promise<string> {
         const idx = index | 0;
         if (idx < 0 || idx >= instances.length) throw new Error(`index ${idx} out of range (${instances.length} alive)`);
         const inst = instances[idx];
-        setCaptured(className, inst);
+        const key = asKey ?? className;
+        setCaptured(key, inst);
         const summary = `${inst.class.name}@${inst.handle}`;
-        console.log(`[capture] via GC: ${className} [${idx}] → ${summary}`);
+        console.log(`[capture] via GC: ${className} [${idx}] → ${summary} (key=${key})`);
         return summary;
     });
 }

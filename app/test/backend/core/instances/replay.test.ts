@@ -4,16 +4,16 @@ import { InstanceRegistry } from "../../../../backend/core/instances/instance-re
 import type { Recipe, RecipeStep } from "../../../../backend/core/instances/types";
 
 interface MockAgent {
-    captureViaGC: (className: string, index: number) => Promise<{ className: string; handle: string }>;
-    captureViaHook: (className: string, tickMethod: string, timeoutMs: number) => Promise<{ className: string; handle: string }>;
+    captureViaGC: (className: string, index: number, asKey: string) => Promise<{ className: string; handle: string }>;
+    captureViaHook: (className: string, tickMethod: string, timeoutMs: number, asKey: string) => Promise<{ className: string; handle: string }>;
     captureFieldValue: (ownerKey: string, fieldName: string, asKey: string) => Promise<{ className: string; handle: string }>;
     captureListElement: (listClassName: string, listFieldName: string, index: number, asKey: string) => Promise<{ className: string; handle: string }>;
     captureMethodReturn: (ownerKey: string, methodName: string, args: unknown[], asKey: string) => Promise<{ className: string; handle: string }>;
 }
 
 const okAgent: MockAgent = {
-    captureViaGC: async (cn) => ({ className: cn, handle: "0xGC" }),
-    captureViaHook: async (cn) => ({ className: cn, handle: "0xHK" }),
+    captureViaGC: async (cn, _idx, _ak) => ({ className: cn, handle: "0xGC" }),
+    captureViaHook: async (cn, _tm, _ms, _ak) => ({ className: cn, handle: "0xHK" }),
     captureFieldValue: async () => ({ className: "Inner", handle: "0xFV" }),
     captureListElement: async () => ({ className: "Item", handle: "0xLE" }),
     captureMethodReturn: async () => ({ className: "Ret", handle: "0xMR" }),
@@ -33,7 +33,7 @@ describe("replayRecipe", () => {
         const order: string[] = [];
         const agent: MockAgent = {
             ...okAgent,
-            captureViaGC: async (cn) => { order.push(`GC:${cn}`); return { className: cn, handle: "0x1" }; },
+            captureViaGC: async (cn, _idx, _ak) => { order.push(`GC:${cn}`); return { className: cn, handle: "0x1" }; },
             captureFieldValue: async (_o, f) => { order.push(`FV:${f}`); return { className: "I", handle: "0x2" }; },
         };
         const r = recipe([
@@ -81,7 +81,7 @@ describe("replayRecipe", () => {
     it("finalStatus = failed when all steps fail", async () => {
         const agent: MockAgent = {
             ...okAgent,
-            captureViaGC: async () => { throw new Error("nope"); },
+            captureViaGC: async (_cn, _idx, _ak) => { throw new Error("nope"); },
         };
         const r = recipe([
             { op: "captureViaGC", className: "A", index: 0, asKey: "a" },

@@ -2,8 +2,8 @@ import type { InstanceRegistry } from "./instance-registry";
 import type { Recipe, RecipeReplayResult, RecipeStepResult } from "./types";
 
 export interface ReplayAgent {
-    captureViaGC(className: string, index: number): Promise<{ className: string; handle: string }>;
-    captureViaHook(className: string, tickMethod: string, timeoutMs: number): Promise<{ className: string; handle: string }>;
+    captureViaGC(className: string, index: number, asKey: string): Promise<{ className: string; handle: string }>;
+    captureViaHook(className: string, tickMethod: string, timeoutMs: number, asKey: string): Promise<{ className: string; handle: string }>;
     captureFieldValue(ownerKey: string, fieldName: string, asKey: string): Promise<{ className: string; handle: string }>;
     captureListElement(ownerKey: string, listFieldName: string, index: number, asKey: string): Promise<{ className: string; handle: string }>;
     captureMethodReturn(ownerKey: string, methodName: string, args: unknown[], asKey: string): Promise<{ className: string; handle: string }>;
@@ -32,10 +32,10 @@ export async function replayRecipe(
             let result: { className: string; handle: string };
             switch (step.op) {
                 case "captureViaGC":
-                    result = await agent.captureViaGC(step.className, step.index);
+                    result = await agent.captureViaGC(step.className, step.index, step.asKey);
                     break;
                 case "captureViaHook":
-                    result = await agent.captureViaHook(step.className, step.tickMethod, step.timeoutMs);
+                    result = await agent.captureViaHook(step.className, step.tickMethod, step.timeoutMs, step.asKey);
                     break;
                 case "captureFieldValue":
                     result = await agent.captureFieldValue(step.ownerKey, step.fieldName, step.asKey);
