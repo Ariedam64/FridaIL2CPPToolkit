@@ -43,6 +43,10 @@ export function mountWsBridge(server: HttpServer, session: Session): void {
     session.on("annotation-change", (evt) => broadcast({ type: "annotation-change", ...evt }));
     session.on("hook-store-change", () => broadcast({ type: "hook-store-change" }));
     session.on("migration-updated", () => broadcast({ type: "migration-updated" }));
+    session.on("instance-registry-changed", () => broadcast({ type: "instance-registry-changed" }));
+    session.on("instance-history-changed", () => broadcast({ type: "instance-history-changed" }));
+    session.on("recipe-store-changed", () => broadcast({ type: "recipe-store-changed" }));
+    session.on("read-only-changed", () => broadcast({ type: "read-only-changed", enabled: session.getReadOnly() }));
 
     // ---- network plugin events ----
     let lastFrameBroadcast = 0;

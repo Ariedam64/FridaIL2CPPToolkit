@@ -22,6 +22,9 @@ import { DiskPluginStorage } from "./core/plugin-storage.js";
 import { expandHome } from "./core/paths.js";
 import type { ClassFingerprint, MigrationResult } from "./core/types.js";
 import { detectSerializers } from "./core/network/serializer-detector.js";
+import { InstanceRegistry } from "./core/instances/instance-registry.js";
+import { HistoryStore } from "./core/instances/history-store.js";
+import { RecipeStore } from "./core/instances/recipe-store.js";
 
 const PROFILE_ROOT =
     expandHome(process.env.FRIDA_TOOLKIT_PROFILE_ROOT ?? "") ||
@@ -41,6 +44,10 @@ export class Session extends EventEmitter {
         oldMethodLabels: Record<string, string>;
         oldFieldLabels: Record<string, string>;
     } | null = null;
+    private currentInstanceRegistry: InstanceRegistry | null = null;
+    private currentHistoryStore: HistoryStore | null = null;
+    private currentRecipeStore: RecipeStore | null = null;
+    private instancesReadOnly = true;
     private disposeListeners: Array<() => void> = [];
     private attachInFlight: Promise<Profile> | null = null;
 
@@ -70,6 +77,16 @@ export class Session extends EventEmitter {
 
     migrations(): { result: MigrationResult } | null {
         return this.currentMigrations ? { result: this.currentMigrations.result } : null;
+    }
+
+    instanceRegistry(): InstanceRegistry | null { return this.currentInstanceRegistry; }
+    historyStore(): HistoryStore | null { return this.currentHistoryStore; }
+    recipeStore(): RecipeStore | null { return this.currentRecipeStore; }
+    getReadOnly(): boolean { return this.instancesReadOnly; }
+    setReadOnly(v: boolean): void { this.instancesReadOnly = v; }
+
+    async agentCall(method: string, args: unknown[]): Promise<unknown> {
+        return this.fridaClient.call(method, args);
     }
 
     /**
@@ -260,6 +277,22 @@ export class Session extends EventEmitter {
             this.currentSerializerConfig.onChange(() => this.emit("serializer-config-change")),
         );
 
+        this.currentInstanceRegistry = new InstanceRegistry();
+        this.currentHistoryStore = new HistoryStore();
+        const instancesStorage = new DiskPluginStorage(profile.rootPath, "instances");
+        this.currentRecipeStore = new RecipeStore(instancesStorage);
+        this.instancesReadOnly = true;  // safe default at every attach
+
+        this.disposeListeners.push(
+            this.currentInstanceRegistry.onChange(() => this.emit("instance-registry-changed")),
+        );
+        this.disposeListeners.push(
+            this.currentHistoryStore.onChange(() => this.emit("instance-history-changed")),
+        );
+        this.disposeListeners.push(
+            this.currentRecipeStore.onChange(() => this.emit("recipe-store-changed")),
+        );
+
         // Forward label/annotation events so the WS bridge can broadcast them.
         // Capture disposers so they can be cleaned up on detach.
         this.disposeListeners.push(
@@ -310,6 +343,10 @@ export class Session extends EventEmitter {
         this.currentFrameStore = null;
         this.currentSerializerConfig = null;
         this.currentMigrations = null;
+        this.currentInstanceRegistry = null;
+        this.currentHistoryStore = null;
+        this.currentRecipeStore = null;
+        this.instancesReadOnly = true;
         this.emit("profile-detached");
     }
 

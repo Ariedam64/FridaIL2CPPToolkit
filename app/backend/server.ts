@@ -12,6 +12,7 @@ import { mountAnnotations } from "./routes/annotations.js";
 import { mountHooks } from "./routes/hooks.js";
 import { mountMigrations } from "./routes/migrations.js";
 import { mountNetwork } from "./routes/network.js";
+import { mountInstances } from "./routes/instances.js";
 import { mountNetworkEventBus } from "./core/network/event-bus.js";
 import { mountWsBridge } from "./ws-bridge.js";
 
@@ -35,6 +36,7 @@ mountAnnotations(app, { session });
 mountHooks(app, { session });
 mountMigrations(app, { session });
 mountNetwork(app, { session });
+mountInstances(app, { session });
 mountNetworkEventBus(session);
 
 const server = http.createServer(app);
