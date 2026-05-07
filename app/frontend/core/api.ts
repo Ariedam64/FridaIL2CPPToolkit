@@ -150,4 +150,9 @@ export const api = {
     clearInstanceHistory() {
         return call<{ ok: boolean }>("DELETE", "/api/instances/history");
     },
+    previewInstance(className: string, index: number, maxFields = 10) {
+        return call<{ fields: import("./types.js").FieldReadLite[] }>(
+            "POST", "/api/instances/preview", { className, index, maxFields },
+        );
+    },
 };

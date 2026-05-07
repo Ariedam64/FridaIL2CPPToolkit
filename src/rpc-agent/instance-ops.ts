@@ -291,6 +291,59 @@ export function readAllFieldsStructured(className: string): Promise<AgentFieldRe
     });
 }
 
+/**
+ * Preview an instance at `className`'s GC-enumerated `index` without storing
+ * it in the registry. Returns up to `maxFields` non-static scalar/string/enum
+ * fields. Used by the v1.4 instance picker to help users identify the right
+ * instance among multiple live ones.
+ */
+export function previewInstance(
+    className: string,
+    index: number,
+    maxFields: number = 10,
+): Promise<AgentFieldRead[]> {
+    return inVm(() => {
+        const klass = findClass(className);
+        if (!klass) throw notFoundClass(className);
+        const instances = Il2Cpp.gc.choose(klass);
+        const idx = index | 0;
+        if (idx < 0 || idx >= instances.length) {
+            throw new Error(`index ${idx} out of range (${instances.length} alive)`);
+        }
+        const inst = instances[idx];
+        const out: AgentFieldRead[] = [];
+        for (const f of inst.class.fields) {
+            if (f.isStatic) continue;
+            if (out.length >= maxFields) break;
+            const name = f.name as string;
+            const typeName = (f.type?.name ?? "?") as string;
+            let isEnum = false;
+            try { isEnum = (f.type as any)?.class?.parent?.name === "Enum"; } catch {}
+            try {
+                const v = inst.field(name).value;
+                if (v === null || v === undefined) {
+                    out.push({ name, typeName, kind: "null", preview: "null", isWritable: false });
+                } else if (typeof v === "string") {
+                    out.push({ name, typeName, kind: "string", preview: JSON.stringify(v), rawValue: v, isWritable: false });
+                } else if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
+                    out.push({
+                        name, typeName,
+                        kind: isEnum ? "enum" : "scalar",
+                        preview: String(v),
+                        rawValue: typeof v === "bigint" ? (v as bigint).toString() : (v as number | boolean),
+                        enumNumeric: isEnum && typeof v === "number" ? v : undefined,
+                        isWritable: false,
+                    });
+                }
+                // Skip nested/array kinds for preview — not useful for value-recognition.
+            } catch {
+                // Skip fields that throw — keep preview compact.
+            }
+        }
+        return out;
+    });
+}
+
 export function writeField(className: string, fieldName: string, value: any): Promise<string> {
     return inVm(() => {
         const inst = getCaptured(className);

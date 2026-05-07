@@ -30,6 +30,20 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
         res.json({ instances: reg ? reg.list() : [] });
     });
 
+    app.post("/api/instances/preview", async (req, res) => {
+        const { className, index, maxFields } = req.body ?? {};
+        if (typeof className !== "string" || typeof index !== "number") {
+            res.status(400).json({ error: "className (string) + index (number) required" });
+            return;
+        }
+        try {
+            const fields = await deps.session.agentCall("previewInstance", [className, index, maxFields ?? 10]);
+            res.json({ fields });
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
     app.post("/api/instances/capture", async (req, res) => {
         const reg = deps.session.instanceRegistry();
         if (!reg) { res.status(503).json({ error: "no session" }); return; }
