@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { matchFingerprints } from "../../../backend/core/migrations";
+import { matchFingerprints, matchClassMembers } from "../../../backend/core/migrations";
 import type { ClassFingerprint } from "../../../backend/core/types";
 
 const cls = (
@@ -153,5 +153,80 @@ describe("matchFingerprints", () => {
         expect(result.auto).toHaveLength(0);
         expect(result.review).toHaveLength(0);
         expect(result.lost).toHaveLength(0);
+    });
+});
+
+describe("matchClassMembers — fields (STRICT)", () => {
+    const oldCls = cls("oldA", {
+        fields: [
+            { obfName: "emjv", typeName: "System.Int32", declIndex: 0, isStatic: false, isPublic: true },
+            { obfName: "emkh", typeName: "System.String", declIndex: 1, isStatic: false, isPublic: true },
+            { obfName: "emkj", typeName: "System.Int32", declIndex: 2, isStatic: false, isPublic: true },
+        ],
+    });
+
+    it("AUTO when type is unique on both sides", () => {
+        const newCls = cls("newA", {
+            fields: [
+                { obfName: "aaa", typeName: "System.Int64", declIndex: 0, isStatic: false, isPublic: true },
+                { obfName: "bbb", typeName: "System.String", declIndex: 1, isStatic: false, isPublic: true },
+                { obfName: "ccc", typeName: "System.Int64", declIndex: 2, isStatic: false, isPublic: true },
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, {}, { "oldA.emkh": "userName" });
+        expect(result.auto).toHaveLength(1);
+        expect(result.auto[0].key).toEqual({ kind: "field", className: "newA", fieldName: "bbb" });
+        expect(result.auto[0].reason).toContain("unique type match");
+        expect(result.auto[0].parentClassMigration).toBe("oldA");
+    });
+
+    it("AUTO when type N×N with declIndex aligned (type+ordinal)", () => {
+        const newCls = cls("newA", {
+            fields: [
+                { obfName: "p", typeName: "System.Int32", declIndex: 0, isStatic: false, isPublic: true },
+                { obfName: "q", typeName: "System.String", declIndex: 1, isStatic: false, isPublic: true },
+                { obfName: "r", typeName: "System.Int32", declIndex: 2, isStatic: false, isPublic: true },
+            ],
+        });
+        const result = matchClassMembers(
+            oldCls,
+            newCls,
+            {},
+            { "oldA.emjv": "playerId", "oldA.emkj": "mapId" },
+        );
+        expect(result.auto).toHaveLength(2);
+        const playerIdRec = result.auto.find((r) => r.label === "playerId")!;
+        expect(playerIdRec.key).toEqual({ kind: "field", className: "newA", fieldName: "p" });
+        expect(playerIdRec.reason).toContain("type+ordinal");
+        const mapIdRec = result.auto.find((r) => r.label === "mapId")!;
+        expect(mapIdRec.key).toEqual({ kind: "field", className: "newA", fieldName: "r" });
+    });
+
+    it("REVIEW when type count changes (N != M)", () => {
+        const newCls = cls("newA", {
+            fields: [
+                { obfName: "a", typeName: "System.Int32", declIndex: 0, isStatic: false, isPublic: true },
+                { obfName: "b", typeName: "System.String", declIndex: 1, isStatic: false, isPublic: true },
+                { obfName: "c", typeName: "System.Int32", declIndex: 2, isStatic: false, isPublic: true },
+                { obfName: "d", typeName: "System.Int32", declIndex: 3, isStatic: false, isPublic: true },
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, {}, { "oldA.emjv": "playerId" });
+        expect(result.review).toHaveLength(1);
+        expect(result.review[0].candidates.length).toBeGreaterThanOrEqual(2);
+        expect(result.review[0].candidates.length).toBeLessThanOrEqual(5);
+        expect(result.review[0].candidates[0].reason).toContain("type System.Int32 count changed");
+    });
+
+    it("LOST when type disappears", () => {
+        const newCls = cls("newA", {
+            fields: [
+                { obfName: "x", typeName: "System.Single", declIndex: 0, isStatic: false, isPublic: true },
+            ],
+        });
+        const result = matchClassMembers(oldCls, newCls, {}, { "oldA.emjv": "playerId" });
+        expect(result.lost).toHaveLength(1);
+        expect(result.lost[0].reason).toContain("type System.Int32 disappeared");
+        expect(result.lost[0].parentClassMigration).toBe("oldA");
     });
 });
