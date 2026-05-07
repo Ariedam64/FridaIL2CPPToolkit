@@ -92,19 +92,65 @@ function buildInstances(deps: ToolkitDeps): Toolkit["instances"] {
     };
 }
 
-// Stubs for T6/T7 (filled in later tasks).
-function buildHooks(_deps: ToolkitDeps): Toolkit["hooks"] {
+function buildHooks(deps: ToolkitDeps): Toolkit["hooks"] {
+    const requireStore = () => {
+        if (!deps.hookStore) throw new Error("not attached: no hook store");
+        return deps.hookStore;
+    };
+
     return {
-        async install(_target: string, _opts: HookInstallOpts): Promise<HookHandle> {
-            throw new Error("hooks.install: not yet implemented (T6)");
+        async install(target, opts) {
+            const store = requireStore();
+            const [className, methodName] = splitTarget(target);
+            const spec = {
+                className: deps.resolveLabel(className),
+                methodName: deps.resolveLabel(methodName),
+                template: opts.mode === "modify-return" ? "force-return" : "log",
+                forceReturnValue: opts.returnValue,
+            };
+            const stored = store.add(spec as unknown as Parameters<typeof store.add>[0]);
+            await store.install(stored.id);
+            return { id: stored.id };
         },
-        async remove(_handle: HookHandle): Promise<void> {
-            throw new Error("hooks.remove: not yet implemented (T6)");
+        async remove(handle) {
+            const store = requireStore();
+            await store.remove(handle.id);
         },
-        async onceCall(_target: string, _opts?: { timeoutMs?: number }): Promise<HookCallEvent> {
-            throw new Error("hooks.onceCall: not yet implemented (T6)");
+        async onceCall(target, opts) {
+            const store = requireStore();
+            const [className, methodName] = splitTarget(target);
+            const spec = {
+                className: deps.resolveLabel(className),
+                methodName: deps.resolveLabel(methodName),
+                template: "log",
+            };
+            const stored = store.add(spec as unknown as Parameters<typeof store.add>[0]);
+            await store.install(stored.id);
+
+            const timeoutMs = opts?.timeoutMs ?? 30_000;
+            return new Promise<HookCallEvent>((resolve, reject) => {
+                const timer = setTimeout(() => {
+                    unsub();
+                    void store.remove(stored.id);
+                    reject(new Error(`timeout waiting for ${target} after ${timeoutMs}ms`));
+                }, timeoutMs);
+
+                const unsub = store.onAgentEvent((evt) => {
+                    if (evt.hookId !== stored.id) return;
+                    clearTimeout(timer);
+                    unsub();
+                    void store.remove(stored.id);
+                    resolve({ args: evt.args, ts: new Date().toISOString() });
+                });
+            });
         },
     };
+}
+
+function splitTarget(target: string): [string, string] {
+    const dot = target.lastIndexOf(".");
+    if (dot < 0) throw new Error(`hook target must be 'Class.Method', got '${target}'`);
+    return [target.slice(0, dot), target.slice(dot + 1)];
 }
 
 function buildNetwork(_deps: ToolkitDeps): Toolkit["network"] {
