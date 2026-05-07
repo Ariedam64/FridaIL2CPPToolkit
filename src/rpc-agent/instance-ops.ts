@@ -367,38 +367,47 @@ function valueMatches(actual: unknown, expected: string | number | boolean): boo
     return false;
 }
 
-function isNumericLike(v: string | number | boolean): boolean {
-    if (typeof v === "number") return true;
-    if (typeof v === "string") return /^-?\d+(\.\d+)?$/.test(v);
-    return false;
-}
 
 function fieldTypeMatchesValue(typeName: string, value: string | number | boolean): boolean {
     if (typeof value === "boolean") return typeName === "System.Boolean";
-    if (isNumericLike(value)) {
-        return /System\.(Int|UInt|Single|Double|Byte|SByte|Int16|UInt16|Int32|UInt32|Int64|UInt64|Float)/.test(typeName);
+    if (typeof value === "number" || (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value))) {
+        const isFloat = typeof value === "number"
+            ? !Number.isInteger(value)
+            : value.includes(".");
+        if (isFloat) {
+            return /^System\.(Single|Double)$/.test(typeName);
+        }
+        // Integer-like: stick to common int widths. Skip Byte/SByte (rarely useful for values like 23541).
+        return /^System\.(Int16|Int32|Int64|UInt16|UInt32|UInt64)$/.test(typeName);
     }
     return typeName === "System.String";
+}
+
+function isFrameworkClass(className: string): boolean {
+    return /^(System\.|UnityEngine\.|Unity\.|Mono\.|Microsoft\.|netstandard\.|mscorlib\.)/.test(className);
 }
 
 /**
  * Cheat Engine-style first-scan: walk every IL2CPP class, pre-filter by
  * field type, enumerate live instances of candidates, and return matches.
+ * Emits scan-progress events via send() every PROGRESS_EVERY candidate classes.
  */
 export function valueScan(
     value: string | number | boolean,
-    options: { classFilter?: string; maxMatches?: number } = {},
+    options: { classFilter?: string; maxMatches?: number; skipFramework?: boolean } = {},
 ): Promise<ScanMatch[]> {
     return inVm(() => {
         const maxMatches = options.maxMatches ?? 500;
+        const skipFramework = options.skipFramework !== false;  // default true
         const classRegex = options.classFilter ? new RegExp(options.classFilter, "i") : null;
         const matches: ScanMatch[] = [];
 
-        outer: for (const asm of Il2Cpp.domain.assemblies) {
+        // Pass 1: collect candidate classes (cheap — no GC enumeration yet).
+        const candidates: Array<{ klass: Il2Cpp.Class; fields: Array<{ name: string; typeName: string }> }> = [];
+        for (const asm of Il2Cpp.domain.assemblies) {
             for (const klass of asm.image.classes) {
+                if (skipFramework && isFrameworkClass(klass.name)) continue;
                 if (classRegex && !classRegex.test(klass.name)) continue;
-
-                // Pre-filter: does this class have any non-static field with a matching type?
                 let candidateFields: Array<{ name: string; typeName: string }> = [];
                 try {
                     for (const f of klass.fields) {
@@ -410,31 +419,44 @@ export function valueScan(
                     }
                 } catch { continue; }
                 if (candidateFields.length === 0) continue;
+                candidates.push({ klass, fields: candidateFields });
+            }
+        }
 
-                // Only now invoke gc.choose — this is the expensive call.
-                let instances: Il2Cpp.Object[] = [];
-                try { instances = Il2Cpp.gc.choose(klass); } catch { continue; }
-                if (instances.length === 0) continue;
+        const total = candidates.length;
+        send({ type: "scan-progress", scanned: 0, total, found: 0 });
 
-                for (const inst of instances) {
-                    for (const cf of candidateFields) {
-                        try {
-                            const v = inst.field(cf.name).value;
-                            if (valueMatches(v, value)) {
-                                matches.push({
-                                    className: klass.name,
-                                    handle: String(inst.handle),
-                                    fieldName: cf.name,
-                                    fieldType: cf.typeName,
-                                    fieldValue: String(v),
-                                });
-                                if (matches.length >= maxMatches) break outer;
-                            }
-                        } catch { /* skip unreadable */ }
-                    }
+        // Pass 2: GC-enumerate each candidate and check fields.
+        let scanned = 0;
+        const PROGRESS_EVERY = 50;
+        outer: for (const { klass, fields } of candidates) {
+            scanned++;
+            if (scanned % PROGRESS_EVERY === 0) {
+                send({ type: "scan-progress", scanned, total, found: matches.length });
+            }
+            let instances: Il2Cpp.Object[] = [];
+            try { instances = Il2Cpp.gc.choose(klass); } catch { continue; }
+            if (instances.length === 0) continue;
+
+            for (const inst of instances) {
+                for (const cf of fields) {
+                    try {
+                        const v = inst.field(cf.name).value;
+                        if (valueMatches(v, value)) {
+                            matches.push({
+                                className: klass.name,
+                                handle: String(inst.handle),
+                                fieldName: cf.name,
+                                fieldType: cf.typeName,
+                                fieldValue: String(v),
+                            });
+                            if (matches.length >= maxMatches) break outer;
+                        }
+                    } catch { /* skip */ }
                 }
             }
         }
+        send({ type: "scan-progress", scanned, total, found: matches.length, done: true });
         return matches;
     });
 }

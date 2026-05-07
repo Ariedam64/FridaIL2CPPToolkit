@@ -155,7 +155,7 @@ export const api = {
             "POST", "/api/instances/preview", { className, index, maxFields },
         );
     },
-    scanStart(value: string | number | boolean, options: { classFilter?: string; maxMatches?: number } = {}) {
+    scanStart(value: string | number | boolean, options: { classFilter?: string; maxMatches?: number; skipFramework?: boolean } = {}) {
         return call<{ matches: import("./types.js").ScanMatchLite[] }>(
             "POST", "/api/instances/scan/start", { value, ...options },
         );

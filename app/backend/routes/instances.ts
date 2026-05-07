@@ -287,13 +287,13 @@ export function mountInstances(app: Express, deps: InstancesDeps): void {
     // -----------------------------------------------------------------------
 
     app.post("/api/instances/scan/start", async (req, res) => {
-        const { value, classFilter, maxMatches } = req.body ?? {};
+        const { value, classFilter, maxMatches, skipFramework } = req.body ?? {};
         if (value === undefined || value === null) {
             res.status(400).json({ error: "value required" });
             return;
         }
         try {
-            const matches = await deps.session.agentCall("valueScan", [value, { classFilter, maxMatches }]) as import("../core/instances/types.js").ScanMatch[];
+            const matches = await deps.session.agentCall("valueScan", [value, { classFilter, maxMatches, skipFramework }]) as import("../core/instances/types.js").ScanMatch[];
             deps.session.setScanMatches(matches);
             deps.session.emit("instance-scan-changed");
             res.json({ matches });
