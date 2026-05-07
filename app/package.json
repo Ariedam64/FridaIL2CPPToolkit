@@ -12,7 +12,8 @@
     "build:frontend": "vite build",
     "start": "node dist/backend/server.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dofus:build-data": "tsx plugins/dofus/scripts/build-data.ts"
   },
   "dependencies": {
     "chokidar": "^4.0.3",

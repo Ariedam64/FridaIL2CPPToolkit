@@ -1,0 +1,3166 @@
+{
+  "areas": {
+    "0": {
+      "id": 0,
+      "name": "#3011"
+    },
+    "1": {
+      "id": 1,
+      "name": "#556954"
+    },
+    "2": {
+      "id": 2,
+      "name": "#556953"
+    },
+    "3": {
+      "id": 3,
+      "name": "#741008"
+    },
+    "5": {
+      "id": 5,
+      "name": "#320787"
+    },
+    "6": {
+      "id": 6,
+      "name": "#3046"
+    },
+    "7": {
+      "id": 7,
+      "name": "Bonta"
+    },
+    "8": {
+      "id": 8,
+      "name": "#662568"
+    },
+    "11": {
+      "id": 11,
+      "name": "#3014"
+    },
+    "12": {
+      "id": 12,
+      "name": "#195092"
+    },
+    "15": {
+      "id": 15,
+      "name": "#3023"
+    },
+    "18": {
+      "id": 18,
+      "name": "#3012"
+    },
+    "26": {
+      "id": 26,
+      "name": "#556962"
+    },
+    "28": {
+      "id": 28,
+      "name": "#3030"
+    },
+    "30": {
+      "id": 30,
+      "name": "#556955"
+    },
+    "42": {
+      "id": 42,
+      "name": "#3043"
+    },
+    "45": {
+      "id": 45,
+      "name": "#3045"
+    },
+    "46": {
+      "id": 46,
+      "name": "#194811"
+    },
+    "48": {
+      "id": 48,
+      "name": "#194810"
+    },
+    "49": {
+      "id": 49,
+      "name": "#105628"
+    },
+    "50": {
+      "id": 50,
+      "name": "#3053"
+    },
+    "51": {
+      "id": 51,
+      "name": "#297855"
+    },
+    "52": {
+      "id": 52,
+      "name": "#407650"
+    },
+    "53": {
+      "id": 53,
+      "name": "#410988"
+    },
+    "54": {
+      "id": 54,
+      "name": "#437118"
+    },
+    "55": {
+      "id": 55,
+      "name": "#469772"
+    },
+    "56": {
+      "id": 56,
+      "name": "#621105"
+    },
+    "57": {
+      "id": 57,
+      "name": "#591144"
+    },
+    "58": {
+      "id": 58,
+      "name": "#595494"
+    },
+    "59": {
+      "id": 59,
+      "name": "#604987"
+    },
+    "60": {
+      "id": 60,
+      "name": "#610096"
+    },
+    "61": {
+      "id": 61,
+      "name": "#686907"
+    },
+    "62": {
+      "id": 62,
+      "name": "#721551"
+    },
+    "63": {
+      "id": 63,
+      "name": "#729853"
+    },
+    "64": {
+      "id": 64,
+      "name": "#732770"
+    },
+    "65": {
+      "id": 65,
+      "name": "#733532"
+    },
+    "66": {
+      "id": 66,
+      "name": "#737768"
+    },
+    "67": {
+      "id": 67,
+      "name": "#739944"
+    },
+    "68": {
+      "id": 68,
+      "name": "#771485"
+    },
+    "69": {
+      "id": 69,
+      "name": "#774217"
+    },
+    "70": {
+      "id": 70,
+      "name": "#774235"
+    },
+    "71": {
+      "id": 71,
+      "name": "#784660"
+    },
+    "72": {
+      "id": 72,
+      "name": "#789585"
+    },
+    "73": {
+      "id": 73,
+      "name": "#804268"
+    },
+    "74": {
+      "id": 74,
+      "name": "#821286"
+    },
+    "75": {
+      "id": 75,
+      "name": "#821081"
+    },
+    "76": {
+      "id": 76,
+      "name": "#821287"
+    },
+    "77": {
+      "id": 77,
+      "name": "#832282"
+    },
+    "78": {
+      "id": 78,
+      "name": "#842219"
+    },
+    "79": {
+      "id": 79,
+      "name": "#842242"
+    },
+    "80": {
+      "id": 80,
+      "name": "#851603"
+    },
+    "81": {
+      "id": 81,
+      "name": "#851594"
+    },
+    "82": {
+      "id": 82,
+      "name": "#860329"
+    },
+    "83": {
+      "id": 83,
+      "name": "#868530"
+    },
+    "84": {
+      "id": 84,
+      "name": "#868541"
+    },
+    "85": {
+      "id": 85,
+      "name": "#869262"
+    },
+    "86": {
+      "id": 86,
+      "name": "#896536"
+    },
+    "87": {
+      "id": 87,
+      "name": "#905070"
+    },
+    "88": {
+      "id": 88,
+      "name": "#908006"
+    },
+    "91": {
+      "id": 91,
+      "name": "#922691"
+    },
+    "92": {
+      "id": 92,
+      "name": "#936177"
+    },
+    "93": {
+      "id": 93,
+      "name": "#973483"
+    },
+    "95": {
+      "id": 95,
+      "name": "#1105383"
+    },
+    "96": {
+      "id": 96,
+      "name": "#1137763"
+    },
+    "97": {
+      "id": 97,
+      "name": "#1152618"
+    },
+    "99": {
+      "id": 99,
+      "name": "#1171168"
+    },
+    "100": {
+      "id": 100,
+      "name": "#1171174"
+    }
+  },
+  "subAreas": {
+    "1": {
+      "id": 1,
+      "areaId": 0,
+      "name": "Port de Madrestam"
+    },
+    "2": {
+      "id": 2,
+      "areaId": 0,
+      "name": "Montagne des Craqueleurs"
+    },
+    "3": {
+      "id": 3,
+      "areaId": 0,
+      "name": "Champ des Ingalsse"
+    },
+    "4": {
+      "id": 4,
+      "areaId": 0,
+      "name": "Forêt d'Amakna"
+    },
+    "5": {
+      "id": 5,
+      "areaId": 0,
+      "name": "Coin des Bouftous"
+    },
+    "6": {
+      "id": 6,
+      "areaId": 0,
+      "name": "Cimetière"
+    },
+    "7": {
+      "id": 7,
+      "areaId": 0,
+      "name": "Cryptes du cimetière"
+    },
+    "8": {
+      "id": 8,
+      "areaId": 0,
+      "name": "Campement des Bworks"
+    },
+    "9": {
+      "id": 9,
+      "areaId": 92,
+      "name": "Dédale du Dark Vlad"
+    },
+    "10": {
+      "id": 10,
+      "areaId": 0,
+      "name": "Village d'Amakna"
+    },
+    "11": {
+      "id": 11,
+      "areaId": 0,
+      "name": "Territoire des Porcos"
+    },
+    "12": {
+      "id": 12,
+      "areaId": 0,
+      "name": "Péninsule des gelées"
+    },
+    "22": {
+      "id": 22,
+      "areaId": 0,
+      "name": "Bord de la forêt maléfique"
+    },
+    "23": {
+      "id": 23,
+      "areaId": 0,
+      "name": "Presqu'île des Dragoeufs"
+    },
+    "25": {
+      "id": 25,
+      "areaId": 1,
+      "name": "#116348"
+    },
+    "27": {
+      "id": 27,
+      "areaId": 0,
+      "name": "Côte d'Asse"
+    },
+    "29": {
+      "id": 29,
+      "areaId": 0,
+      "name": "#116349"
+    },
+    "30": {
+      "id": 30,
+      "areaId": 18,
+      "name": "Tainéla"
+    },
+    "31": {
+      "id": 31,
+      "areaId": 0,
+      "name": "Marécages d'Amakna"
+    },
+    "32": {
+      "id": 32,
+      "areaId": 5,
+      "name": "Sufokia"
+    },
+    "33": {
+      "id": 33,
+      "areaId": 6,
+      "name": "Bois des Arak-haï"
+    },
+    "34": {
+      "id": 34,
+      "areaId": 3,
+      "name": "#741010"
+    },
+    "39": {
+      "id": 39,
+      "areaId": 0,
+      "name": "#336312"
+    },
+    "43": {
+      "id": 43,
+      "areaId": 7,
+      "name": "Rives iridescentes"
+    },
+    "54": {
+      "id": 54,
+      "areaId": 8,
+      "name": "Massif de Cania"
+    },
+    "55": {
+      "id": 55,
+      "areaId": 8,
+      "name": "Pénates du Corbac"
+    },
+    "56": {
+      "id": 56,
+      "areaId": 8,
+      "name": "Lac de Cania"
+    },
+    "57": {
+      "id": 57,
+      "areaId": 12,
+      "name": "Désolation de Sidimote"
+    },
+    "59": {
+      "id": 59,
+      "areaId": 7,
+      "name": "Cimetière des Héros"
+    },
+    "61": {
+      "id": 61,
+      "areaId": 11,
+      "name": "Cimetière des Torturés"
+    },
+    "62": {
+      "id": 62,
+      "areaId": 8,
+      "name": "Village des Dopeuls"
+    },
+    "68": {
+      "id": 68,
+      "areaId": 8,
+      "name": "Champs de Cania"
+    },
+    "69": {
+      "id": 69,
+      "areaId": 8,
+      "name": "Bois de Litneg"
+    },
+    "70": {
+      "id": 70,
+      "areaId": 8,
+      "name": "Plaines Rocheuses"
+    },
+    "71": {
+      "id": 71,
+      "areaId": 12,
+      "name": "Gisgoul"
+    },
+    "76": {
+      "id": 76,
+      "areaId": 8,
+      "name": "Village des Brigandins"
+    },
+    "77": {
+      "id": 77,
+      "areaId": 83,
+      "name": "#556967"
+    },
+    "82": {
+      "id": 82,
+      "areaId": 18,
+      "name": "#752263"
+    },
+    "84": {
+      "id": 84,
+      "areaId": 15,
+      "name": "Foire du Trool"
+    },
+    "93": {
+      "id": 93,
+      "areaId": 2,
+      "name": "Plage de la Tortue"
+    },
+    "94": {
+      "id": 94,
+      "areaId": 12,
+      "name": "#727389"
+    },
+    "95": {
+      "id": 95,
+      "areaId": 18,
+      "name": "Cité d'Astrub"
+    },
+    "96": {
+      "id": 96,
+      "areaId": 18,
+      "name": "Carrière d'Astrub"
+    },
+    "97": {
+      "id": 97,
+      "areaId": 18,
+      "name": "Forêt d'Astrub"
+    },
+    "98": {
+      "id": 98,
+      "areaId": 18,
+      "name": "Champs d'Astrub"
+    },
+    "99": {
+      "id": 99,
+      "areaId": 18,
+      "name": "Souterrains d'Astrub"
+    },
+    "100": {
+      "id": 100,
+      "areaId": 18,
+      "name": "Égouts d'Astrub"
+    },
+    "102": {
+      "id": 102,
+      "areaId": 18,
+      "name": "Cimetière d'Astrub"
+    },
+    "103": {
+      "id": 103,
+      "areaId": 0,
+      "name": "Territoire des Bandits"
+    },
+    "154": {
+      "id": 154,
+      "areaId": 26,
+      "name": "#225557"
+    },
+    "161": {
+      "id": 161,
+      "areaId": 1,
+      "name": "Île de la Cawotte"
+    },
+    "162": {
+      "id": 162,
+      "areaId": 1,
+      "name": "Îlot de Waldo"
+    },
+    "163": {
+      "id": 163,
+      "areaId": 1,
+      "name": "Îlot des Tombeaux"
+    },
+    "164": {
+      "id": 164,
+      "areaId": 1,
+      "name": "Îlot de la Couronne"
+    },
+    "165": {
+      "id": 165,
+      "areaId": 2,
+      "name": "Jungle Interdite"
+    },
+    "166": {
+      "id": 166,
+      "areaId": 2,
+      "name": "Forêt des Masques"
+    },
+    "167": {
+      "id": 167,
+      "areaId": 2,
+      "name": "Chemin du Crâne"
+    },
+    "168": {
+      "id": 168,
+      "areaId": 6,
+      "name": "Forêt Sombre"
+    },
+    "169": {
+      "id": 169,
+      "areaId": 6,
+      "name": "Orée de la forêt des Abraknydes"
+    },
+    "170": {
+      "id": 170,
+      "areaId": 0,
+      "name": "Plaine des Scarafeuilles"
+    },
+    "173": {
+      "id": 173,
+      "areaId": 18,
+      "name": "Prairies d'Astrub"
+    },
+    "175": {
+      "id": 175,
+      "areaId": 6,
+      "name": "#507405"
+    },
+    "178": {
+      "id": 178,
+      "areaId": 8,
+      "name": "Plaine des Porkass"
+    },
+    "179": {
+      "id": 179,
+      "areaId": 0,
+      "name": "Coin des Boos"
+    },
+    "180": {
+      "id": 180,
+      "areaId": 0,
+      "name": "Château d'Amakna"
+    },
+    "181": {
+      "id": 181,
+      "areaId": 0,
+      "name": "Cloaque d'Amakna"
+    },
+    "182": {
+      "id": 182,
+      "areaId": 28,
+      "name": "Village des Éleveurs"
+    },
+    "200": {
+      "id": 200,
+      "areaId": 26,
+      "name": "#4335"
+    },
+    "201": {
+      "id": 201,
+      "areaId": 0,
+      "name": "#4586"
+    },
+    "209": {
+      "id": 209,
+      "areaId": 30,
+      "name": "Île du Minotoror"
+    },
+    "210": {
+      "id": 210,
+      "areaId": 30,
+      "name": "#141196"
+    },
+    "211": {
+      "id": 211,
+      "areaId": 8,
+      "name": "#1121988"
+    },
+    "213": {
+      "id": 213,
+      "areaId": 12,
+      "name": "#727388"
+    },
+    "223": {
+      "id": 223,
+      "areaId": 28,
+      "name": "#4623"
+    },
+    "230": {
+      "id": 230,
+      "areaId": 28,
+      "name": "Cimetière primitif"
+    },
+    "231": {
+      "id": 231,
+      "areaId": 28,
+      "name": "Lacs enchantés"
+    },
+    "232": {
+      "id": 232,
+      "areaId": 28,
+      "name": "Marécages nauséabonds"
+    },
+    "233": {
+      "id": 233,
+      "areaId": 28,
+      "name": "Marécages sans fond"
+    },
+    "234": {
+      "id": 234,
+      "areaId": 28,
+      "name": "Forêt de Kaliptus"
+    },
+    "235": {
+      "id": 235,
+      "areaId": 28,
+      "name": "Territoire des dragodindes sauvages"
+    },
+    "243": {
+      "id": 243,
+      "areaId": 0,
+      "name": "#659628"
+    },
+    "253": {
+      "id": 253,
+      "areaId": 28,
+      "name": "Canyon sauvage"
+    },
+    "254": {
+      "id": 254,
+      "areaId": 28,
+      "name": "#195779"
+    },
+    "275": {
+      "id": 275,
+      "areaId": 28,
+      "name": "Vallée de la Morh'Kitu"
+    },
+    "276": {
+      "id": 276,
+      "areaId": 0,
+      "name": "Campement des Gobelins"
+    },
+    "277": {
+      "id": 277,
+      "areaId": 0,
+      "name": "Village des Bworks"
+    },
+    "279": {
+      "id": 279,
+      "areaId": 7,
+      "name": "Pâturages de Bonta"
+    },
+    "280": {
+      "id": 280,
+      "areaId": 11,
+      "name": "Bordure de Brâkmar"
+    },
+    "284": {
+      "id": 284,
+      "areaId": 0,
+      "name": "#4463"
+    },
+    "297": {
+      "id": 297,
+      "areaId": 0,
+      "name": "#4486"
+    },
+    "306": {
+      "id": 306,
+      "areaId": 18,
+      "name": "#752264"
+    },
+    "314": {
+      "id": 314,
+      "areaId": 0,
+      "name": "Sanctuaire des Dragoeufs"
+    },
+    "315": {
+      "id": 315,
+      "areaId": 0,
+      "name": "Village des Dragoeufs"
+    },
+    "316": {
+      "id": 316,
+      "areaId": 0,
+      "name": "Souterrains des Dragoeufs"
+    },
+    "319": {
+      "id": 319,
+      "areaId": 30,
+      "name": "Labyrinthe du Minotoror"
+    },
+    "320": {
+      "id": 320,
+      "areaId": 42,
+      "name": "Havre de Nowel"
+    },
+    "321": {
+      "id": 321,
+      "areaId": 42,
+      "name": "#4375"
+    },
+    "325": {
+      "id": 325,
+      "areaId": 0,
+      "name": "#802326"
+    },
+    "334": {
+      "id": 334,
+      "areaId": 8,
+      "name": "Baie de Cania"
+    },
+    "335": {
+      "id": 335,
+      "areaId": 18,
+      "name": "Calanques d'Astrub"
+    },
+    "336": {
+      "id": 336,
+      "areaId": 18,
+      "name": "#750972"
+    },
+    "339": {
+      "id": 339,
+      "areaId": 0,
+      "name": "#967395"
+    },
+    "441": {
+      "id": 441,
+      "areaId": 45,
+      "name": "Rocher du Phénix"
+    },
+    "442": {
+      "id": 442,
+      "areaId": 45,
+      "name": "Lac"
+    },
+    "443": {
+      "id": 443,
+      "areaId": 45,
+      "name": "Forêt"
+    },
+    "444": {
+      "id": 444,
+      "areaId": 45,
+      "name": "Champs"
+    },
+    "445": {
+      "id": 445,
+      "areaId": 45,
+      "name": "Pâturages"
+    },
+    "446": {
+      "id": 446,
+      "areaId": 45,
+      "name": "Temple Céleste"
+    },
+    "447": {
+      "id": 447,
+      "areaId": 45,
+      "name": "#526255"
+    },
+    "448": {
+      "id": 448,
+      "areaId": 45,
+      "name": "Taverne"
+    },
+    "449": {
+      "id": 449,
+      "areaId": 45,
+      "name": "Cimetière"
+    },
+    "450": {
+      "id": 450,
+      "areaId": 45,
+      "name": "Route des âmes"
+    },
+    "451": {
+      "id": 451,
+      "areaId": 46,
+      "name": "Île des naufragés"
+    },
+    "452": {
+      "id": 452,
+      "areaId": 46,
+      "name": "#772608"
+    },
+    "453": {
+      "id": 453,
+      "areaId": 46,
+      "name": "Plage de Corail"
+    },
+    "454": {
+      "id": 454,
+      "areaId": 46,
+      "name": "Plaines herbeuses"
+    },
+    "455": {
+      "id": 455,
+      "areaId": 46,
+      "name": "Jungle obscure"
+    },
+    "457": {
+      "id": 457,
+      "areaId": 46,
+      "name": "Tourbière sans fond"
+    },
+    "459": {
+      "id": 459,
+      "areaId": 46,
+      "name": "Canopée du Kimbo"
+    },
+    "460": {
+      "id": 460,
+      "areaId": 46,
+      "name": "Grotte Hesque"
+    },
+    "461": {
+      "id": 461,
+      "areaId": 46,
+      "name": "Arche d'Otomaï"
+    },
+    "462": {
+      "id": 462,
+      "areaId": 46,
+      "name": "Clairière de Floribonde"
+    },
+    "463": {
+      "id": 463,
+      "areaId": 46,
+      "name": "Laboratoire du Tynril"
+    },
+    "464": {
+      "id": 464,
+      "areaId": 46,
+      "name": "Tronc de l'arbre Hakam"
+    },
+    "465": {
+      "id": 465,
+      "areaId": 46,
+      "name": "Village des Plaines herbeuses"
+    },
+    "466": {
+      "id": 466,
+      "areaId": 46,
+      "name": "Village côtier"
+    },
+    "467": {
+      "id": 467,
+      "areaId": 46,
+      "name": "Cimetière de l'île d'Otomaï"
+    },
+    "468": {
+      "id": 468,
+      "areaId": 46,
+      "name": "Village des Zoths"
+    },
+    "469": {
+      "id": 469,
+      "areaId": 46,
+      "name": "Village de la Canopée"
+    },
+    "470": {
+      "id": 470,
+      "areaId": 46,
+      "name": "Goulet du Rasboul"
+    },
+    "471": {
+      "id": 471,
+      "areaId": 46,
+      "name": "Tourbière nauséabonde"
+    },
+    "472": {
+      "id": 472,
+      "areaId": 46,
+      "name": "Feuillage de l'arbre Hakam"
+    },
+    "473": {
+      "id": 473,
+      "areaId": 46,
+      "name": "Laboratoire caché"
+    },
+    "474": {
+      "id": 474,
+      "areaId": 46,
+      "name": "Cale de l'arche d'Otomaï"
+    },
+    "479": {
+      "id": 479,
+      "areaId": 0,
+      "name": "Rivière Kawaii"
+    },
+    "480": {
+      "id": 480,
+      "areaId": 0,
+      "name": "Montagne basse des Craqueleurs"
+    },
+    "481": {
+      "id": 481,
+      "areaId": 0,
+      "name": "Clairière de Brouce Boulgoure"
+    },
+    "482": {
+      "id": 482,
+      "areaId": 0,
+      "name": "Milifutaie"
+    },
+    "485": {
+      "id": 485,
+      "areaId": 0,
+      "name": "Campagne d'Amakna"
+    },
+    "488": {
+      "id": 488,
+      "areaId": 0,
+      "name": "#180295"
+    },
+    "490": {
+      "id": 490,
+      "areaId": 5,
+      "name": "Rivage sufokien"
+    },
+    "491": {
+      "id": 491,
+      "areaId": 0,
+      "name": "#4487"
+    },
+    "492": {
+      "id": 492,
+      "areaId": 0,
+      "name": "Passage vers Brâkmar"
+    },
+    "493": {
+      "id": 493,
+      "areaId": 8,
+      "name": "#659145"
+    },
+    "494": {
+      "id": 494,
+      "areaId": 12,
+      "name": "#727390"
+    },
+    "495": {
+      "id": 495,
+      "areaId": 12,
+      "name": "Caverne des Fungus"
+    },
+    "500": {
+      "id": 500,
+      "areaId": 46,
+      "name": "Cimetière du village des Zoths"
+    },
+    "501": {
+      "id": 501,
+      "areaId": 95,
+      "name": "Îlot Estitch"
+    },
+    "516": {
+      "id": 516,
+      "areaId": 0,
+      "name": "#4592"
+    },
+    "517": {
+      "id": 517,
+      "areaId": 12,
+      "name": "Terres Désacrées"
+    },
+    "518": {
+      "id": 518,
+      "areaId": 8,
+      "name": "Landes de Cania"
+    },
+    "519": {
+      "id": 519,
+      "areaId": 8,
+      "name": "Dents de Pierre"
+    },
+    "521": {
+      "id": 521,
+      "areaId": 8,
+      "name": "Pics de Cania"
+    },
+    "522": {
+      "id": 522,
+      "areaId": 12,
+      "name": "Hauts des Hurlements"
+    },
+    "523": {
+      "id": 523,
+      "areaId": 8,
+      "name": "Cirque de Cania"
+    },
+    "525": {
+      "id": 525,
+      "areaId": 8,
+      "name": "Routes Rocailleuses"
+    },
+    "526": {
+      "id": 526,
+      "areaId": 12,
+      "name": "Route des Roulottes"
+    },
+    "528": {
+      "id": 528,
+      "areaId": 0,
+      "name": "Donjon des Forgerons"
+    },
+    "536": {
+      "id": 536,
+      "areaId": 45,
+      "name": "#4562"
+    },
+    "537": {
+      "id": 537,
+      "areaId": 1,
+      "name": "#285398"
+    },
+    "538": {
+      "id": 538,
+      "areaId": 1,
+      "name": "#290068"
+    },
+    "541": {
+      "id": 541,
+      "areaId": 8,
+      "name": "#997590"
+    },
+    "600": {
+      "id": 600,
+      "areaId": 48,
+      "name": "Port de givre"
+    },
+    "601": {
+      "id": 601,
+      "areaId": 48,
+      "name": "La Bourgade"
+    },
+    "602": {
+      "id": 602,
+      "areaId": 48,
+      "name": "Champs de glace"
+    },
+    "603": {
+      "id": 603,
+      "areaId": 48,
+      "name": "Village enseveli"
+    },
+    "604": {
+      "id": 604,
+      "areaId": 48,
+      "name": "Forêt des pins perdus"
+    },
+    "605": {
+      "id": 605,
+      "areaId": 48,
+      "name": "Forêt pétrifiée"
+    },
+    "606": {
+      "id": 606,
+      "areaId": 48,
+      "name": "Crevasse Perge"
+    },
+    "608": {
+      "id": 608,
+      "areaId": 48,
+      "name": "Crocs de verre"
+    },
+    "609": {
+      "id": 609,
+      "areaId": 48,
+      "name": "Berceau d'Alma"
+    },
+    "610": {
+      "id": 610,
+      "areaId": 48,
+      "name": "Larmes d'Ouronigride"
+    },
+    "611": {
+      "id": 611,
+      "areaId": 48,
+      "name": "Mont Torrideau"
+    },
+    "615": {
+      "id": 615,
+      "areaId": 48,
+      "name": "Lac gelé"
+    },
+    "616": {
+      "id": 616,
+      "areaId": 48,
+      "name": "Entrée du château de Harebourg"
+    },
+    "617": {
+      "id": 617,
+      "areaId": 48,
+      "name": "#4504"
+    },
+    "618": {
+      "id": 618,
+      "areaId": 48,
+      "name": "#4493"
+    },
+    "619": {
+      "id": 619,
+      "areaId": 48,
+      "name": "#757212"
+    },
+    "620": {
+      "id": 620,
+      "areaId": 48,
+      "name": "#4505"
+    },
+    "621": {
+      "id": 621,
+      "areaId": 48,
+      "name": "#4396"
+    },
+    "622": {
+      "id": 622,
+      "areaId": 48,
+      "name": "Cavernes des Givrefoux"
+    },
+    "623": {
+      "id": 623,
+      "areaId": 48,
+      "name": "#4395"
+    },
+    "624": {
+      "id": 624,
+      "areaId": 48,
+      "name": "#4509"
+    },
+    "625": {
+      "id": 625,
+      "areaId": 48,
+      "name": "#556995"
+    },
+    "626": {
+      "id": 626,
+      "areaId": 48,
+      "name": "#557003"
+    },
+    "650": {
+      "id": 650,
+      "areaId": 49,
+      "name": "Port de Sakaï"
+    },
+    "651": {
+      "id": 651,
+      "areaId": 49,
+      "name": "Plaine de Sakaï"
+    },
+    "652": {
+      "id": 652,
+      "areaId": 49,
+      "name": "Forêt enneigée"
+    },
+    "653": {
+      "id": 653,
+      "areaId": 49,
+      "name": "#140358"
+    },
+    "700": {
+      "id": 700,
+      "areaId": 2,
+      "name": "#556950"
+    },
+    "702": {
+      "id": 702,
+      "areaId": 15,
+      "name": "#4398"
+    },
+    "750": {
+      "id": 750,
+      "areaId": 100,
+      "name": "#718489"
+    },
+    "751": {
+      "id": 751,
+      "areaId": 56,
+      "name": "#4587"
+    },
+    "752": {
+      "id": 752,
+      "areaId": 48,
+      "name": "#4595"
+    },
+    "753": {
+      "id": 753,
+      "areaId": 48,
+      "name": "Ruche des Gloursons"
+    },
+    "755": {
+      "id": 755,
+      "areaId": 0,
+      "name": "#4598"
+    },
+    "756": {
+      "id": 756,
+      "areaId": 12,
+      "name": "#4374"
+    },
+    "757": {
+      "id": 757,
+      "areaId": 42,
+      "name": "Terre de Nowel"
+    },
+    "758": {
+      "id": 758,
+      "areaId": 42,
+      "name": "Taïga de Nowel"
+    },
+    "759": {
+      "id": 759,
+      "areaId": 42,
+      "name": "#4589"
+    },
+    "760": {
+      "id": 760,
+      "areaId": 42,
+      "name": "#4503"
+    },
+    "762": {
+      "id": 762,
+      "areaId": 50,
+      "name": "Village de Vulkania"
+    },
+    "763": {
+      "id": 763,
+      "areaId": 50,
+      "name": "Forêt d'Etraktopel"
+    },
+    "764": {
+      "id": 764,
+      "areaId": 50,
+      "name": "Forêt d'Espartiate"
+    },
+    "765": {
+      "id": 765,
+      "areaId": 50,
+      "name": "Forêt des Strates Igraphies"
+    },
+    "766": {
+      "id": 766,
+      "areaId": 50,
+      "name": "Forêt de Ponefarr"
+    },
+    "767": {
+      "id": 767,
+      "areaId": 50,
+      "name": "#4620"
+    },
+    "768": {
+      "id": 768,
+      "areaId": 50,
+      "name": "#4614"
+    },
+    "769": {
+      "id": 769,
+      "areaId": 50,
+      "name": "#4328"
+    },
+    "770": {
+      "id": 770,
+      "areaId": 50,
+      "name": "#4571"
+    },
+    "771": {
+      "id": 771,
+      "areaId": 50,
+      "name": "#4445"
+    },
+    "772": {
+      "id": 772,
+      "areaId": 50,
+      "name": "Vulkania"
+    },
+    "773": {
+      "id": 773,
+      "areaId": 50,
+      "name": "Lantamaï"
+    },
+    "774": {
+      "id": 774,
+      "areaId": 50,
+      "name": "Kohrog"
+    },
+    "775": {
+      "id": 775,
+      "areaId": 0,
+      "name": "#4546"
+    },
+    "778": {
+      "id": 778,
+      "areaId": 45,
+      "name": "Mine"
+    },
+    "779": {
+      "id": 779,
+      "areaId": 0,
+      "name": "Territoire souterrain des Porcos"
+    },
+    "780": {
+      "id": 780,
+      "areaId": 0,
+      "name": "#322708"
+    },
+    "781": {
+      "id": 781,
+      "areaId": 6,
+      "name": "#507392"
+    },
+    "783": {
+      "id": 783,
+      "areaId": 46,
+      "name": "Antre du Kralamoure Géant"
+    },
+    "784": {
+      "id": 784,
+      "areaId": 92,
+      "name": "#322712"
+    },
+    "785": {
+      "id": 785,
+      "areaId": 48,
+      "name": "Jardins d'Hiver"
+    },
+    "786": {
+      "id": 786,
+      "areaId": 48,
+      "name": "Remparts à vent"
+    },
+    "787": {
+      "id": 787,
+      "areaId": 48,
+      "name": "Tannerie Écarlate"
+    },
+    "788": {
+      "id": 788,
+      "areaId": 48,
+      "name": "Bastion des froides légions"
+    },
+    "789": {
+      "id": 789,
+      "areaId": 48,
+      "name": "Tour de la Clepsydre"
+    },
+    "790": {
+      "id": 790,
+      "areaId": 48,
+      "name": "#322706"
+    },
+    "791": {
+      "id": 791,
+      "areaId": 48,
+      "name": "#322705"
+    },
+    "792": {
+      "id": 792,
+      "areaId": 48,
+      "name": "#322704"
+    },
+    "793": {
+      "id": 793,
+      "areaId": 48,
+      "name": "#322703"
+    },
+    "794": {
+      "id": 794,
+      "areaId": 48,
+      "name": "#322702"
+    },
+    "795": {
+      "id": 795,
+      "areaId": 48,
+      "name": "Pied de la Tour de la Clepsydre"
+    },
+    "796": {
+      "id": 796,
+      "areaId": 8,
+      "name": "#322700"
+    },
+    "797": {
+      "id": 797,
+      "areaId": 5,
+      "name": "Temple des alliances"
+    },
+    "798": {
+      "id": 798,
+      "areaId": 1,
+      "name": "Laboratoires abandonnés"
+    },
+    "799": {
+      "id": 799,
+      "areaId": 51,
+      "name": "Île de Kartonpath"
+    },
+    "800": {
+      "id": 800,
+      "areaId": 51,
+      "name": "Théâtre de Dramak"
+    },
+    "801": {
+      "id": 801,
+      "areaId": 51,
+      "name": "Tunnel de Kartonpath"
+    },
+    "803": {
+      "id": 803,
+      "areaId": 12,
+      "name": "#725826"
+    },
+    "804": {
+      "id": 804,
+      "areaId": 5,
+      "name": "Salles des Embruns"
+    },
+    "805": {
+      "id": 805,
+      "areaId": 5,
+      "name": "Salles des Courants"
+    },
+    "806": {
+      "id": 806,
+      "areaId": 5,
+      "name": "Salles des Abîmes"
+    },
+    "807": {
+      "id": 807,
+      "areaId": 5,
+      "name": "Aquadôme de Merkator"
+    },
+    "808": {
+      "id": 808,
+      "areaId": 28,
+      "name": "#332165"
+    },
+    "809": {
+      "id": 809,
+      "areaId": 8,
+      "name": "Village des Kanigs"
+    },
+    "811": {
+      "id": 811,
+      "areaId": 8,
+      "name": "#387615"
+    },
+    "812": {
+      "id": 812,
+      "areaId": 0,
+      "name": "#343332"
+    },
+    "813": {
+      "id": 813,
+      "areaId": 65,
+      "name": "Dimension Obscure"
+    },
+    "814": {
+      "id": 814,
+      "areaId": 65,
+      "name": "#349512"
+    },
+    "815": {
+      "id": 815,
+      "areaId": 45,
+      "name": "Queue du Dragon"
+    },
+    "816": {
+      "id": 816,
+      "areaId": 8,
+      "name": "Mine des Dopeuls"
+    },
+    "817": {
+      "id": 817,
+      "areaId": 1,
+      "name": "Galeries abandonnées"
+    },
+    "818": {
+      "id": 818,
+      "areaId": 8,
+      "name": "#419635"
+    },
+    "820": {
+      "id": 820,
+      "areaId": 53,
+      "name": "Creuset des Fortunés"
+    },
+    "821": {
+      "id": 821,
+      "areaId": 53,
+      "name": "Carrière Aurifère"
+    },
+    "822": {
+      "id": 822,
+      "areaId": 53,
+      "name": "Retraite des Éternels"
+    },
+    "823": {
+      "id": 823,
+      "areaId": 53,
+      "name": "#415701"
+    },
+    "824": {
+      "id": 824,
+      "areaId": 53,
+      "name": "#415695"
+    },
+    "825": {
+      "id": 825,
+      "areaId": 53,
+      "name": "#415696"
+    },
+    "826": {
+      "id": 826,
+      "areaId": 53,
+      "name": "Fort Thune"
+    },
+    "827": {
+      "id": 827,
+      "areaId": 54,
+      "name": "Ruelles des Eaux-Suaires"
+    },
+    "828": {
+      "id": 828,
+      "areaId": 54,
+      "name": "Catacombres"
+    },
+    "829": {
+      "id": 829,
+      "areaId": 54,
+      "name": "Hauts Ténébreux"
+    },
+    "830": {
+      "id": 830,
+      "areaId": 54,
+      "name": "#437190"
+    },
+    "831": {
+      "id": 831,
+      "areaId": 54,
+      "name": "#437188"
+    },
+    "832": {
+      "id": 832,
+      "areaId": 54,
+      "name": "#437189"
+    },
+    "833": {
+      "id": 833,
+      "areaId": 54,
+      "name": "Quartier des Conquérants"
+    },
+    "834": {
+      "id": 834,
+      "areaId": 48,
+      "name": "Roc des Salbatroces"
+    },
+    "835": {
+      "id": 835,
+      "areaId": 48,
+      "name": "#482279"
+    },
+    "836": {
+      "id": 836,
+      "areaId": 55,
+      "name": "Chemins d'hier"
+    },
+    "837": {
+      "id": 837,
+      "areaId": 55,
+      "name": "Jour présent"
+    },
+    "838": {
+      "id": 838,
+      "areaId": 55,
+      "name": "Lendemains incertains"
+    },
+    "839": {
+      "id": 839,
+      "areaId": 55,
+      "name": "#469669"
+    },
+    "840": {
+      "id": 840,
+      "areaId": 55,
+      "name": "#469670"
+    },
+    "841": {
+      "id": 841,
+      "areaId": 55,
+      "name": "#469671"
+    },
+    "842": {
+      "id": 842,
+      "areaId": 18,
+      "name": "#485934"
+    },
+    "843": {
+      "id": 843,
+      "areaId": 18,
+      "name": "#485935"
+    },
+    "844": {
+      "id": 844,
+      "areaId": 6,
+      "name": "#511931"
+    },
+    "846": {
+      "id": 846,
+      "areaId": 2,
+      "name": "#565456"
+    },
+    "847": {
+      "id": 847,
+      "areaId": 2,
+      "name": "#565457"
+    },
+    "848": {
+      "id": 848,
+      "areaId": 51,
+      "name": "Île mystérieuse"
+    },
+    "849": {
+      "id": 849,
+      "areaId": 5,
+      "name": "Rocher des Sacrifiés"
+    },
+    "850": {
+      "id": 850,
+      "areaId": 57,
+      "name": "Hauts du Kramdam"
+    },
+    "851": {
+      "id": 851,
+      "areaId": 58,
+      "name": "#595493"
+    },
+    "852": {
+      "id": 852,
+      "areaId": 59,
+      "name": "Miausolée du Pounicheur"
+    },
+    "853": {
+      "id": 853,
+      "areaId": 59,
+      "name": "#605588"
+    },
+    "854": {
+      "id": 854,
+      "areaId": 59,
+      "name": "#605586"
+    },
+    "855": {
+      "id": 855,
+      "areaId": 59,
+      "name": "Pierres de l'élévation"
+    },
+    "856": {
+      "id": 856,
+      "areaId": 59,
+      "name": "Lande Poilue"
+    },
+    "857": {
+      "id": 857,
+      "areaId": 59,
+      "name": "Temple de Kerubim"
+    },
+    "858": {
+      "id": 858,
+      "areaId": 60,
+      "name": "Confins d'Ecaflipus"
+    },
+    "859": {
+      "id": 859,
+      "areaId": 56,
+      "name": "#625370"
+    },
+    "860": {
+      "id": 860,
+      "areaId": 63,
+      "name": "Ville submergée"
+    },
+    "861": {
+      "id": 861,
+      "areaId": 63,
+      "name": "Ancienne Sufokia"
+    },
+    "862": {
+      "id": 862,
+      "areaId": 63,
+      "name": "Vestiges engloutis"
+    },
+    "863": {
+      "id": 863,
+      "areaId": 63,
+      "name": "Domaine des Trithons"
+    },
+    "864": {
+      "id": 864,
+      "areaId": 63,
+      "name": "Faille des Trithons"
+    },
+    "865": {
+      "id": 865,
+      "areaId": 63,
+      "name": "Tréfonds des Trithons"
+    },
+    "866": {
+      "id": 866,
+      "areaId": 63,
+      "name": "Plateau de R'lyugluglu"
+    },
+    "867": {
+      "id": 867,
+      "areaId": 63,
+      "name": "Fosse de R'lyugluglu"
+    },
+    "868": {
+      "id": 868,
+      "areaId": 63,
+      "name": "Abîme de R'lyugluglu"
+    },
+    "869": {
+      "id": 869,
+      "areaId": 63,
+      "name": "Vaisseau du Capitaine Meno"
+    },
+    "870": {
+      "id": 870,
+      "areaId": 63,
+      "name": "Palais de Dantinéa"
+    },
+    "871": {
+      "id": 871,
+      "areaId": 63,
+      "name": "Temple de Koutoulou"
+    },
+    "872": {
+      "id": 872,
+      "areaId": 61,
+      "name": "Dunes des ossements"
+    },
+    "873": {
+      "id": 873,
+      "areaId": 61,
+      "name": "Territoire Cacterre"
+    },
+    "874": {
+      "id": 874,
+      "areaId": 61,
+      "name": "Port de Sarakech"
+    },
+    "875": {
+      "id": 875,
+      "areaId": 61,
+      "name": "#699138"
+    },
+    "876": {
+      "id": 876,
+      "areaId": 61,
+      "name": "#699162"
+    },
+    "877": {
+      "id": 877,
+      "areaId": 68,
+      "name": "#699139"
+    },
+    "878": {
+      "id": 878,
+      "areaId": 61,
+      "name": "Gorge des Vents Hurlants"
+    },
+    "879": {
+      "id": 879,
+      "areaId": 61,
+      "name": "Cité Oubliée"
+    },
+    "880": {
+      "id": 880,
+      "areaId": 61,
+      "name": "#711573"
+    },
+    "881": {
+      "id": 881,
+      "areaId": 61,
+      "name": "Pyramide Maudite"
+    },
+    "882": {
+      "id": 882,
+      "areaId": 61,
+      "name": "#711577"
+    },
+    "883": {
+      "id": 883,
+      "areaId": 62,
+      "name": "Nimotopia"
+    },
+    "884": {
+      "id": 884,
+      "areaId": 62,
+      "name": "#721553"
+    },
+    "885": {
+      "id": 885,
+      "areaId": 99,
+      "name": "#1171170"
+    },
+    "886": {
+      "id": 886,
+      "areaId": 11,
+      "name": "Haras de Brâkmar"
+    },
+    "887": {
+      "id": 887,
+      "areaId": 11,
+      "name": "Labyrinthe des Vents Délétères"
+    },
+    "888": {
+      "id": 888,
+      "areaId": 12,
+      "name": "#723854"
+    },
+    "889": {
+      "id": 889,
+      "areaId": 12,
+      "name": "Domaine des Fungus"
+    },
+    "890": {
+      "id": 890,
+      "areaId": 12,
+      "name": "#723856"
+    },
+    "891": {
+      "id": 891,
+      "areaId": 12,
+      "name": "Forge du Volcan"
+    },
+    "892": {
+      "id": 892,
+      "areaId": 48,
+      "name": "Caserne du Jour sans fin"
+    },
+    "893": {
+      "id": 893,
+      "areaId": 48,
+      "name": "#732671"
+    },
+    "894": {
+      "id": 894,
+      "areaId": 64,
+      "name": "Nécropole"
+    },
+    "895": {
+      "id": 895,
+      "areaId": 66,
+      "name": "#737769"
+    },
+    "896": {
+      "id": 896,
+      "areaId": 12,
+      "name": "Marches Magmatiques"
+    },
+    "897": {
+      "id": 897,
+      "areaId": 48,
+      "name": "Épaves Silencieuses"
+    },
+    "898": {
+      "id": 898,
+      "areaId": 12,
+      "name": "#738929"
+    },
+    "899": {
+      "id": 899,
+      "areaId": 48,
+      "name": "#738961"
+    },
+    "900": {
+      "id": 900,
+      "areaId": 8,
+      "name": "Chants Pétrifiés"
+    },
+    "901": {
+      "id": 901,
+      "areaId": 67,
+      "name": "#739957"
+    },
+    "902": {
+      "id": 902,
+      "areaId": 48,
+      "name": "Royaume des Martegel"
+    },
+    "903": {
+      "id": 903,
+      "areaId": 48,
+      "name": "#758956"
+    },
+    "904": {
+      "id": 904,
+      "areaId": 68,
+      "name": "#771484"
+    },
+    "905": {
+      "id": 905,
+      "areaId": 69,
+      "name": "#774221"
+    },
+    "906": {
+      "id": 906,
+      "areaId": 69,
+      "name": "#774228"
+    },
+    "907": {
+      "id": 907,
+      "areaId": 69,
+      "name": "#774233"
+    },
+    "908": {
+      "id": 908,
+      "areaId": 70,
+      "name": "#774236"
+    },
+    "910": {
+      "id": 910,
+      "areaId": 71,
+      "name": "Carrière Chocolatée"
+    },
+    "911": {
+      "id": 911,
+      "areaId": 71,
+      "name": "Jardins à la Crème"
+    },
+    "912": {
+      "id": 912,
+      "areaId": 71,
+      "name": "Laboratoires des Chocomanciens"
+    },
+    "913": {
+      "id": 913,
+      "areaId": 71,
+      "name": "#784675"
+    },
+    "914": {
+      "id": 914,
+      "areaId": 71,
+      "name": "#788891"
+    },
+    "915": {
+      "id": 915,
+      "areaId": 71,
+      "name": "#784678"
+    },
+    "916": {
+      "id": 916,
+      "areaId": 72,
+      "name": "#789586"
+    },
+    "917": {
+      "id": 917,
+      "areaId": 69,
+      "name": "Crocuzko"
+    },
+    "918": {
+      "id": 918,
+      "areaId": 69,
+      "name": "Sanctuaire de Torkélonia"
+    },
+    "919": {
+      "id": 919,
+      "areaId": 0,
+      "name": "#803411"
+    },
+    "920": {
+      "id": 920,
+      "areaId": 0,
+      "name": "#803410"
+    },
+    "921": {
+      "id": 921,
+      "areaId": 73,
+      "name": "#804269"
+    },
+    "922": {
+      "id": 922,
+      "areaId": 68,
+      "name": "#807051"
+    },
+    "923": {
+      "id": 923,
+      "areaId": 68,
+      "name": "#808401"
+    },
+    "924": {
+      "id": 924,
+      "areaId": 68,
+      "name": "#809960"
+    },
+    "925": {
+      "id": 925,
+      "areaId": 84,
+      "name": "Galère de Servitude"
+    },
+    "926": {
+      "id": 926,
+      "areaId": 84,
+      "name": "Blessures de Guerre"
+    },
+    "927": {
+      "id": 927,
+      "areaId": 84,
+      "name": "Désert de Misère"
+    },
+    "928": {
+      "id": 928,
+      "areaId": 84,
+      "name": "Royaume Corrompu"
+    },
+    "929": {
+      "id": 929,
+      "areaId": 74,
+      "name": "Sanctuaire du dernier espoir"
+    },
+    "930": {
+      "id": 930,
+      "areaId": 84,
+      "name": "#819394"
+    },
+    "931": {
+      "id": 931,
+      "areaId": 84,
+      "name": "#819395"
+    },
+    "932": {
+      "id": 932,
+      "areaId": 84,
+      "name": "#819410"
+    },
+    "933": {
+      "id": 933,
+      "areaId": 84,
+      "name": "#821263"
+    },
+    "934": {
+      "id": 934,
+      "areaId": 75,
+      "name": "Arche de Vili"
+    },
+    "935": {
+      "id": 935,
+      "areaId": 74,
+      "name": "#821227"
+    },
+    "936": {
+      "id": 936,
+      "areaId": 76,
+      "name": "#821288"
+    },
+    "937": {
+      "id": 937,
+      "areaId": 76,
+      "name": "#821290"
+    },
+    "938": {
+      "id": 938,
+      "areaId": 68,
+      "name": "#1147494"
+    },
+    "939": {
+      "id": 939,
+      "areaId": 74,
+      "name": "#827271"
+    },
+    "940": {
+      "id": 940,
+      "areaId": 77,
+      "name": "#832285"
+    },
+    "941": {
+      "id": 941,
+      "areaId": 78,
+      "name": "Akwadala"
+    },
+    "942": {
+      "id": 942,
+      "areaId": 78,
+      "name": "Plantala"
+    },
+    "943": {
+      "id": 943,
+      "areaId": 78,
+      "name": "Feudala"
+    },
+    "944": {
+      "id": 944,
+      "areaId": 78,
+      "name": "Terrdala"
+    },
+    "945": {
+      "id": 945,
+      "areaId": 78,
+      "name": "Aerdala"
+    },
+    "946": {
+      "id": 946,
+      "areaId": 78,
+      "name": "#841886"
+    },
+    "947": {
+      "id": 947,
+      "areaId": 78,
+      "name": "#841681"
+    },
+    "948": {
+      "id": 948,
+      "areaId": 78,
+      "name": "#843246"
+    },
+    "949": {
+      "id": 949,
+      "areaId": 78,
+      "name": "#842220"
+    },
+    "950": {
+      "id": 950,
+      "areaId": 78,
+      "name": "#841885"
+    },
+    "951": {
+      "id": 951,
+      "areaId": 78,
+      "name": "Village de Pandala"
+    },
+    "952": {
+      "id": 952,
+      "areaId": 79,
+      "name": "Cimetière de Grobe"
+    },
+    "953": {
+      "id": 953,
+      "areaId": 79,
+      "name": "#851292"
+    },
+    "954": {
+      "id": 954,
+      "areaId": 79,
+      "name": "#855912"
+    },
+    "955": {
+      "id": 955,
+      "areaId": 79,
+      "name": "Mont des Tombeaux"
+    },
+    "956": {
+      "id": 956,
+      "areaId": 82,
+      "name": "Royaume d'encre"
+    },
+    "957": {
+      "id": 957,
+      "areaId": 82,
+      "name": "Royaume de papier"
+    },
+    "958": {
+      "id": 958,
+      "areaId": 82,
+      "name": "#860333"
+    },
+    "959": {
+      "id": 959,
+      "areaId": 82,
+      "name": "#860334"
+    },
+    "960": {
+      "id": 960,
+      "areaId": 78,
+      "name": "Taverne interdite"
+    },
+    "961": {
+      "id": 961,
+      "areaId": 76,
+      "name": "#843245"
+    },
+    "962": {
+      "id": 962,
+      "areaId": 81,
+      "name": "#851593"
+    },
+    "963": {
+      "id": 963,
+      "areaId": 80,
+      "name": "#851604"
+    },
+    "964": {
+      "id": 964,
+      "areaId": 85,
+      "name": "#869263"
+    },
+    "965": {
+      "id": 965,
+      "areaId": 78,
+      "name": "#870930"
+    },
+    "966": {
+      "id": 966,
+      "areaId": 87,
+      "name": "#881459"
+    },
+    "967": {
+      "id": 967,
+      "areaId": 86,
+      "name": "Port des Ravageurs"
+    },
+    "968": {
+      "id": 968,
+      "areaId": 86,
+      "name": "#899947"
+    },
+    "969": {
+      "id": 969,
+      "areaId": 86,
+      "name": "Pandamonium"
+    },
+    "970": {
+      "id": 970,
+      "areaId": 87,
+      "name": "#905069"
+    },
+    "971": {
+      "id": 971,
+      "areaId": 88,
+      "name": "Cauchemar des Ravageurs"
+    },
+    "972": {
+      "id": 972,
+      "areaId": 88,
+      "name": "#918495"
+    },
+    "973": {
+      "id": 973,
+      "areaId": 7,
+      "name": "Faubourgs des artisans"
+    },
+    "974": {
+      "id": 974,
+      "areaId": 7,
+      "name": "Havres d'ivoire"
+    },
+    "975": {
+      "id": 975,
+      "areaId": 7,
+      "name": "Cœur immaculé"
+    },
+    "976": {
+      "id": 976,
+      "areaId": 7,
+      "name": "Promontoire des cieux"
+    },
+    "977": {
+      "id": 977,
+      "areaId": 11,
+      "name": "La Cuirasse"
+    },
+    "978": {
+      "id": 978,
+      "areaId": 11,
+      "name": "L'Ancre"
+    },
+    "980": {
+      "id": 980,
+      "areaId": 11,
+      "name": "La Marmite"
+    },
+    "982": {
+      "id": 982,
+      "areaId": 11,
+      "name": "L'Enclume"
+    },
+    "983": {
+      "id": 983,
+      "areaId": 11,
+      "name": "#920052"
+    },
+    "984": {
+      "id": 984,
+      "areaId": 7,
+      "name": "#920058"
+    },
+    "985": {
+      "id": 985,
+      "areaId": 11,
+      "name": "Entrailles de Brâkmar"
+    },
+    "986": {
+      "id": 986,
+      "areaId": 91,
+      "name": "#922707"
+    },
+    "987": {
+      "id": 987,
+      "areaId": 91,
+      "name": "#922713"
+    },
+    "988": {
+      "id": 988,
+      "areaId": 91,
+      "name": "#922757"
+    },
+    "989": {
+      "id": 989,
+      "areaId": 91,
+      "name": "#922763"
+    },
+    "990": {
+      "id": 990,
+      "areaId": 91,
+      "name": "#922769"
+    },
+    "991": {
+      "id": 991,
+      "areaId": 91,
+      "name": "#922775"
+    },
+    "992": {
+      "id": 992,
+      "areaId": 91,
+      "name": "#922781"
+    },
+    "993": {
+      "id": 993,
+      "areaId": 91,
+      "name": "#922787"
+    },
+    "994": {
+      "id": 994,
+      "areaId": 91,
+      "name": "#922793"
+    },
+    "995": {
+      "id": 995,
+      "areaId": 91,
+      "name": "#922799"
+    },
+    "996": {
+      "id": 996,
+      "areaId": 91,
+      "name": "#922805"
+    },
+    "997": {
+      "id": 997,
+      "areaId": 91,
+      "name": "#922811"
+    },
+    "998": {
+      "id": 998,
+      "areaId": 91,
+      "name": "#922817"
+    },
+    "999": {
+      "id": 999,
+      "areaId": 91,
+      "name": "#922823"
+    },
+    "1000": {
+      "id": 1000,
+      "areaId": 91,
+      "name": "#922910"
+    },
+    "1001": {
+      "id": 1001,
+      "areaId": 91,
+      "name": "#922916"
+    },
+    "1002": {
+      "id": 1002,
+      "areaId": 91,
+      "name": "#922922"
+    },
+    "1003": {
+      "id": 1003,
+      "areaId": 91,
+      "name": "#922928"
+    },
+    "1004": {
+      "id": 1004,
+      "areaId": 91,
+      "name": "#922934"
+    },
+    "1005": {
+      "id": 1005,
+      "areaId": 91,
+      "name": "#922940"
+    },
+    "1006": {
+      "id": 1006,
+      "areaId": 91,
+      "name": "#922947"
+    },
+    "1007": {
+      "id": 1007,
+      "areaId": 91,
+      "name": "#922953"
+    },
+    "1008": {
+      "id": 1008,
+      "areaId": 91,
+      "name": "#922959"
+    },
+    "1009": {
+      "id": 1009,
+      "areaId": 91,
+      "name": "#922965"
+    },
+    "1010": {
+      "id": 1010,
+      "areaId": 11,
+      "name": "#923058"
+    },
+    "1011": {
+      "id": 1011,
+      "areaId": 7,
+      "name": "Canaux méphitiques"
+    },
+    "1012": {
+      "id": 1012,
+      "areaId": 91,
+      "name": "#923112"
+    },
+    "1013": {
+      "id": 1013,
+      "areaId": 7,
+      "name": "#923114"
+    },
+    "1014": {
+      "id": 1014,
+      "areaId": 64,
+      "name": "#924194"
+    },
+    "1015": {
+      "id": 1015,
+      "areaId": 88,
+      "name": "Long Descendre"
+    },
+    "1016": {
+      "id": 1016,
+      "areaId": 92,
+      "name": "#937479"
+    },
+    "1017": {
+      "id": 1017,
+      "areaId": 92,
+      "name": "Champ de citwouilles"
+    },
+    "1018": {
+      "id": 1018,
+      "areaId": 0,
+      "name": "#932671"
+    },
+    "1019": {
+      "id": 1019,
+      "areaId": 92,
+      "name": "Orée enchantée"
+    },
+    "1020": {
+      "id": 1020,
+      "areaId": 87,
+      "name": "#960116"
+    },
+    "1021": {
+      "id": 1021,
+      "areaId": 52,
+      "name": "#964168"
+    },
+    "1022": {
+      "id": 1022,
+      "areaId": 93,
+      "name": "#981865"
+    },
+    "1023": {
+      "id": 1023,
+      "areaId": 93,
+      "name": "Ancienne Albuera"
+    },
+    "1024": {
+      "id": 1024,
+      "areaId": 93,
+      "name": "Nouvelle Albuera"
+    },
+    "1025": {
+      "id": 1025,
+      "areaId": 93,
+      "name": "#972342"
+    },
+    "1026": {
+      "id": 1026,
+      "areaId": 93,
+      "name": "Futaie enneigée"
+    },
+    "1027": {
+      "id": 1027,
+      "areaId": 93,
+      "name": "Galeries d'Ereboria"
+    },
+    "1028": {
+      "id": 1028,
+      "areaId": 93,
+      "name": "#974474"
+    },
+    "1029": {
+      "id": 1029,
+      "areaId": 93,
+      "name": "Ephedrya"
+    },
+    "1030": {
+      "id": 1030,
+      "areaId": 93,
+      "name": "#975801"
+    },
+    "1031": {
+      "id": 1031,
+      "areaId": 93,
+      "name": "Ereboria"
+    },
+    "1032": {
+      "id": 1032,
+      "areaId": 80,
+      "name": "#979581"
+    },
+    "1033": {
+      "id": 1033,
+      "areaId": 8,
+      "name": "#1171171"
+    },
+    "1034": {
+      "id": 1034,
+      "areaId": 0,
+      "name": "#1054734"
+    },
+    "1036": {
+      "id": 1036,
+      "areaId": 66,
+      "name": "#1066117"
+    },
+    "1038": {
+      "id": 1038,
+      "areaId": 8,
+      "name": "#1121987"
+    },
+    "1039": {
+      "id": 1039,
+      "areaId": 96,
+      "name": "Temple de Gargandyas"
+    },
+    "1040": {
+      "id": 1040,
+      "areaId": 96,
+      "name": "Osavane"
+    },
+    "1041": {
+      "id": 1041,
+      "areaId": 96,
+      "name": "Toorbz Boorzzbz"
+    },
+    "1042": {
+      "id": 1042,
+      "areaId": 96,
+      "name": "Réserve Touffue"
+    },
+    "1043": {
+      "id": 1043,
+      "areaId": 96,
+      "name": "Village Rhoarim"
+    },
+    "1044": {
+      "id": 1044,
+      "areaId": 96,
+      "name": "#1132417"
+    },
+    "1045": {
+      "id": 1045,
+      "areaId": 96,
+      "name": "#1128944"
+    },
+    "1046": {
+      "id": 1046,
+      "areaId": 96,
+      "name": "#1128937"
+    },
+    "1047": {
+      "id": 1047,
+      "areaId": 96,
+      "name": "Queue de Gargandyas"
+    },
+    "1048": {
+      "id": 1048,
+      "areaId": 5,
+      "name": "Fouilles sufokiennes"
+    },
+    "1051": {
+      "id": 1051,
+      "areaId": 97,
+      "name": "#1152660"
+    },
+    "1052": {
+      "id": 1052,
+      "areaId": 97,
+      "name": "#1152661"
+    },
+    "1053": {
+      "id": 1053,
+      "areaId": 97,
+      "name": "#1152662"
+    },
+    "1054": {
+      "id": 1054,
+      "areaId": 97,
+      "name": "#1152663"
+    },
+    "1055": {
+      "id": 1055,
+      "areaId": 97,
+      "name": "#1152664"
+    },
+    "1056": {
+      "id": 1056,
+      "areaId": 97,
+      "name": "#1152665"
+    },
+    "1057": {
+      "id": 1057,
+      "areaId": 97,
+      "name": "#1152666"
+    },
+    "1058": {
+      "id": 1058,
+      "areaId": 97,
+      "name": "#1152667"
+    },
+    "1059": {
+      "id": 1059,
+      "areaId": 97,
+      "name": "#1152668"
+    },
+    "1060": {
+      "id": 1060,
+      "areaId": 97,
+      "name": "#1152669"
+    },
+    "1061": {
+      "id": 1061,
+      "areaId": 97,
+      "name": "#1152670"
+    },
+    "1062": {
+      "id": 1062,
+      "areaId": 97,
+      "name": "#1152671"
+    },
+    "1063": {
+      "id": 1063,
+      "areaId": 97,
+      "name": "#1152672"
+    },
+    "1064": {
+      "id": 1064,
+      "areaId": 97,
+      "name": "#1152673"
+    },
+    "1065": {
+      "id": 1065,
+      "areaId": 97,
+      "name": "#1152674"
+    },
+    "1066": {
+      "id": 1066,
+      "areaId": 97,
+      "name": "#1152675"
+    },
+    "1067": {
+      "id": 1067,
+      "areaId": 97,
+      "name": "#1152676"
+    },
+    "1068": {
+      "id": 1068,
+      "areaId": 97,
+      "name": "#1152677"
+    },
+    "1069": {
+      "id": 1069,
+      "areaId": 97,
+      "name": "#1152678"
+    },
+    "1070": {
+      "id": 1070,
+      "areaId": 97,
+      "name": "#1152680"
+    },
+    "1071": {
+      "id": 1071,
+      "areaId": 97,
+      "name": "#1152681"
+    },
+    "1072": {
+      "id": 1072,
+      "areaId": 97,
+      "name": "#1152682"
+    },
+    "1073": {
+      "id": 1073,
+      "areaId": 97,
+      "name": "#1152683"
+    },
+    "1074": {
+      "id": 1074,
+      "areaId": 97,
+      "name": "#1152684"
+    },
+    "1075": {
+      "id": 1075,
+      "areaId": 97,
+      "name": "#1152685"
+    },
+    "1076": {
+      "id": 1076,
+      "areaId": 97,
+      "name": "#1152686"
+    },
+    "1077": {
+      "id": 1077,
+      "areaId": 97,
+      "name": "#1152687"
+    },
+    "1078": {
+      "id": 1078,
+      "areaId": 97,
+      "name": "#1152688"
+    },
+    "1079": {
+      "id": 1079,
+      "areaId": 97,
+      "name": "#1152689"
+    },
+    "1080": {
+      "id": 1080,
+      "areaId": 97,
+      "name": "#1152690"
+    },
+    "1081": {
+      "id": 1081,
+      "areaId": 97,
+      "name": "#1152691"
+    },
+    "1082": {
+      "id": 1082,
+      "areaId": 97,
+      "name": "#1152692"
+    },
+    "1084": {
+      "id": 1084,
+      "areaId": 97,
+      "name": "#1152694"
+    },
+    "1085": {
+      "id": 1085,
+      "areaId": 97,
+      "name": "#1152695"
+    },
+    "1086": {
+      "id": 1086,
+      "areaId": 97,
+      "name": "#1152696"
+    },
+    "1087": {
+      "id": 1087,
+      "areaId": 97,
+      "name": "#1152697"
+    },
+    "1088": {
+      "id": 1088,
+      "areaId": 97,
+      "name": "#1152698"
+    },
+    "1089": {
+      "id": 1089,
+      "areaId": 97,
+      "name": "#1152699"
+    },
+    "1090": {
+      "id": 1090,
+      "areaId": 97,
+      "name": "#1152700"
+    },
+    "1091": {
+      "id": 1091,
+      "areaId": 97,
+      "name": "#1152701"
+    },
+    "1092": {
+      "id": 1092,
+      "areaId": 97,
+      "name": "#1152702"
+    },
+    "1093": {
+      "id": 1093,
+      "areaId": 97,
+      "name": "#1152703"
+    },
+    "1094": {
+      "id": 1094,
+      "areaId": 97,
+      "name": "#1152704"
+    },
+    "1095": {
+      "id": 1095,
+      "areaId": 97,
+      "name": "#1152705"
+    },
+    "1096": {
+      "id": 1096,
+      "areaId": 97,
+      "name": "#1152706"
+    },
+    "1097": {
+      "id": 1097,
+      "areaId": 97,
+      "name": "#1152707"
+    },
+    "1098": {
+      "id": 1098,
+      "areaId": 97,
+      "name": "#1152708"
+    },
+    "1099": {
+      "id": 1099,
+      "areaId": 97,
+      "name": "#1152709"
+    },
+    "1100": {
+      "id": 1100,
+      "areaId": 97,
+      "name": "#1152710"
+    },
+    "1101": {
+      "id": 1101,
+      "areaId": 97,
+      "name": "#1152711"
+    },
+    "1102": {
+      "id": 1102,
+      "areaId": 97,
+      "name": "#1152712"
+    },
+    "1103": {
+      "id": 1103,
+      "areaId": 97,
+      "name": "#1152713"
+    },
+    "1104": {
+      "id": 1104,
+      "areaId": 97,
+      "name": "#1152714"
+    },
+    "1105": {
+      "id": 1105,
+      "areaId": 97,
+      "name": "#1152715"
+    },
+    "1106": {
+      "id": 1106,
+      "areaId": 97,
+      "name": "#1152716"
+    },
+    "1107": {
+      "id": 1107,
+      "areaId": 97,
+      "name": "#1152717"
+    },
+    "1108": {
+      "id": 1108,
+      "areaId": 97,
+      "name": "#1152718"
+    },
+    "1109": {
+      "id": 1109,
+      "areaId": 97,
+      "name": "#1152719"
+    },
+    "1110": {
+      "id": 1110,
+      "areaId": 97,
+      "name": "#1152720"
+    },
+    "1111": {
+      "id": 1111,
+      "areaId": 97,
+      "name": "#1152721"
+    },
+    "1112": {
+      "id": 1112,
+      "areaId": 7,
+      "name": "#1159307"
+    },
+    "1113": {
+      "id": 1113,
+      "areaId": 11,
+      "name": "#1159308"
+    },
+    "1114": {
+      "id": 1114,
+      "areaId": 78,
+      "name": "#1159309"
+    },
+    "1115": {
+      "id": 1115,
+      "areaId": 48,
+      "name": "#1159310"
+    },
+    "1116": {
+      "id": 1116,
+      "areaId": 0,
+      "name": "#1159311"
+    },
+    "1117": {
+      "id": 1117,
+      "areaId": 5,
+      "name": "#1159312"
+    },
+    "1118": {
+      "id": 1118,
+      "areaId": 18,
+      "name": "#1159477"
+    },
+    "1119": {
+      "id": 1119,
+      "areaId": 5,
+      "name": "Bassin des Muldos"
+    },
+    "1120": {
+      "id": 1120,
+      "areaId": 51,
+      "name": "#1169035"
+    },
+    "1121": {
+      "id": 1121,
+      "areaId": 99,
+      "name": "#1172074"
+    },
+    "1122": {
+      "id": 1122,
+      "areaId": 99,
+      "name": "#1171169"
+    },
+    "1123": {
+      "id": 1123,
+      "areaId": 99,
+      "name": "#1171173"
+    },
+    "1124": {
+      "id": 1124,
+      "areaId": 99,
+      "name": "#1171201"
+    },
+    "1125": {
+      "id": 1125,
+      "areaId": 45,
+      "name": "#1172026"
+    }
+  },
+  "worlds": {
+    "1": {
+      "id": 1,
+      "name": "#868482"
+    },
+    "2": {
+      "id": 2,
+      "name": "#460805"
+    },
+    "3": {
+      "id": 3,
+      "name": "#460804"
+    },
+    "4": {
+      "id": 4,
+      "name": "#460803"
+    },
+    "5": {
+      "id": 5,
+      "name": "#460801"
+    },
+    "6": {
+      "id": 6,
+      "name": "#460802"
+    },
+    "7": {
+      "id": 7,
+      "name": "#868483"
+    },
+    "8": {
+      "id": 8,
+      "name": "#962154"
+    },
+    "9": {
+      "id": 9,
+      "name": "#962155"
+    },
+    "10": {
+      "id": 10,
+      "name": "#460807"
+    },
+    "11": {
+      "id": 11,
+      "name": "#460808"
+    },
+    "12": {
+      "id": 12,
+      "name": "#868480"
+    },
+    "13": {
+      "id": 13,
+      "name": "#460811"
+    },
+    "14": {
+      "id": 14,
+      "name": "#460809"
+    },
+    "15": {
+      "id": 15,
+      "name": "#470194"
+    },
+    "16": {
+      "id": 16,
+      "name": "#611315"
+    },
+    "17": {
+      "id": 17,
+      "name": "#868479"
+    },
+    "18": {
+      "id": 18,
+      "name": "#868478"
+    },
+    "19": {
+      "id": 19,
+      "name": "#734790"
+    },
+    "20": {
+      "id": 20,
+      "name": "#868477"
+    },
+    "21": {
+      "id": 21,
+      "name": "#868476"
+    },
+    "22": {
+      "id": 22,
+      "name": "#868475"
+    },
+    "24": {
+      "id": 24,
+      "name": "#868491"
+    },
+    "25": {
+      "id": 25,
+      "name": "#868490"
+    },
+    "26": {
+      "id": 26,
+      "name": "#868489"
+    },
+    "27": {
+      "id": 27,
+      "name": "#868488"
+    },
+    "28": {
+      "id": 28,
+      "name": "#877836"
+    },
+    "29": {
+      "id": 29,
+      "name": "#893852"
+    },
+    "30": {
+      "id": 30,
+      "name": "#927158"
+    },
+    "31": {
+      "id": 31,
+      "name": "#980753"
+    },
+    "32": {
+      "id": 32,
+      "name": "#1129816"
+    },
+    "33": {
+      "id": 33,
+      "name": "#1129821"
+    },
+    "34": {
+      "id": 34,
+      "name": "#1141028"
+    },
+    "35": {
+      "id": 35,
+      "name": "#1160341"
+    },
+    "36": {
+      "id": 36,
+      "name": "#1160275"
+    }
+  }
+}
