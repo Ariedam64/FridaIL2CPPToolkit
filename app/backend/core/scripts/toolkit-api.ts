@@ -6,6 +6,7 @@ import type {
     HookInstallOpts, HookCallEvent, ScriptLog,
 } from "./types";
 import type { HookSpec } from "../hooks/types";
+import type { NetworkFrame } from "../network/types";
 
 export interface ToolkitDeps {
     runId: string;
@@ -162,6 +163,10 @@ function splitTarget(target: string): [string, string] {
     return [target.slice(0, dot), target.slice(dot + 1)];
 }
 
+function frameMessageType(typeKey: { ns: string | null; className: string }): string {
+    return typeKey.ns ? `${typeKey.ns}.${typeKey.className}` : typeKey.className;
+}
+
 function buildNetwork(deps: ToolkitDeps): Toolkit["network"] {
     return {
         async send(messageType, payload) {
@@ -169,37 +174,41 @@ function buildNetwork(deps: ToolkitDeps): Toolkit["network"] {
         },
         async onceReceive(messageType, opts) {
             if (!deps.frameStore) throw new Error("not attached: no frame store");
+            const fs = deps.frameStore;
             const timeoutMs = opts?.timeoutMs ?? 30_000;
             return new Promise<NetworkPacket>((resolve, reject) => {
-                const listener = (frame: import("../network/types.js").NetworkFrame) => {
-                    if (frame.typeKey.className !== messageType) return;
+                const listener = (frame: NetworkFrame) => {
+                    const mt = frameMessageType(frame.typeKey);
+                    if (mt !== messageType) return;
                     clearTimeout(timer);
-                    deps.frameStore!.off("frame", listener);
+                    fs.off("frame", listener);
                     resolve({
                         id: frame.id,
                         direction: frame.direction,
-                        messageType: frame.typeKey.className,
+                        messageType: mt,
                         payload: frame.fields,
                         ts: frame.timestamp,
                     });
                 };
                 const timer = setTimeout(() => {
-                    deps.frameStore!.off("frame", listener);
+                    fs.off("frame", listener);
                     reject(new Error(`timeout waiting for packet '${messageType}' after ${timeoutMs}ms`));
                 }, timeoutMs);
-                deps.frameStore!.on("frame", listener);
+                fs.on("frame", listener);
             });
         },
         async recent(messageType, limit) {
             if (!deps.frameStore) throw new Error("not attached: no frame store");
-            const all = deps.frameStore.list({ limit: limit ?? 100 });
+            const fs = deps.frameStore;
+            const all = fs.list({});
             const filtered = messageType
-                ? all.filter((f) => f.typeKey.className === messageType)
+                ? all.filter((f) => frameMessageType(f.typeKey) === messageType)
                 : all;
-            return filtered.map((f): NetworkPacket => ({
+            const limited = filtered.slice(-(limit ?? 100));
+            return limited.map((f): NetworkPacket => ({
                 id: f.id,
                 direction: f.direction,
-                messageType: f.typeKey.className,
+                messageType: frameMessageType(f.typeKey),
                 payload: f.fields,
                 ts: f.timestamp,
             }));

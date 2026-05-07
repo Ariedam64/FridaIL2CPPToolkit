@@ -98,4 +98,45 @@ describe("toolkit.network", () => {
 
         await expect(promise).rejects.toThrow(/timeout/);
     });
+
+    it("recent returns empty array when filter matches nothing", async () => {
+        const fs = new FrameStore(10);
+        fs.push(mkFrame("A", "in", 1));
+        const toolkit = buildToolkit(makeDeps(fs));
+        expect(await toolkit.network.recent("Nothing")).toEqual([]);
+    });
+
+    it("recent applies limit AFTER messageType filter (not scan window)", async () => {
+        const fs = new FrameStore(100);
+        // Push 5 "A" frames first, then 50 "B" frames. With a default limit of 100 the "A" frames
+        // are still inside the buffer; with limit-then-filter semantic, asking for recent("A", 3)
+        // would find at most 3. Filter-then-limit semantic returns all 5 (capped at 3) regardless of B count.
+        for (let i = 0; i < 5; i++)  fs.push(mkFrame("A", "in", i));
+        for (let i = 0; i < 50; i++) fs.push(mkFrame("B", "out", i + 5));
+        const toolkit = buildToolkit(makeDeps(fs));
+        const r = await toolkit.network.recent("A", 3);
+        expect(r).toHaveLength(3);  // 3 most recent "A" frames (limit applied after filter)
+        expect(r.every((p) => p.messageType === "A")).toBe(true);
+    });
+
+    it("messageType includes namespace prefix when typeKey.ns is non-null", async () => {
+        const fs = new FrameStore(10);
+        // Push a frame with namespace
+        fs.push({ direction: "in", timestamp: 1, typeKey: { ns: "Ankama.Game", className: "Login" }, fields: [] } as never);
+        const toolkit = buildToolkit(makeDeps(fs));
+        const r = await toolkit.network.recent();
+        expect(r[0].messageType).toBe("Ankama.Game.Login");
+    });
+
+    it("onceReceive matches qualified messageType", async () => {
+        const fs = new FrameStore(10);
+        const toolkit = buildToolkit(makeDeps(fs));
+        const promise = toolkit.network.onceReceive("Ankama.Game.Login");
+        setTimeout(() => fs.push({
+            direction: "in", timestamp: 100,
+            typeKey: { ns: "Ankama.Game", className: "Login" }, fields: [{ name: "ok", value: true } as never],
+        } as never), 10);
+        const pkt = await promise;
+        expect(pkt.messageType).toBe("Ankama.Game.Login");
+    });
 });
