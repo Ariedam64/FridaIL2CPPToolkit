@@ -210,6 +210,85 @@ export function readAllFields(className: string): Promise<string[]> {
     });
 }
 
+/**
+ * Structured version of readAllFields — returns one entry per non-static field
+ * with kind classification, preview, and rawValue for round-trip writes.
+ * Used by the v1.4 Instances UI.
+ */
+export interface AgentFieldRead {
+    name: string;
+    typeName: string;
+    kind: "scalar" | "string" | "enum" | "nested" | "array" | "null" | "unknown";
+    preview: string;
+    rawValue?: string | number | boolean;
+    enumNumeric?: number;
+    nestedClass?: string;
+    arrayLength?: number;
+    isWritable: boolean;
+}
+
+export function readAllFieldsStructured(className: string): Promise<AgentFieldRead[]> {
+    return inVm(() => {
+        const inst = getCaptured(className);
+        const out: AgentFieldRead[] = [];
+        for (const f of inst.class.fields) {
+            if (f.isStatic) continue;
+            const name = f.name as string;
+            const typeName = (f.type?.name ?? "?") as string;
+            let isEnum = false;
+            try { isEnum = (f.type as any)?.class?.parent?.name === "Enum"; } catch {}
+            const isWritable = !((f as any).isLiteral === true);
+
+            try {
+                const v = inst.field(name).value;
+                if (v === null || v === undefined) {
+                    out.push({ name, typeName, kind: "null", preview: "null", isWritable });
+                } else if (typeof v === "string") {
+                    out.push({ name, typeName, kind: "string", preview: JSON.stringify(v), rawValue: v, isWritable });
+                } else if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") {
+                    out.push({
+                        name, typeName,
+                        kind: isEnum ? "enum" : "scalar",
+                        preview: String(v),
+                        rawValue: typeof v === "bigint" ? (v as bigint).toString() : (v as number | boolean),
+                        enumNumeric: isEnum && typeof v === "number" ? v : undefined,
+                        isWritable,
+                    });
+                } else if (isEnum && (v as any).field) {
+                    let underlying: number | undefined = undefined;
+                    try { underlying = Number((v as any).field("value__").value); } catch {}
+                    out.push({
+                        name, typeName, kind: "enum",
+                        preview: underlying !== undefined ? String(underlying) : String(v),
+                        rawValue: underlying,
+                        enumNumeric: underlying,
+                        isWritable,
+                    });
+                } else if ((v as any).class) {
+                    const cn = String((v as any).class.name);
+                    if (cn.startsWith("RepeatedField") || cn.startsWith("List") || cn.includes("[]")) {
+                        let count = 0;
+                        try { count = Number((v as any).method("get_Count").invoke()); } catch {}
+                        out.push({ name, typeName, kind: "array", preview: `[${count} items]`, arrayLength: count, isWritable: false });
+                    } else {
+                        out.push({ name, typeName, kind: "nested", preview: `→ ${cn}`, nestedClass: cn, isWritable: false });
+                    }
+                } else {
+                    out.push({ name, typeName, kind: "unknown", preview: String(v), isWritable });
+                }
+            } catch (err) {
+                const msg = String(err);
+                if (msg.includes("access violation") && msg.includes("0x0")) {
+                    out.push({ name, typeName, kind: "null", preview: "null", isWritable });
+                } else {
+                    out.push({ name, typeName, kind: "unknown", preview: `<err: ${msg.slice(0, 80)}>`, isWritable: false });
+                }
+            }
+        }
+        return out;
+    });
+}
+
 export function writeField(className: string, fieldName: string, value: any): Promise<string> {
     return inVm(() => {
         const inst = getCaptured(className);
