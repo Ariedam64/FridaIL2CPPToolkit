@@ -42,6 +42,7 @@ export function mountWsBridge(server: HttpServer, session: Session): void {
     session.on("label-change", (evt) => broadcast({ type: "label-change", ...evt }));
     session.on("annotation-change", (evt) => broadcast({ type: "annotation-change", ...evt }));
     session.on("hook-store-change", () => broadcast({ type: "hook-store-change" }));
+    session.on("migration-updated", () => broadcast({ type: "migration-updated" }));
 
     // ---- network plugin events ----
     let lastFrameBroadcast = 0;
