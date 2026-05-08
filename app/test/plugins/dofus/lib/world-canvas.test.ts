@@ -109,11 +109,14 @@ describe("renderWorldCanvas — atlas mode", () => {
     it("hitTest in atlas mode resolves a click to the correct mapId", async () => {
         withMockContext(canvas);
         // tileScale=0.2, tilesAtlasW=516*0.2=103.2, renderScale=1.
-        // Map at world (5,7) → atlas world-px (602,387) → tile-px (120.4, 77.4).
-        // Click at canvas-px (122, 79): / renderScale(1) / tileScale(0.2) → world-px (610, 395)
-        // atlasXYToWorld → posX = floor(610/86)+(-2) = 5, posY = floor(395/43)+(-2) = 7. Map 99 hit.
+        // Map at world (5,7) with dims.origineX=-2, origineY=-2:
+        //   worldToAtlasXY: x = origineX + posX*mapWidth = -2 + 5*86 = 428
+        //                   y = -2 + 7*43 = 299
+        // Marker on canvas: (428 * 0.2, 299 * 0.2) = (85.6, 59.8)
+        // Click at canvas-px (87, 61) → world-px (435, 305)
+        // atlasXYToWorld: posX = floor((435 - (-2))/86) = 5, posY = floor((307)/43) = 7. Map 99 hit.
         const r = await renderWorldCanvas(canvas, { maps: [m(99, 5, 7)], dims, tiles });
-        expect(r.hitTest(122, 79)).toBe(99);
+        expect(r.hitTest(87, 61)).toBe(99);
     });
 
     it("falls back to colored grid (sync) when dims is missing", () => {

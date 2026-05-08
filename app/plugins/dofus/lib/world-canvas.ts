@@ -117,8 +117,8 @@ function loadTileImage(url: string): Promise<HTMLImageElement> {
 
 function worldToAtlasXY(wm: WorldMapDims, posX: number, posY: number) {
     return {
-        x: (posX - wm.origineX) * wm.mapWidth,
-        y: (posY - wm.origineY) * wm.mapHeight,
+        x: wm.origineX + posX * wm.mapWidth,
+        y: wm.origineY + posY * wm.mapHeight,
         w: wm.mapWidth,
         h: wm.mapHeight,
     };
@@ -126,8 +126,8 @@ function worldToAtlasXY(wm: WorldMapDims, posX: number, posY: number) {
 
 function atlasXYToWorld(wm: WorldMapDims, atlasX: number, atlasY: number) {
     return {
-        posX: Math.floor(atlasX / wm.mapWidth)  + wm.origineX,
-        posY: Math.floor(atlasY / wm.mapHeight) + wm.origineY,
+        posX: Math.floor((atlasX - wm.origineX) / wm.mapWidth),
+        posY: Math.floor((atlasY - wm.origineY) / wm.mapHeight),
     };
 }
 
