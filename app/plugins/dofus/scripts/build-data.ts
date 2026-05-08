@@ -16,6 +16,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import { extractWorldDims } from "../lib/world-dims";
 
 const _DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(_DIR, "../../../..");
@@ -57,6 +58,12 @@ interface DcWorldFields {
     id: number;
     nameId?: number;
     m_name?: string;
+    origineX?: number; origineY?: number;
+    mapWidth?: number; mapHeight?: number;
+    totalWidth?: number; totalHeight?: number;
+    m_origineX?: number; m_origineY?: number;
+    m_mapWidth?: number; m_mapHeight?: number;
+    m_totalWidth?: number; m_totalHeight?: number;
 }
 
 interface MapInfoEntry {
@@ -252,7 +259,10 @@ function main(): void {
         ),
         worlds: Object.fromEntries(
             dcWorlds.length > 0
-                ? dcWorlds.map((w) => [w.id, { id: w.id, name: nameOrId(w) }])
+                ? dcWorlds.map((w) => {
+                    const dims = extractWorldDims(w);
+                    return [w.id, { id: w.id, name: nameOrId(w), ...(dims ? { dims } : {}) }];
+                })
                 : HARDCODED_WORLDS.map((w) => [w.id, w]),
         ),
     };

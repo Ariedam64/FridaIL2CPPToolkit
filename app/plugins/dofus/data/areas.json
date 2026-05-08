@@ -3029,143 +3029,423 @@
   "worlds": {
     "1": {
       "id": 1,
-      "name": "#868482"
+      "name": "#868482",
+      "dims": {
+        "origineX": 6480,
+        "origineY": 4944,
+        "mapWidth": 69.5,
+        "mapHeight": 49.70000076293945,
+        "totalWidth": 10000,
+        "totalHeight": 8000
+      }
     },
     "2": {
       "id": 2,
-      "name": "#460805"
+      "name": "#460805",
+      "dims": {
+        "origineX": 1800,
+        "origineY": 1940,
+        "mapWidth": 380,
+        "mapHeight": 260,
+        "totalWidth": 4750,
+        "totalHeight": 3904
+      }
     },
     "3": {
       "id": 3,
-      "name": "#460804"
+      "name": "#460804",
+      "dims": {
+        "origineX": 362,
+        "origineY": 3383,
+        "mapWidth": 222,
+        "mapHeight": 158,
+        "totalWidth": 2980,
+        "totalHeight": 3558
+      }
     },
     "4": {
       "id": 4,
-      "name": "#460803"
+      "name": "#460803",
+      "dims": {
+        "origineX": 9130,
+        "origineY": 2980,
+        "mapWidth": 210,
+        "mapHeight": 150,
+        "totalWidth": 2463,
+        "totalHeight": 1820
+      }
     },
     "5": {
       "id": 5,
-      "name": "#460801"
+      "name": "#460801",
+      "dims": {
+        "origineX": 900,
+        "origineY": -4330,
+        "mapWidth": 211,
+        "mapHeight": 150,
+        "totalWidth": 3200,
+        "totalHeight": 2000
+      }
     },
     "6": {
       "id": 6,
-      "name": "#460802"
+      "name": "#460802",
+      "dims": {
+        "origineX": 3770,
+        "origineY": 9900,
+        "mapWidth": 210,
+        "mapHeight": 150,
+        "totalWidth": 2100,
+        "totalHeight": 2100
+      }
     },
     "7": {
       "id": 7,
-      "name": "#868483"
+      "name": "#868483",
+      "dims": {
+        "origineX": 17214,
+        "origineY": 11845,
+        "mapWidth": 210,
+        "mapHeight": 150,
+        "totalWidth": 1800,
+        "totalHeight": 1400
+      }
     },
     "8": {
       "id": 8,
-      "name": "#962154"
+      "name": "#962154",
+      "dims": {
+        "origineX": 9860,
+        "origineY": 11200,
+        "mapWidth": 260,
+        "mapHeight": 184,
+        "totalWidth": 2840,
+        "totalHeight": 2162
+      }
     },
     "9": {
       "id": 9,
-      "name": "#962155"
+      "name": "#962155",
+      "dims": {
+        "origineX": 7454,
+        "origineY": -5652,
+        "mapWidth": 257,
+        "mapHeight": 182,
+        "totalWidth": 2840,
+        "totalHeight": 2162
+      }
     },
     "10": {
       "id": 10,
-      "name": "#460807"
+      "name": "#460807",
+      "dims": {
+        "origineX": 12855,
+        "origineY": -1225,
+        "mapWidth": 209,
+        "mapHeight": 150,
+        "totalWidth": 3559,
+        "totalHeight": 2804
+      }
     },
     "11": {
       "id": 11,
-      "name": "#460808"
+      "name": "#460808",
+      "dims": {
+        "origineX": 0,
+        "origineY": 0,
+        "mapWidth": 207,
+        "mapHeight": 148,
+        "totalWidth": 2120,
+        "totalHeight": 1530
+      }
     },
     "12": {
       "id": 12,
-      "name": "#868480"
+      "name": "#868480",
+      "dims": {
+        "origineX": 7240,
+        "origineY": 6440,
+        "mapWidth": 91,
+        "mapHeight": 65,
+        "totalWidth": 3274,
+        "totalHeight": 2498
+      }
     },
     "13": {
       "id": 13,
-      "name": "#460811"
+      "name": "#460811",
+      "dims": {
+        "origineX": 2678,
+        "origineY": 1925,
+        "mapWidth": 204,
+        "mapHeight": 147,
+        "totalWidth": 4089,
+        "totalHeight": 2589
+      }
     },
     "14": {
       "id": 14,
-      "name": "#460809"
+      "name": "#460809",
+      "dims": {
+        "origineX": 1050,
+        "origineY": 1440,
+        "mapWidth": 204,
+        "mapHeight": 147,
+        "totalWidth": 4750,
+        "totalHeight": 3904
+      }
     },
     "15": {
       "id": 15,
-      "name": "#470194"
+      "name": "#470194",
+      "dims": {
+        "origineX": 1248,
+        "origineY": 1543,
+        "mapWidth": 204,
+        "mapHeight": 147,
+        "totalWidth": 4171,
+        "totalHeight": 3576
+      }
     },
     "16": {
       "id": 16,
-      "name": "#611315"
+      "name": "#611315",
+      "dims": {
+        "origineX": 3200,
+        "origineY": 4200,
+        "mapWidth": 203,
+        "mapHeight": 146,
+        "totalWidth": 5069,
+        "totalHeight": 5584
+      }
     },
     "17": {
       "id": 17,
-      "name": "#868479"
+      "name": "#868479",
+      "dims": {
+        "origineX": -1810,
+        "origineY": -2950,
+        "mapWidth": 150,
+        "mapHeight": 122,
+        "totalWidth": 3333,
+        "totalHeight": 1719
+      }
     },
     "18": {
       "id": 18,
-      "name": "#868478"
+      "name": "#868478",
+      "dims": {
+        "origineX": -3000,
+        "origineY": 17820,
+        "mapWidth": 415,
+        "mapHeight": 225,
+        "totalWidth": 3529,
+        "totalHeight": 2357
+      }
     },
     "19": {
       "id": 19,
-      "name": "#734790"
+      "name": "#734790",
+      "dims": {
+        "origineX": 0,
+        "origineY": 0,
+        "mapWidth": 91.5,
+        "mapHeight": 65.5,
+        "totalWidth": 2500,
+        "totalHeight": 1904
+      }
     },
     "20": {
       "id": 20,
-      "name": "#868477"
+      "name": "#868477",
+      "dims": {
+        "origineX": 8385,
+        "origineY": 10700,
+        "mapWidth": 150,
+        "mapHeight": 122,
+        "totalWidth": 3333,
+        "totalHeight": 1719
+      }
     },
     "21": {
       "id": 21,
-      "name": "#868476"
+      "name": "#868476",
+      "dims": {
+        "origineX": 2268,
+        "origineY": 2565,
+        "mapWidth": 286,
+        "mapHeight": 205,
+        "totalWidth": 3560,
+        "totalHeight": 2802
+      }
     },
     "22": {
       "id": 22,
-      "name": "#868475"
+      "name": "#868475",
+      "dims": {
+        "origineX": 14604,
+        "origineY": 2635,
+        "mapWidth": 164,
+        "mapHeight": 114,
+        "totalWidth": 2016,
+        "totalHeight": 1719
+      }
     },
     "24": {
       "id": 24,
-      "name": "#868491"
+      "name": "#868491",
+      "dims": {
+        "origineX": 790,
+        "origineY": 1165,
+        "mapWidth": 289,
+        "mapHeight": 195,
+        "totalWidth": 2840,
+        "totalHeight": 2170
+      }
     },
     "25": {
       "id": 25,
-      "name": "#868490"
+      "name": "#868490",
+      "dims": {
+        "origineX": 775,
+        "origineY": 718,
+        "mapWidth": 260,
+        "mapHeight": 182,
+        "totalWidth": 2840,
+        "totalHeight": 2162
+      }
     },
     "26": {
       "id": 26,
-      "name": "#868489"
+      "name": "#868489",
+      "dims": {
+        "origineX": 770,
+        "origineY": 717,
+        "mapWidth": 258,
+        "mapHeight": 185,
+        "totalWidth": 2840,
+        "totalHeight": 2170
+      }
     },
     "27": {
       "id": 27,
-      "name": "#868488"
+      "name": "#868488",
+      "dims": {
+        "origineX": 775,
+        "origineY": 1266,
+        "mapWidth": 257,
+        "mapHeight": 183,
+        "totalWidth": 2840,
+        "totalHeight": 2162
+      }
     },
     "28": {
       "id": 28,
-      "name": "#877836"
+      "name": "#877836",
+      "dims": {
+        "origineX": 1960,
+        "origineY": 1390,
+        "mapWidth": 352,
+        "mapHeight": 251.6999969482422,
+        "totalWidth": 4000,
+        "totalHeight": 2900
+      }
     },
     "29": {
       "id": 29,
-      "name": "#893852"
+      "name": "#893852",
+      "dims": {
+        "origineX": 422,
+        "origineY": 880,
+        "mapWidth": 210,
+        "mapHeight": 150,
+        "totalWidth": 1800,
+        "totalHeight": 1400
+      }
     },
     "30": {
       "id": 30,
-      "name": "#927158"
+      "name": "#927158",
+      "dims": {
+        "origineX": 773,
+        "origineY": 532,
+        "mapWidth": 257,
+        "mapHeight": 183,
+        "totalWidth": 2840,
+        "totalHeight": 2162
+      }
     },
     "31": {
       "id": 31,
-      "name": "#980753"
+      "name": "#980753",
+      "dims": {
+        "origineX": -6953,
+        "origineY": 13663,
+        "mapWidth": 257.5,
+        "mapHeight": 185,
+        "totalWidth": 2840,
+        "totalHeight": 2881
+      }
     },
     "32": {
       "id": 32,
-      "name": "#1129816"
+      "name": "#1129816",
+      "dims": {
+        "origineX": 4432,
+        "origineY": -5250,
+        "mapWidth": 279,
+        "mapHeight": 199,
+        "totalWidth": 2840,
+        "totalHeight": 2162
+      }
     },
     "33": {
       "id": 33,
-      "name": "#1129821"
+      "name": "#1129821",
+      "dims": {
+        "origineX": -5028,
+        "origineY": -1932,
+        "mapWidth": 280,
+        "mapHeight": 198,
+        "totalWidth": 2649,
+        "totalHeight": 5396
+      }
     },
     "34": {
       "id": 34,
-      "name": "#1141028"
+      "name": "#1141028",
+      "dims": {
+        "origineX": 1284,
+        "origineY": 1532,
+        "mapWidth": 148,
+        "mapHeight": 106,
+        "totalWidth": 6350,
+        "totalHeight": 5898
+      }
     },
     "35": {
       "id": 35,
-      "name": "#1160341"
+      "name": "#1160341",
+      "dims": {
+        "origineX": 320,
+        "origineY": 185,
+        "mapWidth": 508,
+        "mapHeight": 369,
+        "totalWidth": 3461,
+        "totalHeight": 4096
+      }
     },
     "36": {
       "id": 36,
-      "name": "#1160275"
+      "name": "#1160275",
+      "dims": {
+        "origineX": 1568,
+        "origineY": -2665,
+        "mapWidth": 183,
+        "mapHeight": 130,
+        "totalWidth": 1842,
+        "totalHeight": 1585
+      }
     }
   }
 }
