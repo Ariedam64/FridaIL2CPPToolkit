@@ -8,8 +8,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "outDir": "./dist/backend",
-    "rootDir": "./backend",
+    "rootDir": ".",
     "declaration": false
   },
-  "include": ["backend/**/*.ts"]
+  "include": ["backend/**/*.ts", "plugins/**/*.ts"]
 }

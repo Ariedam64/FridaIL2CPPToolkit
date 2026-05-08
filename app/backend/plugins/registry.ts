@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import type { Session } from "../session";
+import * as dofusRoutes from "../../plugins/dofus/routes";
 
 /**
  * Backend mount function for a plugin. Receives the Express app and the
@@ -20,7 +21,7 @@ export interface PluginBackendDeps {
  * routes (frontend-only) do not need to appear in this list.
  */
 export const PLUGIN_BACKENDS: PluginBackend[] = [
-    // Dofus is added in T9.
+    { id: "dofus", mount: dofusRoutes.mount },
 ];
 
 /**
