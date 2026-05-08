@@ -135,3 +135,38 @@ This section is to be filled by the user during manual smoke testing on a real I
 - [ ] Compile error → ⚠ in list, error visible in detail
 - [ ] Runtime error → stack-trace points to `.ts` source line (not JS)
 - [ ] VSCode autocomplete works on `<profile>/plugins/scripts/` after first attach
+
+## v1 Dofus Plugin — Map Feature (2026-05-08)
+
+This section is to be filled by the user during manual smoke testing on a real Dofus process.
+
+### Setup
+1. Run `cd app && npm run dofus:build-data` once (requires `.toolkit-data/datacenter/` populated with `MapsInformationDataRoot.json`, `AreasDataRoot.json`, `SubAreasDataRoot.json`, `WorldMapsDataRoot.json` + `dofus-app/data/canonical-coords-wm-*.json` files).
+2. Confirm `app/plugins/dofus/data/maps/` contains ~17k JSON files and `maps-information.json` + `areas.json` were generated.
+3. Start backend: `cd app && npm run dev`.
+4. Open the web-app at `http://localhost:3001`.
+
+### Smoke checklist — page load
+- [ ] Click the Dofus crown icon in the nav.
+- [ ] Click the "map" sub-tab. The page renders with: a dropdown labeled "World:" + a canvas area + a right side panel showing "Click a map to inspect."
+- [ ] The dropdown is populated with multiple worlds (Amakna, Frigost, etc.) — at least 5 entries each with `(N)` map counts.
+- [ ] The canvas displays a tiled view of all maps in the default world (Amakna = world 1) — colored rectangles arranged at their (posX, posY) coords. Roughly thousands of tiles visible.
+
+### Smoke checklist — interaction
+- [ ] Hover a tile → the right of the toolbar shows `(x, y) name` of the hovered map. Cursor stays a crosshair.
+- [ ] Move the mouse off the canvas → hover info disappears.
+- [ ] Click a tile → the side panel updates with: a header (map name), coord, and an iso cell-grid 14×40 below. Cells are colored: green walkable, marron walls, yellow farm cells, etc.
+- [ ] The clicked tile gets a white outline on the world canvas (selected state).
+
+### Smoke checklist — world switch
+- [ ] Change the dropdown to another world (e.g. "Frigost"). The canvas re-renders with that world's maps; the side panel resets to the placeholder text.
+- [ ] Click a map of the new world → cell-grid renders for that map.
+
+### Smoke checklist — backend routes (curl)
+- [ ] `curl http://localhost:3001/api/dofus/worlds` → returns `{worlds:[...]}` with mapCount per world.
+- [ ] `curl 'http://localhost:3001/api/dofus/maps/list?world=1'` → returns `{world:1, maps:[~k entries]}`.
+- [ ] `curl http://localhost:3001/api/dofus/maps/<knownMapId>` → returns `{mapId, name, posX, posY, neighbours, cells}` with cells.length === 560.
+- [ ] `curl http://localhost:3001/api/dofus/maps/list?world=99` → returns 404 with `{error:"unknown world: 99"}`.
+
+### Smoke checklist — error states
+- [ ] If `app/plugins/dofus/data/maps-information.json` is renamed away, restart the backend, click "World:" dropdown → side panel shows "Failed to load worlds". Backend logs show `[dofus] DofusDataStore failed to load:`.
