@@ -38,7 +38,9 @@ describe("mountMap", () => {
             if (url === "/api/dofus/worlds") {
                 return { ok: true, json: async () => ({
                     worlds: [
-                        { id: 1, name: "Amakna", mapCount: 2 },
+                        { id: 1, name: "Amakna", mapCount: 2,
+                          dims: { origineX: 0, origineY: 0, mapWidth: 86, mapHeight: 43,
+                                  totalWidth: 516, totalHeight: 258 } },
                         { id: 10, name: "Frigost", mapCount: 1 },
                     ],
                 }) } as Response;
@@ -52,6 +54,15 @@ describe("mountMap", () => {
                     ],
                 }) } as Response;
             }
+            if (url === "/api/dofus/tile-mapping?world=1") {
+                return { ok: true, json: async () => ({
+                    world: 1,
+                    tiles: [
+                        { index: 0, name: "1", scale: "0.2", address: "0.2/1.jpg",
+                          guid: "abc", tile: "000422_1.jpg", width: 1024, height: 1024, ambiguous: false },
+                    ],
+                }) } as Response;
+            }
             if (url.startsWith("/api/dofus/maps/")) {
                 return { ok: true, json: async () => ({
                     mapId: 100, name: "M100", posX: 0, posY: 0, subAreaId: 1, areaId: 0,
@@ -62,6 +73,12 @@ describe("mountMap", () => {
             return { ok: false, status: 404, json: async () => ({}) } as Response;
         });
         (globalThis as { fetch?: unknown }).fetch = fetchMock;
+        class MockImage {
+            onload: (() => void) | null = null;
+            onerror: ((e: unknown) => void) | null = null;
+            set src(_v: string) { setTimeout(() => this.onload?.(), 0); }
+        }
+        (globalThis as { Image?: unknown }).Image = MockImage;
     });
 
     it("populates the world dropdown from /api/dofus/worlds", async () => {
@@ -215,5 +232,12 @@ describe("mountMap", () => {
 
         const fetched101 = fetchMock.mock.calls.some(([url]) => String(url) === "/api/dofus/maps/101");
         expect(fetched101).toBe(true);
+    });
+
+    it("fetches /api/dofus/tile-mapping?world=1 parallel with maps/list", async () => {
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+        const tileFetch = fetchMock.mock.calls.some(([url]) => url === "/api/dofus/tile-mapping?world=1");
+        expect(tileFetch).toBe(true);
     });
 });

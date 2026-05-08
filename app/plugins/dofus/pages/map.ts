@@ -1,8 +1,9 @@
 import { renderWorldCanvas, type WorldMap, type WorldCanvasResult } from "../lib/world-canvas";
 import { renderCellGrid } from "../lib/cell-grid";
+import type { WorldMapDims, MappedTile } from "../lib/world-dims";
 import type { PluginPageContext } from "../../../frontend/core/plugin-types";
 
-interface WorldMeta { id: number; name: string; mapCount: number }
+interface WorldMeta { id: number; name: string; mapCount: number; dims?: WorldMapDims }
 interface MapDetail {
     mapId: number; name: string;
     posX: number; posY: number;
@@ -18,6 +19,9 @@ let currentMaps: WorldMap[] = [];
 let currentSelected: number | null = null;
 let currentHover: number | null = null;
 let currentHitTest: WorldCanvasResult | null = null;
+let allWorlds: WorldMeta[] = [];
+let currentDims: WorldMapDims | undefined = undefined;
+let currentTiles: MappedTile[] = [];
 
 function escapeHtml(s: string): string {
     return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
@@ -50,6 +54,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
     // Populate worlds
     try {
         const worlds = (await (await fetch("/api/dofus/worlds")).json()) as { worlds: WorldMeta[] };
+        allWorlds = worlds.worlds;
         select.innerHTML = worlds.worlds.map((w) =>
             `<option value="${w.id}" ${w.id === currentWorld ? "selected" : ""}>${escapeHtml(w.name)} (${w.mapCount})</option>`,
         ).join("");
@@ -77,7 +82,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         const hit = currentHitTest.hitTest(e.clientX - rect.left, e.clientY - rect.top);
         if (hit !== currentHover) {
             currentHover = hit;
-            reRender(canvas);
+            void reRender(canvas);
             const hovered = currentMaps.find((m) => m.mapId === hit);
             hoverInfo.textContent = hovered ? `(${hovered.posX}, ${hovered.posY}) ${hovered.name}` : "";
         }
@@ -86,7 +91,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
     canvas.addEventListener("mouseleave", () => {
         if (currentHover !== null) {
             currentHover = null;
-            reRender(canvas);
+            void reRender(canvas);
             hoverInfo.textContent = "";
         }
     });
@@ -97,7 +102,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         const hit = currentHitTest.hitTest(e.clientX - rect.left, e.clientY - rect.top);
         if (hit === null) return;
         currentSelected = hit;
-        reRender(canvas);
+        void reRender(canvas);
         void loadCellGrid(panel, canvas, hit);
     });
 
@@ -107,11 +112,15 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
 async function loadAndRender(canvas: HTMLCanvasElement): Promise<void> {
     const worldAtStart = currentWorld;
     try {
-        const resp = (await (await fetch(`/api/dofus/maps/list?world=${worldAtStart}`)).json()) as { maps: WorldMap[] };
-        // Bail if the user switched worlds while the fetch was in flight.
+        const [mapsResp, tilesResp] = await Promise.all([
+            fetch(`/api/dofus/maps/list?world=${worldAtStart}`).then((r) => r.json()) as Promise<{ maps: WorldMap[] }>,
+            fetch(`/api/dofus/tile-mapping?world=${worldAtStart}`).then((r) => r.json()) as Promise<{ tiles: MappedTile[] }>,
+        ]);
         if (currentWorld !== worldAtStart) return;
-        currentMaps = resp.maps;
-        reRender(canvas);
+        currentMaps = mapsResp.maps;
+        currentTiles = tilesResp.tiles ?? [];
+        currentDims = allWorlds.find((w) => w.id === worldAtStart)?.dims;
+        await reRender(canvas);
     } catch (err) {
         if (currentWorld !== worldAtStart) return;
         const ctx = canvas.getContext("2d");
@@ -122,12 +131,15 @@ async function loadAndRender(canvas: HTMLCanvasElement): Promise<void> {
     }
 }
 
-function reRender(canvas: HTMLCanvasElement): void {
-    currentHitTest = renderWorldCanvas(canvas, {
+async function reRender(canvas: HTMLCanvasElement): Promise<void> {
+    const result = renderWorldCanvas(canvas, {
         maps: currentMaps,
         selectedMapId: currentSelected,
         hoveredMapId: currentHover,
+        dims: currentDims,
+        tiles: currentTiles,
     });
+    currentHitTest = result instanceof Promise ? await result : result;
 }
 
 function renderNeighbours(panel: HTMLDivElement, data: MapDetail, onClick: (mapId: number) => void): void {
@@ -175,7 +187,7 @@ async function loadCellGrid(panel: HTMLDivElement, canvas: HTMLCanvasElement, ma
         renderCellGrid(gridCanvas, { cells: data.cells, interactives: data.interactives });
         renderNeighbours(panel, data, (neighbourId) => {
             currentSelected = neighbourId;
-            reRender(canvas);
+            void reRender(canvas);
             void loadCellGrid(panel, canvas, neighbourId);
         });
     } catch (err) {
