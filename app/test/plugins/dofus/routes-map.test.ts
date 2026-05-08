@@ -29,7 +29,9 @@ function makeFixtureDir(): string {
         worlds: { "1": { id: 1, name: "Amakna" }, "10": { id: 10, name: "Frigost" } },
     }));
     fs.writeFileSync(path.join(dir, "maps", "100.json"), JSON.stringify({
-        mapId: 100, n: [1, 2, 3, 4], c: Array(560).fill([0, 0, 0, 0, 0]),
+        mapId: 100, n: [1, 2, 3, 4],
+        ie: [[10, 100, 42]],
+        c: Array(560).fill([0, 0, 0, 0, 0]),
     }));
     return dir;
 }
@@ -75,12 +77,13 @@ describe("dofus routes — map feature", () => {
         expect(r.body.error).toMatch(/unknown world/);
     });
 
-    it("GET /api/dofus/maps/100 returns cells + neighbours", async () => {
+    it("GET /api/dofus/maps/100 returns cells + neighbours + interactives", async () => {
         const r = await request(buildApp(dataDir)).get("/api/dofus/maps/100");
         expect(r.status).toBe(200);
         expect(r.body.mapId).toBe(100);
         expect(r.body.cells).toHaveLength(560);
         expect(r.body.neighbours).toEqual([1, 2, 3, 4]);
+        expect(r.body.interactives).toEqual([[10, 100, 42]]);
     });
 
     it("GET /api/dofus/maps/200 (no JSON file) → 404", async () => {

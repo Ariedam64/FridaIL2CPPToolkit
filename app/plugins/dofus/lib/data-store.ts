@@ -43,6 +43,8 @@ export interface WorldMap {
 export interface MapDetail extends WorldMap {
     neighbours: number[];
     cells: Array<[number, number, number, number, number]>;
+    /** [cellIdx, elementId, typeId] tuples — game-object spawn points. */
+    interactives: Array<[number, number, number]>;
 }
 
 const LRU_MAX = 50;
@@ -119,7 +121,7 @@ export class DofusDataStore {
         if (!meta) return null;
         const file = path.join(this.dataDir, "maps", `${mapId}.json`);
         if (!fs.existsSync(file)) return null;
-        let raw: { n?: number[]; c: Array<[number, number, number, number, number]> };
+        let raw: { n?: number[]; ie?: Array<[number, number, number]>; c: Array<[number, number, number, number, number]> };
         try {
             raw = JSON.parse(await fs.promises.readFile(file, "utf8"));
         } catch (err) {
@@ -133,6 +135,7 @@ export class DofusDataStore {
             name: meta.name,
             neighbours: raw.n ?? [],
             cells: raw.c,
+            interactives: raw.ie ?? [],
         };
         // LRU insert + evict oldest if over capacity
         this.detailCache.set(mapId, detail);

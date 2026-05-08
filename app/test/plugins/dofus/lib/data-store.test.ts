@@ -133,4 +133,22 @@ describe("DofusDataStore", () => {
         expect(errSpy).toHaveBeenCalledWith(expect.stringMatching(/failed to read.*999/), expect.any(String));
         errSpy.mockRestore();
     });
+
+    it("loadMapDetail propagates interactives from raw.ie", async () => {
+        fs.writeFileSync(path.join(dir, "maps", "100.json"), JSON.stringify({
+            mapId: 100, n: [1,2,3,4],
+            ie: [[83, 497561, 677], [327, 497576, 677]],
+            c: Array(560).fill([0,0,0,0,0]),
+        }));
+        const store = new DofusDataStore(dir);
+        const d = await store.loadMapDetail(100);
+        expect(d?.interactives).toEqual([[83, 497561, 677], [327, 497576, 677]]);
+    });
+
+    it("loadMapDetail returns interactives=[] when raw.ie is missing", async () => {
+        // The default fixture's 100.json has no `ie` key
+        const store = new DofusDataStore(dir);
+        const d = await store.loadMapDetail(100);
+        expect(d?.interactives).toEqual([]);
+    });
 });
