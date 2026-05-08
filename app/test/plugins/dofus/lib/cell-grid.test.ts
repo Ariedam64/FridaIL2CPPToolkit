@@ -26,9 +26,9 @@ describe("renderCellGrid", () => {
     it("sets canvas dimensions based on cellSize=16 default", () => {
         withMockContext(canvas);
         renderCellGrid(canvas, { cells: [] });
-        // 14.5 cols × 16 = 232 width, 41 × 8 = 328 height
+        // 14.5 cols × 16 = 232 width, 41 × 4 = 164 height (2:1 iso ratio)
         expect(canvas.width).toBe(232);
-        expect(canvas.height).toBe(328);
+        expect(canvas.height).toBe(164);
     });
 
     it("custom cellSize=24 → canvas width = 14.5 × 24 = 348", () => {

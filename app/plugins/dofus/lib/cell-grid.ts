@@ -2,7 +2,7 @@ import { cellColor } from "./cell-flags";
 
 export interface CellGridOpts {
     cells: Array<[number, number, number, number, number]>;
-    /** Pixel size of one cell. Default 16 → ~232×328 canvas. */
+    /** Pixel size of one cell. Default 16 → ~232×164 canvas (2:1 iso ratio). */
     cellSize?: number;
 }
 
@@ -18,10 +18,10 @@ const ROWS = 40;
  */
 export function renderCellGrid(canvas: HTMLCanvasElement, opts: CellGridOpts): void {
     const cellSize = opts.cellSize ?? 16;
-    const halfH = cellSize / 2;
+    const halfV = cellSize / 4;
 
     canvas.width  = (COLS + 0.5) * cellSize;
-    canvas.height = (ROWS + 1) * halfH;
+    canvas.height = (ROWS + 1) * halfV;
 
     const ctx = canvas.getContext("2d")!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -38,12 +38,12 @@ export function renderCellGrid(canvas: HTMLCanvasElement, opts: CellGridOpts): v
             if (!fill) continue;
 
             const cx = col * cellSize + (row & 1 ? cellSize / 2 : 0) + cellSize / 2;
-            const cy = row * halfH + halfH;
+            const cy = row * halfV + halfV;
 
             ctx.beginPath();
-            ctx.moveTo(cx,             cy - halfH);
+            ctx.moveTo(cx,             cy - halfV);
             ctx.lineTo(cx + cellSize/2, cy);
-            ctx.lineTo(cx,             cy + halfH);
+            ctx.lineTo(cx,             cy + halfV);
             ctx.lineTo(cx - cellSize/2, cy);
             ctx.closePath();
             ctx.fillStyle = fill;
