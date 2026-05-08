@@ -104,11 +104,15 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
 }
 
 async function loadAndRender(canvas: HTMLCanvasElement): Promise<void> {
+    const worldAtStart = currentWorld;
     try {
-        const resp = (await (await fetch(`/api/dofus/maps/list?world=${currentWorld}`)).json()) as { maps: WorldMap[] };
+        const resp = (await (await fetch(`/api/dofus/maps/list?world=${worldAtStart}`)).json()) as { maps: WorldMap[] };
+        // Bail if the user switched worlds while the fetch was in flight.
+        if (currentWorld !== worldAtStart) return;
         currentMaps = resp.maps;
         reRender(canvas);
     } catch (err) {
+        if (currentWorld !== worldAtStart) return;
         const ctx = canvas.getContext("2d");
         if (ctx) {
             ctx.fillStyle = "#f87171"; ctx.font = "14px sans-serif";

@@ -1,6 +1,26 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+/**
+ * Hardcoded known world names — used as a fallback when areas.json has
+ * unresolved nameId refs (the runtime DataCenter dump may not include
+ * m_name strings for WorldMaps).
+ */
+const KNOWN_WORLD_NAMES: Record<number, string> = {
+    "-1": "Caves",
+    1: "Amakna",
+    10: "Frigost",
+    12: "Otomai",
+    13: "Saharach",
+    14: "Brakmar",
+    15: "Pandala",
+    16: "Bonta",
+    17: "Astrub",
+    18: "Incarnam",
+} as Record<number, string>;
+
+const PLACEHOLDER_NAME_RE = /^(#\d+|id-\d+|World \d+)$/;
+
 export interface MapInfoEntry {
     mapId: number; posX: number; posY: number;
     subAreaId: number; worldMap: number;
@@ -61,9 +81,18 @@ export class DofusDataStore {
             });
             this.mapsByWorld.set(m.worldMap, arr);
         }
-        this.worldsIndex = Array.from(counts.entries()).map(([id, mapCount]) => ({
-            id, mapCount, name: this.areasIndex.worlds[String(id)]?.name ?? `World ${id}`,
-        })).sort((a, b) => a.id - b.id);
+        this.worldsIndex = Array.from(counts.entries()).map(([id, mapCount]) => {
+            const dataName = this.areasIndex.worlds[String(id)]?.name;
+            let name: string;
+            if (dataName && !PLACEHOLDER_NAME_RE.test(dataName)) {
+                name = dataName;
+            } else if (KNOWN_WORLD_NAMES[id]) {
+                name = KNOWN_WORLD_NAMES[id];
+            } else {
+                name = `World ${id}`;
+            }
+            return { id, mapCount, name };
+        }).sort((a, b) => a.id - b.id);
     }
 
     listWorlds(): WorldMeta[] {

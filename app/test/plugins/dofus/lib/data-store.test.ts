@@ -98,6 +98,25 @@ describe("DofusDataStore", () => {
         expect(reloaded).toBe(reloadedAgain);  // identity (re-cached)
     });
 
+    it("uses KNOWN_WORLD_NAMES fallback when areas.json has #nameId placeholder", () => {
+        // Override areas.json to have a placeholder name for world 1
+        fs.writeFileSync(path.join(dir, "areas.json"), JSON.stringify({
+            areas: { "0": { id: 0, name: "DefaultArea" } },
+            subAreas: {
+                "1": { id: 1, areaId: 0, name: "Sub1" },
+                "5": { id: 5, areaId: 0, name: "Sub5" },
+            },
+            worlds: {
+                "1":  { id: 1,  name: "#868482" },     // placeholder pattern
+                "10": { id: 10, name: "id-12345" },    // also placeholder
+            },
+        }));
+        const store = new DofusDataStore(dir);
+        const worlds = store.listWorlds();
+        expect(worlds.find((w) => w.id === 1)?.name).toBe("Amakna");
+        expect(worlds.find((w) => w.id === 10)?.name).toBe("Frigost");
+    });
+
     it("loadMapDetail returns null on corrupted map JSON (logs error)", async () => {
         fs.writeFileSync(path.join(dir, "maps", "999.json"), "{not valid json");
         fs.appendFileSync(path.join(dir, "maps-information.json"), "");  // no-op; ensures file exists
