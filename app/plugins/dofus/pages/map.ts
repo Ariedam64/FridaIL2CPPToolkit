@@ -23,6 +23,14 @@ let allWorlds: WorldMeta[] = [];
 let currentDims: WorldMapDims | undefined = undefined;
 let currentTiles: MappedTile[] = [];
 
+let zoom = 1;
+let panX = 0;
+let panY = 0;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 4;
+const ZOOM_STEP = 1.1;
+const DRAG_THRESHOLD_PX = 5;
+
 function escapeHtml(s: string): string {
     return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 }
@@ -36,8 +44,10 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
                     <select data-testid="world-select" style="padding:4px 8px"></select>
                     <span data-testid="hover-info" style="margin-left:auto;font-size:12px;color:#888"></span>
                 </div>
-                <div data-testid="canvas-host" style="flex:1;overflow:auto;padding:12px;background:#0a0a0a;display:flex;justify-content:center;align-items:flex-start">
-                    <canvas data-testid="world-canvas" style="image-rendering:pixelated;cursor:crosshair"></canvas>
+                <div data-testid="canvas-host" style="height:60vh;overflow:hidden;background:#0a0a0a;position:relative;cursor:grab">
+                    <div data-testid="canvas-viewport" style="position:absolute;top:0;left:0;transform:translate(0px,0px) scale(1);transform-origin:0 0;will-change:transform">
+                        <canvas data-testid="world-canvas" style="image-rendering:pixelated;display:block"></canvas>
+                    </div>
                 </div>
             </div>
             <div data-testid="cell-grid-panel" style="width:380px;padding:12px;overflow:auto">
@@ -121,6 +131,10 @@ async function loadAndRender(canvas: HTMLCanvasElement): Promise<void> {
         currentTiles = tilesResp.tiles ?? [];
         currentDims = allWorlds.find((w) => w.id === worldAtStart)?.dims;
         await reRender(canvas);
+        const host = canvas.closest<HTMLElement>("[data-testid='canvas-host']")!;
+        const viewport = canvas.closest<HTMLElement>("[data-testid='canvas-viewport']")!;
+        fitToHost(host, canvas);
+        applyTransform(viewport);
     } catch (err) {
         if (currentWorld !== worldAtStart) return;
         const ctx = canvas.getContext("2d");
@@ -175,6 +189,38 @@ function renderNeighbours(panel: HTMLDivElement, data: MapDetail, onClick: (mapI
             if (isValid(id)) onClick(id);
         });
     });
+}
+
+function applyTransform(viewport: HTMLElement): void {
+    viewport.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
+}
+
+function fitToHost(host: HTMLElement, canvas: HTMLCanvasElement): void {
+    const hostW = host.clientWidth;
+    const hostH = host.clientHeight;
+    if (canvas.width === 0 || canvas.height === 0 || hostW === 0 || hostH === 0) {
+        zoom = 1; panX = 0; panY = 0; return;
+    }
+    zoom = Math.min(hostW / canvas.width, hostH / canvas.height, 1);
+    panX = (hostW - canvas.width * zoom) / 2;
+    panY = (hostH - canvas.height * zoom) / 2;
+}
+
+function clampPan(host: HTMLElement, canvas: HTMLCanvasElement): void {
+    const hostW = host.clientWidth;
+    const hostH = host.clientHeight;
+    const canvasW = canvas.width * zoom;
+    const canvasH = canvas.height * zoom;
+    if (canvasW <= hostW) {
+        panX = (hostW - canvasW) / 2;
+    } else {
+        panX = Math.max(hostW - canvasW, Math.min(0, panX));
+    }
+    if (canvasH <= hostH) {
+        panY = (hostH - canvasH) / 2;
+    } else {
+        panY = Math.max(hostH - canvasH, Math.min(0, panY));
+    }
 }
 
 async function loadCellGrid(panel: HTMLDivElement, canvas: HTMLCanvasElement, mapId: number): Promise<void> {
