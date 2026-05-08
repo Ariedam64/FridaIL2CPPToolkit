@@ -87,4 +87,21 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             }
         });
     });
+
+    app.get("/api/dofus/tile-mapping", (req, res) => {
+        if (!store.dataReady) { res.status(503).json({ error: "static map data not loaded" }); return; }
+        const worldRaw = req.query.world;
+        if (typeof worldRaw !== "string") {
+            res.status(400).json({ error: "missing or invalid 'world' query param" });
+            return;
+        }
+        const worldId = parseInt(worldRaw, 10);
+        if (!Number.isFinite(worldId)) {
+            res.status(400).json({ error: `'world' must be an integer, got '${worldRaw}'` });
+            return;
+        }
+        const all = store.loadTileMapping();
+        const tiles = all[String(worldId)] ?? [];
+        res.json({ world: worldId, tiles });
+    });
 }

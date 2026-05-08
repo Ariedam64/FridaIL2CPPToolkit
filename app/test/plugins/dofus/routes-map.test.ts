@@ -26,7 +26,18 @@ function makeFixtureDir(): string {
             "1": { id: 1, areaId: 0, name: "Sub1" },
             "5": { id: 5, areaId: 0, name: "Sub5" },
         },
-        worlds: { "1": { id: 1, name: "Amakna" }, "10": { id: 10, name: "Frigost" } },
+        worlds: {
+            "1":  { id: 1,  name: "Amakna",
+                    dims: { origineX: -85, origineY: -90, mapWidth: 86, mapHeight: 43,
+                            totalWidth: 13072, totalHeight: 5418 } },
+            "10": { id: 10, name: "Frigost" },
+        },
+    }));
+    fs.writeFileSync(path.join(dir, "tile-mapping.json"), JSON.stringify({
+        "1": [
+            { index: 0, name: "1", scale: "0.2", address: "0.2/1.jpg",
+              guid: "abc", tile: "000422_1.jpg", width: 1024, height: 1024, ambiguous: false },
+        ],
     }));
     fs.writeFileSync(path.join(dir, "maps", "100.json"), JSON.stringify({
         mapId: 100, n: [1, 2, 3, 4],
@@ -53,13 +64,18 @@ describe("dofus routes — map feature", () => {
     beforeEach(() => { dataDir = makeFixtureDir(); });
     afterEach(() => { fs.rmSync(dataDir, { recursive: true, force: true }); });
 
-    it("GET /api/dofus/worlds returns worlds with mapCount", async () => {
+    it("GET /api/dofus/worlds returns worlds with mapCount + dims when present", async () => {
         const r = await request(buildApp(dataDir)).get("/api/dofus/worlds");
         expect(r.status).toBe(200);
-        expect(r.body.worlds).toEqual(expect.arrayContaining([
-            expect.objectContaining({ id: 1, name: "Amakna", mapCount: 2 }),
-            expect.objectContaining({ id: 10, name: "Frigost", mapCount: 1 }),
-        ]));
+        const w1 = r.body.worlds.find((w: { id: number }) => w.id === 1);
+        const w10 = r.body.worlds.find((w: { id: number }) => w.id === 10);
+        expect(w1).toMatchObject({ id: 1, name: "Amakna", mapCount: 2 });
+        expect(w1.dims).toEqual({
+            origineX: -85, origineY: -90, mapWidth: 86, mapHeight: 43,
+            totalWidth: 13072, totalHeight: 5418,
+        });
+        expect(w10).toMatchObject({ id: 10, name: "Frigost", mapCount: 1 });
+        expect(w10.dims).toBeUndefined();
     });
 
     it("GET /api/dofus/maps/list?world=1 returns the maps for world 1", async () => {
@@ -109,5 +125,25 @@ describe("dofus routes — map feature", () => {
     it("GET /api/dofus/cartography/tile/missing.jpg (regex match but not on disk) → 404", async () => {
         const r = await request(buildApp(dataDir)).get("/api/dofus/cartography/tile/999999_1.jpg");
         expect(r.status).toBe(404);
+    });
+
+    it("GET /api/dofus/tile-mapping?world=1 returns the tiles slice", async () => {
+        const r = await request(buildApp(dataDir)).get("/api/dofus/tile-mapping?world=1");
+        expect(r.status).toBe(200);
+        expect(r.body.world).toBe(1);
+        expect(r.body.tiles).toHaveLength(1);
+        expect(r.body.tiles[0].tile).toBe("000422_1.jpg");
+    });
+
+    it("GET /api/dofus/tile-mapping (no world) → 400", async () => {
+        const r = await request(buildApp(dataDir)).get("/api/dofus/tile-mapping");
+        expect(r.status).toBe(400);
+        expect(r.body.error).toMatch(/world/);
+    });
+
+    it("GET /api/dofus/tile-mapping?world=99 (unknown world) → 200 with empty tiles", async () => {
+        const r = await request(buildApp(dataDir)).get("/api/dofus/tile-mapping?world=99");
+        expect(r.status).toBe(200);
+        expect(r.body.tiles).toEqual([]);
     });
 });
