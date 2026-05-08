@@ -51,7 +51,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
                 </div>
                 <div data-testid="canvas-host" style="flex:1;min-height:0;overflow:hidden;background:#0a0a0a;position:relative;cursor:grab">
                     <div data-testid="canvas-viewport" style="position:absolute;top:0;left:0;transform:translate(0px,0px) scale(1);transform-origin:0 0;will-change:transform">
-                        <canvas data-testid="world-canvas" style="image-rendering:pixelated;display:block"></canvas>
+                        <canvas data-testid="world-canvas" style="display:block"></canvas>
                     </div>
                 </div>
             </div>
