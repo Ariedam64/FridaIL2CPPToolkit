@@ -9,6 +9,7 @@ interface MapDetail {
     subAreaId: number; areaId: number;
     neighbours: number[];
     cells: Array<[number, number, number, number, number]>;
+    interactives: Array<[number, number, number]>;
 }
 
 // Module-level state — mirrors the existing pages pattern (instances.ts, etc.)
@@ -139,7 +140,7 @@ async function loadCellGrid(panel: HTMLDivElement, mapId: number): Promise<void>
             <canvas data-testid="cell-grid-canvas" style="image-rendering:pixelated"></canvas>
         `;
         const gridCanvas = panel.querySelector<HTMLCanvasElement>("[data-testid='cell-grid-canvas']")!;
-        renderCellGrid(gridCanvas, { cells: data.cells });
+        renderCellGrid(gridCanvas, { cells: data.cells, interactives: data.interactives });
     } catch (err) {
         panel.innerHTML = `<p style="color:#f87171">Failed to load: ${escapeHtml(String(err))}</p>`;
     }

@@ -11,7 +11,7 @@ function patchCanvasMock(window: Window): void {
             clearRect: () => undefined, fillRect: () => undefined, strokeRect: () => undefined,
             beginPath: () => undefined, moveTo: () => undefined, lineTo: () => undefined,
             closePath: () => undefined, fill: () => undefined, stroke: () => undefined,
-            fillText: () => undefined,
+            fillText: () => undefined, arc: () => undefined,
             fillStyle: "", strokeStyle: "", lineWidth: 0, font: "",
         } as unknown as CanvasRenderingContext2D;
     } as never;
@@ -56,6 +56,7 @@ describe("mountMap", () => {
                 return { ok: true, json: async () => ({
                     mapId: 100, name: "M100", posX: 0, posY: 0, subAreaId: 1, areaId: 0,
                     neighbours: [], cells: Array(560).fill([0,0,0,0,0]),
+                    interactives: [[10, 100, 42], [50, 100, 42]],
                 }) } as Response;
             }
             return { ok: false, status: 404, json: async () => ({}) } as Response;
@@ -100,6 +101,25 @@ describe("mountMap", () => {
         await new Promise((r) => setTimeout(r, 30));
         const detailFetch = fetchMock.mock.calls.find(([url]) => /\/api\/dofus\/maps\/\d+$/.test(String(url)));
         expect(detailFetch).toBeDefined();
+        const panel = host.querySelector<HTMLElement>("[data-testid='cell-grid-panel']")!;
+        expect(panel.querySelector("[data-testid='cell-grid-canvas']")).not.toBeNull();
+    });
+
+    it("propagates interactives from /api/dofus/maps/:mapId to the cell-grid render", async () => {
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+
+        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
+        const rect = { left: 0, top: 0 } as DOMRect;
+        canvas.getBoundingClientRect = () => rect as DOMRect;
+        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
+        Object.defineProperty(evt, "clientX", { value: 8 });
+        Object.defineProperty(evt, "clientY", { value: 8 });
+        canvas.dispatchEvent(evt);
+
+        await new Promise((r) => setTimeout(r, 30));
+        // The detail fetch returned 2 interactives — assert the panel rendered
+        // a cell-grid canvas (we trust renderCellGrid's own tests for the arcs).
         const panel = host.querySelector<HTMLElement>("[data-testid='cell-grid-panel']")!;
         expect(panel.querySelector("[data-testid='cell-grid-canvas']")).not.toBeNull();
     });
