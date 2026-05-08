@@ -190,20 +190,14 @@ async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<
         if (t.height > rowMaxH) rowMaxH = t.height;
     }
 
-    // Map markers (semi-transparent overlay). Convert world-px → tile-px → canvas-px.
+    // Build the (posX,posY) → mapId index for hit-testing. Markers are NOT drawn:
+    // the atlas tiles already convey area boundaries, and a 6203-map overlay
+    // (Amakna) tints the whole atlas to noise. Selected/hovered outlines below
+    // are the only visible markers.
     const tileByXY: Record<string, number> = {};
-    ctx.globalAlpha = 0.35;
     for (const m of opts.maps) {
-        const a = worldToAtlasXY(wm, m.posX, m.posY);  // world-px
-        const fx = a.x * tileScale * renderScale;
-        const fy = a.y * tileScale * renderScale;
-        const fw = a.w * tileScale * renderScale;
-        const fh = a.h * tileScale * renderScale;
-        ctx.fillStyle = areaColor(m.areaId, m.mapId);
-        ctx.fillRect(fx, fy, fw, fh);
         tileByXY[`${m.posX},${m.posY}`] = m.mapId;
     }
-    ctx.globalAlpha = 1;
 
     // Selected outline (full alpha, white).
     if (opts.selectedMapId != null) {
