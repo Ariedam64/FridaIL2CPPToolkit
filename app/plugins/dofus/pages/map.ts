@@ -36,6 +36,11 @@ function escapeHtml(s: string): string {
 }
 
 export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Promise<void> {
+    // Make host fill its parent flex container so the inner flex chain has a height to expand into.
+    host.style.flex = "1";
+    host.style.display = "flex";
+    host.style.flexDirection = "column";
+    host.style.minHeight = "0";
     host.innerHTML = `
         <div style="display:flex;flex:1;min-height:0">
             <div style="flex:1;display:flex;flex-direction:column;border-right:1px solid #333;min-width:0">
