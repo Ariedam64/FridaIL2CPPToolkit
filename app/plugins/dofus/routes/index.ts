@@ -71,4 +71,20 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         if (!detail) { res.status(404).json({ error: `map not found: ${mapId}` }); return; }
         res.json(detail);
     });
+
+    /** Serve a cartography tile JPG. Strict regex on filename (path-traversal safe). */
+    app.get("/api/dofus/cartography/tile/:filename", (req, res) => {
+        if (!store.dataReady) { res.status(503).json({ error: "static map data not loaded" }); return; }
+        const filename = req.params.filename;
+        if (!/^\d{6}_\d+\.jpg$/.test(filename)) {
+            res.status(400).json({ error: "invalid filename format" });
+            return;
+        }
+        const full = path.join(dataDir, "cartography", "tiles", filename);
+        res.sendFile(full, (err) => {
+            if (err && !res.headersSent) {
+                res.status(404).json({ error: `tile not found: ${filename}` });
+            }
+        });
+    });
 }

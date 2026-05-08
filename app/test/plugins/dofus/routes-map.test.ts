@@ -33,6 +33,10 @@ function makeFixtureDir(): string {
         ie: [[10, 100, 42]],
         c: Array(560).fill([0, 0, 0, 0, 0]),
     }));
+    fs.mkdirSync(path.join(dir, "cartography", "tiles"), { recursive: true });
+    // Minimum valid JPEG (SOI + EOI markers)
+    fs.writeFileSync(path.join(dir, "cartography", "tiles", "000422_1.jpg"),
+        Buffer.from([0xFF, 0xD8, 0xFF, 0xD9]));
     return dir;
 }
 
@@ -88,6 +92,22 @@ describe("dofus routes — map feature", () => {
 
     it("GET /api/dofus/maps/200 (no JSON file) → 404", async () => {
         const r = await request(buildApp(dataDir)).get("/api/dofus/maps/200");
+        expect(r.status).toBe(404);
+    });
+
+    it("GET /api/dofus/cartography/tile/000422_1.jpg serves the file", async () => {
+        const r = await request(buildApp(dataDir)).get("/api/dofus/cartography/tile/000422_1.jpg");
+        expect(r.status).toBe(200);
+        expect(r.headers["content-type"]).toMatch(/image\/jpe?g/);
+    });
+
+    it("GET /api/dofus/cartography/tile/../etc/passwd → 400", async () => {
+        const r = await request(buildApp(dataDir)).get("/api/dofus/cartography/tile/..%2Fetc%2Fpasswd");
+        expect(r.status).toBe(400);
+    });
+
+    it("GET /api/dofus/cartography/tile/missing.jpg (regex match but not on disk) → 404", async () => {
+        const r = await request(buildApp(dataDir)).get("/api/dofus/cartography/tile/999999_1.jpg");
         expect(r.status).toBe(404);
     });
 });
