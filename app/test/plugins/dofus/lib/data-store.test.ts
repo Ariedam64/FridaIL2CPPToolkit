@@ -151,4 +151,48 @@ describe("DofusDataStore", () => {
         const d = await store.loadMapDetail(100);
         expect(d?.interactives).toEqual([]);
     });
+
+    it("listWorlds includes dims when areas.json has them", () => {
+        // Override areas.json with dims for world 1
+        fs.writeFileSync(path.join(dir, "areas.json"), JSON.stringify({
+            areas: { "0": { id: 0, name: "A0" } },
+            subAreas: {
+                "1": { id: 1, areaId: 0, name: "Sub1" },
+                "5": { id: 5, areaId: 0, name: "Sub5" },
+            },
+            worlds: {
+                "1":  { id: 1,  name: "Amakna",
+                        dims: { origineX: -85, origineY: -90, mapWidth: 86, mapHeight: 43,
+                                totalWidth: 13072, totalHeight: 5418 } },
+                "10": { id: 10, name: "Frigost" },  // no dims
+            },
+        }));
+        const store = new DofusDataStore(dir);
+        const worlds = store.listWorlds();
+        expect(worlds.find((w) => w.id === 1)?.dims).toEqual({
+            origineX: -85, origineY: -90, mapWidth: 86, mapHeight: 43,
+            totalWidth: 13072, totalHeight: 5418,
+        });
+        expect(worlds.find((w) => w.id === 10)?.dims).toBeUndefined();
+    });
+
+    it("loadTileMapping returns the parsed tile-mapping.json (and caches it)", () => {
+        fs.writeFileSync(path.join(dir, "tile-mapping.json"), JSON.stringify({
+            "1": [
+                { index: 0, name: "1", scale: "0.2", address: "0.2/1.jpg",
+                  guid: "abc", tile: "000422_1.jpg", width: 1024, height: 1024, ambiguous: false },
+            ],
+        }));
+        const store = new DofusDataStore(dir);
+        const a = store.loadTileMapping();
+        const b = store.loadTileMapping();
+        expect(a["1"]?.[0].tile).toBe("000422_1.jpg");
+        expect(a).toBe(b);  // identity (cached)
+    });
+
+    it("loadTileMapping returns {} when tile-mapping.json missing", () => {
+        // Default fixture has no tile-mapping.json
+        const store = new DofusDataStore(dir);
+        expect(store.loadTileMapping()).toEqual({});
+    });
 });

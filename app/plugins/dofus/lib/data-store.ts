@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type { WorldMapDims, MappedTile } from "./world-dims";
 
 /**
  * Hardcoded known world names — used as a fallback when areas.json has
@@ -30,10 +31,12 @@ export interface MapInfoEntry {
 export interface AreasFile {
     areas: Record<string, { id: number; name: string }>;
     subAreas: Record<string, { id: number; areaId: number; name: string }>;
-    worlds: Record<string, { id: number; name: string }>;
+    worlds: Record<string, { id: number; name: string; dims?: WorldMapDims }>;
 }
 
-export interface WorldMeta { id: number; name: string; mapCount: number }
+export interface WorldMeta { id: number; name: string; mapCount: number; dims?: WorldMapDims }
+
+export type TileMappingFile = Record<string, MappedTile[]>;
 
 export interface WorldMap {
     mapId: number; posX: number; posY: number;
@@ -57,6 +60,7 @@ export class DofusDataStore {
     private mapsByWorld = new Map<number, WorldMap[]>();
     private mapsById = new Map<number, MapInfoEntry>();
     private detailCache = new Map<number, MapDetail>();   // insertion-order LRU
+    private tileMappingCache: TileMappingFile | null = null;
 
     constructor(private readonly dataDir: string) {
         try {
@@ -84,7 +88,9 @@ export class DofusDataStore {
             this.mapsByWorld.set(m.worldMap, arr);
         }
         this.worldsIndex = Array.from(counts.entries()).map(([id, mapCount]) => {
-            const dataName = this.areasIndex.worlds[String(id)]?.name;
+            const dataEntry = this.areasIndex.worlds[String(id)];
+            const dataName = dataEntry?.name;
+            const dims = dataEntry?.dims;
             let name: string;
             if (dataName && !PLACEHOLDER_NAME_RE.test(dataName)) {
                 name = dataName;
@@ -93,7 +99,7 @@ export class DofusDataStore {
             } else {
                 name = `World ${id}`;
             }
-            return { id, mapCount, name };
+            return { id, mapCount, name, ...(dims ? { dims } : {}) };
         }).sort((a, b) => a.id - b.id);
     }
 
@@ -144,5 +150,21 @@ export class DofusDataStore {
             if (oldest !== undefined) this.detailCache.delete(oldest);
         }
         return detail;
+    }
+
+    loadTileMapping(): TileMappingFile {
+        if (this.tileMappingCache) return this.tileMappingCache;
+        const file = path.join(this.dataDir, "tile-mapping.json");
+        if (!fs.existsSync(file)) {
+            this.tileMappingCache = {};
+            return this.tileMappingCache;
+        }
+        try {
+            this.tileMappingCache = JSON.parse(fs.readFileSync(file, "utf8")) as TileMappingFile;
+        } catch (err) {
+            console.error("[dofus] failed to read tile-mapping.json:", (err as Error).message);
+            this.tileMappingCache = {};
+        }
+        return this.tileMappingCache;
     }
 }
