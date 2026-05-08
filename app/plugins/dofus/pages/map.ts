@@ -132,6 +132,7 @@ async function loadAndRender(canvas: HTMLCanvasElement): Promise<void> {
 }
 
 async function reRender(canvas: HTMLCanvasElement): Promise<void> {
+    const worldAtStart = currentWorld;
     const result = renderWorldCanvas(canvas, {
         maps: currentMaps,
         selectedMapId: currentSelected,
@@ -139,7 +140,9 @@ async function reRender(canvas: HTMLCanvasElement): Promise<void> {
         dims: currentDims,
         tiles: currentTiles,
     });
-    currentHitTest = result instanceof Promise ? await result : result;
+    const resolved = result instanceof Promise ? await result : result;
+    if (currentWorld !== worldAtStart) return;
+    currentHitTest = resolved;
 }
 
 function renderNeighbours(panel: HTMLDivElement, data: MapDetail, onClick: (mapId: number) => void): void {
