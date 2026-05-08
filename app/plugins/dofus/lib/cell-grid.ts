@@ -4,6 +4,8 @@ export interface CellGridOpts {
     cells: Array<[number, number, number, number, number]>;
     /** Pixel size of one cell. Default 16 → ~232×164 canvas (2:1 iso ratio). */
     cellSize?: number;
+    /** Optional [cellIdx, elementId, typeId] tuples drawn as colored discs. */
+    interactives?: Array<[number, number, number]>;
 }
 
 const COLS = 14;
@@ -47,6 +49,25 @@ export function renderCellGrid(canvas: HTMLCanvasElement, opts: CellGridOpts): v
             ctx.lineTo(cx - cellSize/2, cy);
             ctx.closePath();
             ctx.fillStyle = fill;
+            ctx.fill();
+            ctx.stroke();
+        }
+    }
+
+    if (opts.interactives) {
+        for (const [cellIdx, _elementId, typeId] of opts.interactives) {
+            const row = Math.floor(cellIdx / COLS);
+            const col = cellIdx % COLS;
+            if (row < 0 || row >= ROWS || col < 0 || col >= COLS) continue;
+            const cx = col * cellSize + (row & 1 ? cellSize / 2 : 0) + cellSize / 2;
+            const cy = row * halfV + halfV;
+            const radius = cellSize / 4;
+            const hue = (typeId * 137) % 360;
+            ctx.fillStyle = `hsl(${hue}, 70%, 55%)`;
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
             ctx.fill();
             ctx.stroke();
         }

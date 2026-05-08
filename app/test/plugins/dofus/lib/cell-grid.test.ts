@@ -13,6 +13,7 @@ function withMockContext(canvas: HTMLCanvasElement) {
         clearRect: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(),
         closePath: vi.fn(), fill: vi.fn(), stroke: vi.fn(),
         fillRect: vi.fn(), fillText: vi.fn(),
+        arc: vi.fn(),
         fillStyle: "", strokeStyle: "", lineWidth: 0, font: "",
     };
     canvas.getContext = vi.fn(() => ctx) as unknown as HTMLCanvasElement["getContext"];
@@ -47,5 +48,21 @@ describe("renderCellGrid", () => {
         // Exactly 1 visible cell rendered → 1 fill call
         expect(ctx.fill).toHaveBeenCalledTimes(1);
         expect(ctx.fillStyle).toBe("#3a7b3a");
+    });
+
+    it("draws an arc per interactive when interactives provided", () => {
+        const ctx = withMockContext(canvas);
+        const cells: Array<[number, number, number, number, number]> = [];
+        for (let i = 0; i < 560; i++) cells.push([0, 0, 0, 0, 0]);
+        renderCellGrid(canvas, { cells, interactives: [[10, 999, 42], [200, 888, 42]] });
+        expect(ctx.arc).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not draw arcs when interactives is omitted", () => {
+        const ctx = withMockContext(canvas);
+        const cells: Array<[number, number, number, number, number]> = [];
+        for (let i = 0; i < 560; i++) cells.push([0, 0, 0, 0, 0]);
+        renderCellGrid(canvas, { cells });
+        expect(ctx.arc).not.toHaveBeenCalled();
     });
 });
