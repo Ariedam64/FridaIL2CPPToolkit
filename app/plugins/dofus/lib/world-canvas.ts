@@ -30,8 +30,6 @@ function areaColor(areaId: number, mapIdFallback: number): string {
 }
 
 export function renderWorldCanvas(canvas: HTMLCanvasElement, opts: WorldCanvasOpts): WorldCanvasResult {
-    const tileSize = opts.tileSize ?? 14;
-
     if (opts.maps.length === 0) {
         canvas.width = 200; canvas.height = 60;
         const ctx = canvas.getContext("2d")!;
@@ -39,6 +37,11 @@ export function renderWorldCanvas(canvas: HTMLCanvasElement, opts: WorldCanvasOp
         ctx.fillText("No maps in this world", 10, 30);
         return { hitTest: () => null };
     }
+    return renderColoredGrid(canvas, opts);
+}
+
+function renderColoredGrid(canvas: HTMLCanvasElement, opts: WorldCanvasOpts): WorldCanvasResult {
+    const tileSize = opts.tileSize ?? 14;
 
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const m of opts.maps) {
