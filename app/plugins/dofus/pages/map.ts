@@ -96,9 +96,11 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         if (!currentHitTest) return;
         // Skip hover update while dragging — the drag handler owns the cursor
         if (dragging) return;
-        const rect = canvas.getBoundingClientRect();
-        const canvasX = (e.clientX - rect.left) / zoom;
-        const canvasY = (e.clientY - rect.top) / zoom;
+        // Use hostEl.rect (not canvas.rect) so we explicitly subtract panX/panY before
+        // dividing by zoom — symmetric with the click path in the mouseup handler.
+        const rect = hostEl.getBoundingClientRect();
+        const canvasX = ((e.clientX - rect.left) - panX) / zoom;
+        const canvasY = ((e.clientY - rect.top) - panY) / zoom;
         const hit = currentHitTest.hitTest(canvasX, canvasY);
         if (hit !== currentHover) {
             currentHover = hit;
