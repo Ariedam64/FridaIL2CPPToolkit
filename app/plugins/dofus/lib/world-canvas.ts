@@ -101,7 +101,11 @@ function renderColoredGrid(canvas: HTMLCanvasElement, opts: WorldCanvasOpts): Wo
     return { hitTest };
 }
 
-const ATLAS_MAX_W = 3000;
+// Canvas memory budget (max width). 6000 px wide × 4800 tall × 4 bytes ≈ 115 MB,
+// which gives sharp pixels up to ~4× user zoom on a 1500-px host (the host shows
+// ~1500 source pixels at zoom 1×, and zoom 4× exposes the same canvas data 4×
+// magnified — at 6000 source pixels there's enough detail for that).
+const ATLAS_MAX_W = 6000;
 const tileImageCache = new Map<string, HTMLImageElement>();
 
 function loadTileImage(url: string): Promise<HTMLImageElement> {
@@ -142,8 +146,11 @@ interface AtlasOpts {
 async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<WorldCanvasResult> {
     const wm = opts.wm;
 
-    // Pick the lowest scale present (different worlds expose different scale sets:
-    // Amakna has 0.2/0.4/0.6/0.8/1, the 34 other worlds have 0.25/0.5/0.75/1).
+    // Different worlds expose different scale sets (Amakna: 0.2/0.4/0.6/0.8/1 ;
+    // the 34 other worlds: 0.25/0.5/0.75/1). Pick the largest scale that still
+    // fits within ATLAS_MAX_W at native (renderScale=1 → no source downsampling),
+    // for maximum sharpness at user zoom. Fall back to the smallest if even
+    // that exceeds the budget (still rendered, just downsampled).
     const allScales = [...new Set(opts.tiles.map((t) => parseFloat(t.scale)))]
         .filter((s) => Number.isFinite(s))
         .sort((a, b) => a - b);
@@ -153,7 +160,11 @@ async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<
             maps: opts.maps, selectedMapId: opts.selectedMapId, hoveredMapId: opts.hoveredMapId,
         });
     }
-    const tileScale = allScales[0];
+    const maxScaleByBudget = ATLAS_MAX_W / wm.totalWidth;
+    let tileScale = allScales[0]; // smallest as fallback
+    for (const s of allScales) {
+        if (s <= maxScaleByBudget) tileScale = s;
+    }
     const tilesForScale = opts.tiles.filter((t) => parseFloat(t.scale) === tileScale);
 
     // Atlas dimensions in tile-pixels (= world-pixels × tileScale).

@@ -131,7 +131,7 @@ describe("renderWorldCanvas — atlas mode", () => {
         expect(r).not.toBeInstanceOf(Promise);
     });
 
-    it("uses lowest scale dynamically (0.25 world has no 0.2 tiles)", async () => {
+    it("picks the largest scale that fits within ATLAS_MAX_W (max quality)", async () => {
         const ctx = withMockContext(canvas);
         const dims025 = {
             origineX: 0, origineY: 0,
@@ -145,10 +145,11 @@ describe("renderWorldCanvas — atlas mode", () => {
               guid: "y", tile: "222222_1.jpg", width: 400, height: 200, ambiguous: false },
         ];
         await renderWorldCanvas(canvas, { maps: [m(1, 0, 0)], dims: dims025, tiles: tiles025 });
-        // Should pick scale=0.25 (lowest), draw 1 tile (filtered to scale 0.25).
+        // maxScaleByBudget = 6000/400 = 15 → both scales (0.25, 1) fit ; pick largest (1).
+        // Draw 1 tile (filtered to scale 1, which has 1 entry).
         expect(ctx.drawImage).toHaveBeenCalledTimes(1);
-        // tilesAtlasW = 400 × 0.25 = 100, renderScale = min(1, 3000/100) = 1, canvas = 100 × 50
-        expect(canvas.width).toBe(100);
-        expect(canvas.height).toBe(50);
+        // tilesAtlasW = 400 × 1 = 400, renderScale = min(1, 6000/400) = 1, canvas = 400 × 200
+        expect(canvas.width).toBe(400);
+        expect(canvas.height).toBe(200);
     });
 });
