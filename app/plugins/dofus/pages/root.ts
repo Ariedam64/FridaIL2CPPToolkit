@@ -16,13 +16,20 @@ const mod: PluginPageModule = {
                         <button data-sub="${s}" style="padding:4px 10px;background:${s === sub ? "#1e3a8a" : "transparent"};color:${s === sub ? "#fff" : "inherit"};border:1px solid #333;border-radius:4px;cursor:pointer">${s}</button>
                     `).join("")}
                 </div>
-                <div data-testid="dofus-sub-host" style="flex:1;overflow:auto;padding:16px;color:#888">
-                    <p>Dofus plugin — <strong>${sub}</strong> sub-page (placeholder).</p>
-                    <p>Profile: <code>${ctx.profile.gameName} / ${ctx.profile.buildId.slice(0, 8)}</code></p>
-                    <p style="margin-top:24px;font-style:italic">The actual ${sub} feature ships in a follow-up sub-project.</p>
-                </div>
+                <div data-testid="dofus-sub-host" style="flex:1;overflow:auto;padding:16px;color:#888"></div>
             </div>
         `;
+
+        const subHost = host.querySelector<HTMLElement>("[data-testid='dofus-sub-host']")!;
+        if (sub === "map") {
+            void import("./map").then(({ mountMap }) => mountMap(subHost, ctx));
+        } else {
+            subHost.innerHTML = `
+                <p>Dofus plugin — <strong>${sub}</strong> sub-page (placeholder).</p>
+                <p>Profile: <code>${ctx.profile.gameName} / ${ctx.profile.buildId.slice(0, 8)}</code></p>
+                <p style="margin-top:24px;font-style:italic">The actual ${sub} feature ships in a follow-up sub-project.</p>
+            `;
+        }
 
         host.querySelectorAll<HTMLButtonElement>("[data-sub]").forEach((btn) => {
             btn.addEventListener("click", () => ctx.setSubTab(btn.dataset.sub!));
