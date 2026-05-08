@@ -105,15 +105,23 @@ describe("mountMap", () => {
         await mountMap(host, makeCtx());
         await new Promise((r) => setTimeout(r, 30));
 
-        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
-        // Simulate click at the px coords of the first map (posX=0, posY=0).
-        // tileSize default 14, padding 4 → tile at px=4,py=4. Click at (8,8) lands inside.
-        const rect = { left: 0, top: 0 } as DOMRect;
-        canvas.getBoundingClientRect = () => rect as DOMRect;
-        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
-        Object.defineProperty(evt, "clientX", { value: 8 });
-        Object.defineProperty(evt, "clientY", { value: 8 });
-        canvas.dispatchEvent(evt);
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        // Mock host bounds: 600x400 viewport at screen origin
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+        // mousedown then mouseup at same position = click (< 5px movement)
+        const mdown = new win.Event("mousedown", { bubbles: true });
+        Object.defineProperty(mdown, "button", { value: 0 });
+        Object.defineProperty(mdown, "clientX", { value: 8 });
+        Object.defineProperty(mdown, "clientY", { value: 8 });
+        hostEl.dispatchEvent(mdown);
+
+        const mup = new win.Event("mouseup", { bubbles: true });
+        Object.defineProperty(mup, "clientX", { value: 8 });
+        Object.defineProperty(mup, "clientY", { value: 8 });
+        // mouseup is on window, not host — dispatch via the window
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mup);
 
         await new Promise((r) => setTimeout(r, 30));
         const detailFetch = fetchMock.mock.calls.find(([url]) => /\/api\/dofus\/maps\/\d+$/.test(String(url)));
@@ -126,13 +134,20 @@ describe("mountMap", () => {
         await mountMap(host, makeCtx());
         await new Promise((r) => setTimeout(r, 30));
 
-        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
-        const rect = { left: 0, top: 0 } as DOMRect;
-        canvas.getBoundingClientRect = () => rect as DOMRect;
-        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
-        Object.defineProperty(evt, "clientX", { value: 8 });
-        Object.defineProperty(evt, "clientY", { value: 8 });
-        canvas.dispatchEvent(evt);
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+
+        const mdown = new win.Event("mousedown", { bubbles: true });
+        Object.defineProperty(mdown, "button", { value: 0 });
+        Object.defineProperty(mdown, "clientX", { value: 8 });
+        Object.defineProperty(mdown, "clientY", { value: 8 });
+        hostEl.dispatchEvent(mdown);
+
+        const mup = new win.Event("mouseup", { bubbles: true });
+        Object.defineProperty(mup, "clientX", { value: 8 });
+        Object.defineProperty(mup, "clientY", { value: 8 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mup);
 
         await new Promise((r) => setTimeout(r, 30));
         // The detail fetch returned 2 interactives — assert the panel rendered
@@ -169,12 +184,18 @@ describe("mountMap", () => {
         await mountMap(host, makeCtx());
         await new Promise((r) => setTimeout(r, 30));
 
-        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
-        canvas.getBoundingClientRect = () => ({ left: 0, top: 0 } as DOMRect);
-        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
-        Object.defineProperty(evt, "clientX", { value: 8 });
-        Object.defineProperty(evt, "clientY", { value: 8 });
-        canvas.dispatchEvent(evt);
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+        const mdown = new win.Event("mousedown", { bubbles: true });
+        Object.defineProperty(mdown, "button", { value: 0 });
+        Object.defineProperty(mdown, "clientX", { value: 8 });
+        Object.defineProperty(mdown, "clientY", { value: 8 });
+        hostEl.dispatchEvent(mdown);
+        const mup = new win.Event("mouseup", { bubbles: true });
+        Object.defineProperty(mup, "clientX", { value: 8 });
+        Object.defineProperty(mup, "clientY", { value: 8 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mup);
         await new Promise((r) => setTimeout(r, 30));
 
         const nav = host.querySelector<HTMLElement>("[data-testid='neighbours-nav']")!;
@@ -217,12 +238,18 @@ describe("mountMap", () => {
         await mountMap(host, makeCtx());
         await new Promise((r) => setTimeout(r, 30));
 
-        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
-        canvas.getBoundingClientRect = () => ({ left: 0, top: 0 } as DOMRect);
-        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
-        Object.defineProperty(evt, "clientX", { value: 8 });
-        Object.defineProperty(evt, "clientY", { value: 8 });
-        canvas.dispatchEvent(evt);
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+        const mdown = new win.Event("mousedown", { bubbles: true });
+        Object.defineProperty(mdown, "button", { value: 0 });
+        Object.defineProperty(mdown, "clientX", { value: 8 });
+        Object.defineProperty(mdown, "clientY", { value: 8 });
+        hostEl.dispatchEvent(mdown);
+        const mup = new win.Event("mouseup", { bubbles: true });
+        Object.defineProperty(mup, "clientX", { value: 8 });
+        Object.defineProperty(mup, "clientY", { value: 8 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mup);
         await new Promise((r) => setTimeout(r, 30));
 
         // Click the N button (mapId 101)
@@ -239,6 +266,69 @@ describe("mountMap", () => {
         await new Promise((r) => setTimeout(r, 30));
         const tileFetch = fetchMock.mock.calls.some(([url]) => url === "/api/dofus/tile-mapping?world=1");
         expect(tileFetch).toBe(true);
+    });
+
+    it("dragging the host > 5px pans without triggering a fetch", async () => {
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+        // Reset fetchMock count after initial loads
+        const callsBefore = fetchMock.mock.calls.filter(([url]) => /\/api\/dofus\/maps\/\d+$/.test(String(url))).length;
+
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+
+        const mdown = new win.Event("mousedown", { bubbles: true });
+        Object.defineProperty(mdown, "button", { value: 0 });
+        Object.defineProperty(mdown, "clientX", { value: 100 });
+        Object.defineProperty(mdown, "clientY", { value: 100 });
+        hostEl.dispatchEvent(mdown);
+
+        // Move > DRAG_THRESHOLD_PX (5)
+        const mmove = new win.Event("mousemove", { bubbles: true });
+        Object.defineProperty(mmove, "clientX", { value: 130 });
+        Object.defineProperty(mmove, "clientY", { value: 100 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mmove);
+
+        const mup = new win.Event("mouseup", { bubbles: true });
+        Object.defineProperty(mup, "clientX", { value: 130 });
+        Object.defineProperty(mup, "clientY", { value: 100 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mup);
+
+        await new Promise((r) => setTimeout(r, 20));
+        const callsAfter = fetchMock.mock.calls.filter(([url]) => /\/api\/dofus\/maps\/\d+$/.test(String(url))).length;
+        expect(callsAfter).toBe(callsBefore);  // No new /maps/:id fetch — was a pan, not a click
+    });
+
+    it("a short drag (< 5px) still triggers click selection", async () => {
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+        const callsBefore = fetchMock.mock.calls.filter(([url]) => /\/api\/dofus\/maps\/\d+$/.test(String(url))).length;
+
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+
+        const mdown = new win.Event("mousedown", { bubbles: true });
+        Object.defineProperty(mdown, "button", { value: 0 });
+        Object.defineProperty(mdown, "clientX", { value: 8 });
+        Object.defineProperty(mdown, "clientY", { value: 8 });
+        hostEl.dispatchEvent(mdown);
+
+        // Move 2px (< threshold 5)
+        const mmove = new win.Event("mousemove", { bubbles: true });
+        Object.defineProperty(mmove, "clientX", { value: 9 });
+        Object.defineProperty(mmove, "clientY", { value: 9 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mmove);
+
+        const mup = new win.Event("mouseup", { bubbles: true });
+        Object.defineProperty(mup, "clientX", { value: 9 });
+        Object.defineProperty(mup, "clientY", { value: 9 });
+        (host.ownerDocument!.defaultView as unknown as EventTarget).dispatchEvent(mup);
+
+        await new Promise((r) => setTimeout(r, 20));
+        const callsAfter = fetchMock.mock.calls.filter(([url]) => /\/api\/dofus\/maps\/\d+$/.test(String(url))).length;
+        expect(callsAfter).toBe(callsBefore + 1);  // One new /maps/:id fetch (the click landed on map 100)
     });
 
     it("wheel on the host changes the viewport transform (zoom in)", async () => {

@@ -61,6 +61,11 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
     const hoverInfo = host.querySelector<HTMLSpanElement>("[data-testid='hover-info']")!;
     const panel = host.querySelector<HTMLDivElement>("[data-testid='cell-grid-panel']")!;
 
+    // Drag state — hoisted so the canvas mousemove closure can reference `dragging`
+    let dragging = false;
+    let dragMoved = false;
+    let dragStart: { x: number; y: number; panX: number; panY: number } | null = null;
+
     // Populate worlds
     try {
         const worlds = (await (await fetch("/api/dofus/worlds")).json()) as { worlds: WorldMeta[] };
@@ -89,8 +94,12 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
 
     canvas.addEventListener("mousemove", (e) => {
         if (!currentHitTest) return;
+        // Skip hover update while dragging — the drag handler owns the cursor
+        if (dragging) return;
         const rect = canvas.getBoundingClientRect();
-        const hit = currentHitTest.hitTest(e.clientX - rect.left, e.clientY - rect.top);
+        const canvasX = (e.clientX - rect.left) / zoom;
+        const canvasY = (e.clientY - rect.top) / zoom;
+        const hit = currentHitTest.hitTest(canvasX, canvasY);
         if (hit !== currentHover) {
             currentHover = hit;
             void reRender(canvas);
@@ -105,16 +114,6 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
             void reRender(canvas);
             hoverInfo.textContent = "";
         }
-    });
-
-    canvas.addEventListener("click", (e) => {
-        if (!currentHitTest) return;
-        const rect = canvas.getBoundingClientRect();
-        const hit = currentHitTest.hitTest(e.clientX - rect.left, e.clientY - rect.top);
-        if (hit === null) return;
-        currentSelected = hit;
-        void reRender(canvas);
-        void loadCellGrid(panel, canvas, hit);
     });
 
     const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
@@ -137,6 +136,53 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         clampPan(hostEl, canvas);
         applyTransform(viewport);
     }, { passive: false });
+
+    hostEl.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        dragging = true;
+        dragMoved = false;
+        dragStart = { x: e.clientX, y: e.clientY, panX, panY };
+        hostEl.style.cursor = "grabbing";
+    });
+
+    const win = host.ownerDocument!.defaultView!;
+    win.addEventListener("mousemove", (e) => {
+        if (!dragging || !dragStart) return;
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+        if (!dragMoved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
+            dragMoved = true;
+        }
+        if (dragMoved) {
+            panX = dragStart.panX + dx;
+            panY = dragStart.panY + dy;
+            clampPan(hostEl, canvas);
+            applyTransform(viewport);
+        }
+    });
+
+    win.addEventListener("mouseup", () => {
+        if (!dragging || !dragStart) return;
+        const wasClick = !dragMoved;
+        const startScreenX = dragStart.x;
+        const startScreenY = dragStart.y;
+        dragging = false;
+        dragStart = null;
+        hostEl.style.cursor = "grab";
+        if (wasClick && currentHitTest) {
+            const rect = hostEl.getBoundingClientRect();
+            const mx = startScreenX - rect.left;
+            const my = startScreenY - rect.top;
+            const canvasX = (mx - panX) / zoom;
+            const canvasY = (my - panY) / zoom;
+            const hit = currentHitTest.hitTest(canvasX, canvasY);
+            if (hit !== null) {
+                currentSelected = hit;
+                void reRender(canvas);
+                void loadCellGrid(panel, canvas, hit);
+            }
+        }
+    });
 
     await loadAndRender(canvas);
 }
