@@ -141,24 +141,41 @@ interface AtlasOpts {
 
 async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<WorldCanvasResult> {
     const wm = opts.wm;
-    const scale = Math.min(1, ATLAS_MAX_W / wm.totalWidth);
-    canvas.width  = Math.round(wm.totalWidth  * scale);
-    canvas.height = Math.round(wm.totalHeight * scale);
+
+    // Pick the lowest scale present (different worlds expose different scale sets:
+    // Amakna has 0.2/0.4/0.6/0.8/1, the 34 other worlds have 0.25/0.5/0.75/1).
+    const allScales = [...new Set(opts.tiles.map((t) => parseFloat(t.scale)))]
+        .filter((s) => Number.isFinite(s))
+        .sort((a, b) => a - b);
+    if (allScales.length === 0) {
+        // No parseable scales — fall back to colored-grid.
+        return renderColoredGrid(canvas, {
+            maps: opts.maps, selectedMapId: opts.selectedMapId, hoveredMapId: opts.hoveredMapId,
+        });
+    }
+    const tileScale = allScales[0];
+    const tilesForScale = opts.tiles.filter((t) => parseFloat(t.scale) === tileScale);
+
+    // Atlas dimensions in tile-pixels (= world-pixels × tileScale).
+    const tilesAtlasW = wm.totalWidth  * tileScale;
+    const tilesAtlasH = wm.totalHeight * tileScale;
+    const renderScale = Math.min(1, ATLAS_MAX_W / tilesAtlasW);
+    canvas.width  = Math.round(tilesAtlasW * renderScale);
+    canvas.height = Math.round(tilesAtlasH * renderScale);
 
     const ctx = canvas.getContext("2d")!;
     ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = true;
 
-    const tilesForScale = opts.tiles.filter((t) => t.scale === "0.2");
-
+    // Flowing-row layout: wrap when the next tile would overflow the atlas width (in tile-px).
     let cursorX = 0, cursorY = 0, rowMaxH = 0;
     for (const t of tilesForScale) {
-        if (cursorX + t.width > wm.totalWidth + 8) {
+        if (cursorX + t.width > tilesAtlasW + 8) {
             cursorY += rowMaxH; cursorX = 0; rowMaxH = 0;
         }
-        const dx = cursorX * scale, dy = cursorY * scale;
-        const dw = t.width * scale, dh = t.height * scale;
+        const dx = cursorX * renderScale, dy = cursorY * renderScale;
+        const dw = t.width  * renderScale, dh = t.height * renderScale;
         if (t.tile) {
             try {
                 const img = await loadTileImage(`/api/dofus/cartography/tile/${t.tile}`);
@@ -173,36 +190,48 @@ async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<
         if (t.height > rowMaxH) rowMaxH = t.height;
     }
 
+    // Map markers (semi-transparent overlay). Convert world-px → tile-px → canvas-px.
     const tileByXY: Record<string, number> = {};
     ctx.globalAlpha = 0.35;
     for (const m of opts.maps) {
-        const a = worldToAtlasXY(wm, m.posX, m.posY);
+        const a = worldToAtlasXY(wm, m.posX, m.posY);  // world-px
+        const fx = a.x * tileScale * renderScale;
+        const fy = a.y * tileScale * renderScale;
+        const fw = a.w * tileScale * renderScale;
+        const fh = a.h * tileScale * renderScale;
         ctx.fillStyle = areaColor(m.areaId, m.mapId);
-        ctx.fillRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+        ctx.fillRect(fx, fy, fw, fh);
         tileByXY[`${m.posX},${m.posY}`] = m.mapId;
     }
     ctx.globalAlpha = 1;
 
+    // Selected outline (full alpha, white).
     if (opts.selectedMapId != null) {
         const m = opts.maps.find((x) => x.mapId === opts.selectedMapId);
         if (m) {
             const a = worldToAtlasXY(wm, m.posX, m.posY);
             ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
-            ctx.strokeRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+            ctx.strokeRect(a.x * tileScale * renderScale, a.y * tileScale * renderScale,
+                           a.w * tileScale * renderScale, a.h * tileScale * renderScale);
         }
     }
+    // Hovered outline (semi-white, only when distinct from selected).
     if (opts.hoveredMapId != null && opts.hoveredMapId !== opts.selectedMapId) {
         const m = opts.maps.find((x) => x.mapId === opts.hoveredMapId);
         if (m) {
             const a = worldToAtlasXY(wm, m.posX, m.posY);
             ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
-            ctx.strokeRect(a.x * scale, a.y * scale, a.w * scale, a.h * scale);
+            ctx.strokeRect(a.x * tileScale * renderScale, a.y * tileScale * renderScale,
+                           a.w * tileScale * renderScale, a.h * tileScale * renderScale);
         }
     }
 
+    // Inverse hit-test: canvas-px → tile-px → world-px → world coords.
     return {
         hitTest: (px, py) => {
-            const { posX, posY } = atlasXYToWorld(wm, px / scale, py / scale);
+            const wx = (px / renderScale) / tileScale;
+            const wy = (py / renderScale) / tileScale;
+            const { posX, posY } = atlasXYToWorld(wm, wx, wy);
             return tileByXY[`${posX},${posY}`] ?? null;
         },
     };

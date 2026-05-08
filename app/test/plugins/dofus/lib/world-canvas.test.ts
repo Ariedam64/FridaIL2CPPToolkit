@@ -100,15 +100,20 @@ describe("renderWorldCanvas — atlas mode", () => {
         const r = await renderWorldCanvas(canvas, { maps: [m(1, 0, 0)], dims, tiles });
         expect(ctx.drawImage).toHaveBeenCalledTimes(1);
         expect(typeof r.hitTest).toBe("function");
+        // tilesAtlasW = totalWidth(516) × tileScale(0.2) = 103.2 → renderScale = 1 (capped)
+        // canvas dims = round(103.2) × round(51.6) = 103 × 52
+        expect(canvas.width).toBe(103);
+        expect(canvas.height).toBe(52);
     });
 
     it("hitTest in atlas mode resolves a click to the correct mapId", async () => {
         withMockContext(canvas);
-        // Map at world (5, 7). worldToAtlasXY: x=(5-(-2))*86 = 602, y=(7-(-2))*43 = 387
-        // ATLAS_MAX_W=3000, totalWidth=516 → scale=min(1, 3000/516)=1 (capped to 1).
-        // So canvas-px == atlas-px. hitTest at (605, 390) should land on map 99.
+        // tileScale=0.2, tilesAtlasW=516*0.2=103.2, renderScale=1.
+        // Map at world (5,7) → atlas world-px (602,387) → tile-px (120.4, 77.4).
+        // Click at canvas-px (122, 79): / renderScale(1) / tileScale(0.2) → world-px (610, 395)
+        // atlasXYToWorld → posX = floor(610/86)+(-2) = 5, posY = floor(395/43)+(-2) = 7. Map 99 hit.
         const r = await renderWorldCanvas(canvas, { maps: [m(99, 5, 7)], dims, tiles });
-        expect(r.hitTest(605, 390)).toBe(99);
+        expect(r.hitTest(122, 79)).toBe(99);
     });
 
     it("falls back to colored grid (sync) when dims is missing", () => {
@@ -121,5 +126,26 @@ describe("renderWorldCanvas — atlas mode", () => {
         withMockContext(canvas);
         const r = renderWorldCanvas(canvas, { maps: [m(1, 0, 0)], dims, tiles: [] });
         expect(r).not.toBeInstanceOf(Promise);
+    });
+
+    it("uses lowest scale dynamically (0.25 world has no 0.2 tiles)", async () => {
+        const ctx = withMockContext(canvas);
+        const dims025 = {
+            origineX: 0, origineY: 0,
+            mapWidth: 86, mapHeight: 43,
+            totalWidth: 400, totalHeight: 200,
+        };
+        const tiles025 = [
+            { index: 0, name: "1", scale: "0.25", address: "0.25/1.jpg",
+              guid: "x", tile: "111111_1.jpg", width: 100, height: 50, ambiguous: false },
+            { index: 1, name: "1", scale: "1",   address: "1/1.jpg",
+              guid: "y", tile: "222222_1.jpg", width: 400, height: 200, ambiguous: false },
+        ];
+        await renderWorldCanvas(canvas, { maps: [m(1, 0, 0)], dims: dims025, tiles: tiles025 });
+        // Should pick scale=0.25 (lowest), draw 1 tile (filtered to scale 0.25).
+        expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+        // tilesAtlasW = 400 × 0.25 = 100, renderScale = min(1, 3000/100) = 1, canvas = 100 × 50
+        expect(canvas.width).toBe(100);
+        expect(canvas.height).toBe(50);
     });
 });
