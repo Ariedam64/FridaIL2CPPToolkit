@@ -82,6 +82,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         currentWorld = parseInt(select.value, 10);
         currentSelected = null;
         currentHover = null;
+        zoom = 1; panX = 0; panY = 0;
         panel.innerHTML = `<p style="color:#888">Click a map to inspect.</p>`;
         void loadAndRender(canvas);
     });
@@ -115,6 +116,27 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         void reRender(canvas);
         void loadCellGrid(panel, canvas, hit);
     });
+
+    const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+    const viewport = host.querySelector<HTMLElement>("[data-testid='canvas-viewport']")!;
+
+    hostEl.addEventListener("wheel", (e) => {
+        e.preventDefault();
+        const rect = hostEl.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+        const zoomDelta = e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP;
+        const newZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom * zoomDelta));
+        if (newZoom === zoom) return;
+        // Keep the canvas point under the cursor fixed:
+        //   canvasPoint = (mouse - pan) / zoom (constant before/after)
+        //   newPan = mouse - canvasPoint * newZoom
+        panX = mx - ((mx - panX) / zoom) * newZoom;
+        panY = my - ((my - panY) / zoom) * newZoom;
+        zoom = newZoom;
+        clampPan(hostEl, canvas);
+        applyTransform(viewport);
+    }, { passive: false });
 
     await loadAndRender(canvas);
 }

@@ -240,4 +240,28 @@ describe("mountMap", () => {
         const tileFetch = fetchMock.mock.calls.some(([url]) => url === "/api/dofus/tile-mapping?world=1");
         expect(tileFetch).toBe(true);
     });
+
+    it("wheel on the host changes the viewport transform (zoom in)", async () => {
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+
+        const hostEl = host.querySelector<HTMLElement>("[data-testid='canvas-host']")!;
+        const viewport = host.querySelector<HTMLElement>("[data-testid='canvas-viewport']")!;
+        // Capture initial transform after fitToHost
+        const before = viewport.style.transform;
+
+        // Mock host's getBoundingClientRect (happy-dom returns zeros otherwise)
+        hostEl.getBoundingClientRect = () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+
+        const win = host.ownerDocument!.defaultView as unknown as { Event: typeof Event };
+        const wheelEvt = new win.Event("wheel", { bubbles: true, cancelable: true });
+        Object.defineProperty(wheelEvt, "deltaY", { value: -100 }); // negative = zoom in
+        Object.defineProperty(wheelEvt, "clientX", { value: 100 });
+        Object.defineProperty(wheelEvt, "clientY", { value: 100 });
+        hostEl.dispatchEvent(wheelEvt);
+
+        // Transform should have updated (zoom changed from 1)
+        expect(viewport.style.transform).not.toBe(before);
+        expect(viewport.style.transform).toMatch(/scale\(/);
+    });
 });
