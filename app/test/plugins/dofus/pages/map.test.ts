@@ -123,4 +123,97 @@ describe("mountMap", () => {
         const panel = host.querySelector<HTMLElement>("[data-testid='cell-grid-panel']")!;
         expect(panel.querySelector("[data-testid='cell-grid-canvas']")).not.toBeNull();
     });
+
+    it("renders 4 N/E/S/W neighbour buttons after loading a map detail", async () => {
+        // Override fetchMock so /maps/100 returns 4 neighbours (1 valid N, 0 invalid E, 1 valid S, -1 invalid W)
+        fetchMock.mockImplementation(async (url: string) => {
+            if (url === "/api/dofus/worlds") {
+                return { ok: true, json: async () => ({
+                    worlds: [{ id: 1, name: "Amakna", mapCount: 2 }],
+                }) } as Response;
+            }
+            if (url === "/api/dofus/maps/list?world=1") {
+                return { ok: true, json: async () => ({
+                    world: 1,
+                    maps: [{ mapId: 100, posX: 0, posY: 0, subAreaId: 1, areaId: 0, name: "M100" }],
+                }) } as Response;
+            }
+            if (url.startsWith("/api/dofus/maps/")) {
+                return { ok: true, json: async () => ({
+                    mapId: 100, name: "M100", posX: 5, posY: 7, subAreaId: 1, areaId: 0,
+                    neighbours: [101, 0, 102, -1],
+                    cells: Array(560).fill([0,0,0,0,0]),
+                    interactives: [],
+                }) } as Response;
+            }
+            return { ok: false, status: 404, json: async () => ({}) } as Response;
+        });
+
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+
+        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
+        canvas.getBoundingClientRect = () => ({ left: 0, top: 0 } as DOMRect);
+        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
+        Object.defineProperty(evt, "clientX", { value: 8 });
+        Object.defineProperty(evt, "clientY", { value: 8 });
+        canvas.dispatchEvent(evt);
+        await new Promise((r) => setTimeout(r, 30));
+
+        const nav = host.querySelector<HTMLElement>("[data-testid='neighbours-nav']")!;
+        expect(nav).not.toBeNull();
+        const btns = nav.querySelectorAll<HTMLButtonElement>("button[data-dir]");
+        expect(btns).toHaveLength(4);
+        const byDir: Record<string, HTMLButtonElement> = {};
+        btns.forEach((b) => { byDir[b.dataset.dir!] = b; });
+        expect(byDir.n.disabled).toBe(false);
+        expect(byDir.e.disabled).toBe(true);   // mapId 0
+        expect(byDir.s.disabled).toBe(false);
+        expect(byDir.w.disabled).toBe(true);   // mapId -1
+    });
+
+    it("clicking a neighbour button fetches that map's detail", async () => {
+        // Same predictable-neighbours fixture as the previous test
+        fetchMock.mockImplementation(async (url: string) => {
+            if (url === "/api/dofus/worlds") {
+                return { ok: true, json: async () => ({
+                    worlds: [{ id: 1, name: "Amakna", mapCount: 2 }],
+                }) } as Response;
+            }
+            if (url === "/api/dofus/maps/list?world=1") {
+                return { ok: true, json: async () => ({
+                    world: 1,
+                    maps: [{ mapId: 100, posX: 0, posY: 0, subAreaId: 1, areaId: 0, name: "M100" }],
+                }) } as Response;
+            }
+            if (url.startsWith("/api/dofus/maps/")) {
+                return { ok: true, json: async () => ({
+                    mapId: 100, name: "M100", posX: 5, posY: 7, subAreaId: 1, areaId: 0,
+                    neighbours: [101, 0, 102, -1],
+                    cells: Array(560).fill([0,0,0,0,0]),
+                    interactives: [],
+                }) } as Response;
+            }
+            return { ok: false, status: 404, json: async () => ({}) } as Response;
+        });
+
+        await mountMap(host, makeCtx());
+        await new Promise((r) => setTimeout(r, 30));
+
+        const canvas = host.querySelector<HTMLCanvasElement>("[data-testid='world-canvas']")!;
+        canvas.getBoundingClientRect = () => ({ left: 0, top: 0 } as DOMRect);
+        const evt = new (host.ownerDocument!.defaultView as unknown as { Event: typeof Event }).Event("click", { bubbles: true });
+        Object.defineProperty(evt, "clientX", { value: 8 });
+        Object.defineProperty(evt, "clientY", { value: 8 });
+        canvas.dispatchEvent(evt);
+        await new Promise((r) => setTimeout(r, 30));
+
+        // Click the N button (mapId 101)
+        const nBtn = host.querySelector<HTMLButtonElement>("button[data-dir='n']")!;
+        nBtn.click();
+        await new Promise((r) => setTimeout(r, 30));
+
+        const fetched101 = fetchMock.mock.calls.some(([url]) => String(url) === "/api/dofus/maps/101");
+        expect(fetched101).toBe(true);
+    });
 });

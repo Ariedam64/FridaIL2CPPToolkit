@@ -98,7 +98,7 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         if (hit === null) return;
         currentSelected = hit;
         reRender(canvas);
-        void loadCellGrid(panel, hit);
+        void loadCellGrid(panel, canvas, hit);
     });
 
     await loadAndRender(canvas);
@@ -130,7 +130,39 @@ function reRender(canvas: HTMLCanvasElement): void {
     });
 }
 
-async function loadCellGrid(panel: HTMLDivElement, mapId: number): Promise<void> {
+function renderNeighbours(panel: HTMLDivElement, data: MapDetail, onClick: (mapId: number) => void): void {
+    const [n, e, s, w] = data.neighbours.length === 4 ? data.neighbours : [0, 0, 0, 0];
+    const isValid = (id: number) => id !== 0 && id !== -1;
+    const labelN = isValid(n) ? `↑ N (${data.posX}, ${data.posY - 1})` : "↑ N —";
+    const labelE = isValid(e) ? `→ E (${data.posX + 1}, ${data.posY})` : "→ E —";
+    const labelS = isValid(s) ? `↓ S (${data.posX}, ${data.posY + 1})` : "↓ S —";
+    const labelW = isValid(w) ? `← W (${data.posX - 1}, ${data.posY})` : "← W —";
+
+    const navHtml = `
+        <div data-testid="neighbours-nav" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:12px;font-size:11px">
+            <div></div>
+            <button data-dir="n" data-mapid="${n}" ${isValid(n) ? "" : "disabled"} style="padding:4px 6px">${labelN}</button>
+            <div></div>
+            <button data-dir="w" data-mapid="${w}" ${isValid(w) ? "" : "disabled"} style="padding:4px 6px">${labelW}</button>
+            <div></div>
+            <button data-dir="e" data-mapid="${e}" ${isValid(e) ? "" : "disabled"} style="padding:4px 6px">${labelE}</button>
+            <div></div>
+            <button data-dir="s" data-mapid="${s}" ${isValid(s) ? "" : "disabled"} style="padding:4px 6px">${labelS}</button>
+            <div></div>
+        </div>
+    `;
+    panel.insertAdjacentHTML("beforeend", navHtml);
+
+    panel.querySelectorAll<HTMLButtonElement>("[data-testid='neighbours-nav'] button[data-dir]").forEach((btn) => {
+        if (btn.disabled) return;
+        btn.addEventListener("click", () => {
+            const id = parseInt(btn.dataset.mapid!, 10);
+            if (isValid(id)) onClick(id);
+        });
+    });
+}
+
+async function loadCellGrid(panel: HTMLDivElement, canvas: HTMLCanvasElement, mapId: number): Promise<void> {
     panel.innerHTML = `<p style="color:#888">Loading…</p>`;
     try {
         const data = (await (await fetch(`/api/dofus/maps/${mapId}`)).json()) as MapDetail;
@@ -141,6 +173,11 @@ async function loadCellGrid(panel: HTMLDivElement, mapId: number): Promise<void>
         `;
         const gridCanvas = panel.querySelector<HTMLCanvasElement>("[data-testid='cell-grid-canvas']")!;
         renderCellGrid(gridCanvas, { cells: data.cells, interactives: data.interactives });
+        renderNeighbours(panel, data, (neighbourId) => {
+            currentSelected = neighbourId;
+            reRender(canvas);
+            void loadCellGrid(panel, canvas, neighbourId);
+        });
     } catch (err) {
         panel.innerHTML = `<p style="color:#f87171">Failed to load: ${escapeHtml(String(err))}</p>`;
     }
