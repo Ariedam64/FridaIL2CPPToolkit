@@ -22,8 +22,11 @@ import * as protoDescriptorCaptureRpc from "./proto-descriptor-capture";
 import * as networkMonitorRpc from "./network-monitor";
 import * as filesystemRpc from "./filesystem";
 import * as fingerprintsRpc from "./fingerprints";
+// Plugin-owned RPC modules — kept under src/rpc-agent/plugins/ so the agent
+// build picks them up, but logically belong to the matching app/plugins/<id>/.
+import * as dofusRpc from "./plugins/dofus";
 
-type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc & typeof sentryRpc & typeof gbeRouterRpc & typeof gbeProbeRpc & typeof attributesRpc & typeof dataCenterRpc & typeof protoDescriptorCaptureRpc & typeof networkMonitorRpc & typeof filesystemRpc & typeof fingerprintsRpc;
+type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc & typeof sentryRpc & typeof gbeRouterRpc & typeof gbeProbeRpc & typeof attributesRpc & typeof dataCenterRpc & typeof protoDescriptorCaptureRpc & typeof networkMonitorRpc & typeof filesystemRpc & typeof fingerprintsRpc & typeof dofusRpc;
 
 export function getRpcMethods(): AllRpc {
     return {
@@ -49,5 +52,6 @@ export function getRpcMethods(): AllRpc {
         ...networkMonitorRpc,
         ...filesystemRpc,
         ...fingerprintsRpc,
+        ...dofusRpc,
     } as AllRpc;
 }
