@@ -1,14 +1,9 @@
 // Variant of hookLog that includes a backtrace in the fire payload.
+// Frames are resolved through the IL2CPP method-address table (lib/stack-trace)
+// so we get "Cls.method+0xoff" strings instead of raw native symbols that
+// happen to be frida-injected exports.
 import "frida-il2cpp-bridge";
-import { findClass, stringifyValue } from "../lib";
-
-function frameToString(addr: NativePointer): string {
-    try {
-        const sym = DebugSymbol.fromAddress(addr);
-        if (sym && sym.name) return `${sym.moduleName || "?"}!${sym.name}+0x${(addr.sub(sym.address as any)).toString(16)}`;
-    } catch { /* fallthrough */ }
-    return addr.toString();
-}
+import { findClass, stringifyValue, resolveFrame } from "../lib";
 
 export function hookLogWithStack(className: string, methodName: string, maxFrames = 12): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -28,7 +23,7 @@ export function hookLogWithStack(className: string, methodName: string, maxFrame
                     try {
                         const bt = Thread.backtrace(this.context, Backtracer.ACCURATE);
                         for (let i = 0; i < Math.min(bt.length, maxFrames); i++) {
-                            stack.push(frameToString(bt[i]));
+                            stack.push(resolveFrame(bt[i]));
                         }
                     } catch { /* backtrace failed, leave stack empty */ }
                     send({
