@@ -1,6 +1,6 @@
 import type { PluginPageModule, PluginPageContext } from "../../../frontend/core/plugin-types";
 
-const SUBS = ["map", "items", "state"] as const;
+const SUBS = ["map", "hdv", "tc", "items", "state"] as const;
 type Sub = typeof SUBS[number];
 const DEFAULT_SUB: Sub = "map";
 
@@ -23,6 +23,12 @@ const mod: PluginPageModule = {
         const subHost = host.querySelector<HTMLElement>("[data-testid='dofus-sub-host']")!;
         if (sub === "map") {
             void import("./map").then(({ mountMap }) => mountMap(subHost, ctx));
+        } else if (sub === "hdv") {
+            void import("./hdv").then(({ mountHdvCraft }) => mountHdvCraft(subHost, ctx));
+        } else if (sub === "tc") {
+            void import("./tc").then(({ mountTradeCenterTest }) => mountTradeCenterTest(subHost, ctx));
+        } else if (sub === "state") {
+            void import("./state").then(({ mountState }) => mountState(subHost, ctx));
         } else {
             subHost.innerHTML = `
                 <p>Dofus plugin — <strong>${sub}</strong> sub-page (placeholder).</p>
