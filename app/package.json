@@ -13,7 +13,9 @@
     "start": "node dist/backend/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dofus:build-data": "tsx plugins/dofus/scripts/build-data.ts"
+    "dofus:build-data": "tsx plugins/dofus/scripts/build-data.ts",
+    "dofus:build-static-db": "tsx plugins/dofus/scripts/build-static-db.ts",
+    "dofus:patch-static-db": "tsx plugins/dofus/scripts/patch-static-db-from-runtime.ts"
   },
   "dependencies": {
     "chokidar": "^4.0.3",

@@ -1,0 +1,5061 @@
+{
+  "version": 1,
+  "generatedAt": "2026-05-10T19:17:01.119Z",
+  "source": {
+    "datacenter": "F:\\FridaIL2CPPToolkit\\.toolkit-data\\datacenter",
+    "i18n": "http://localhost:3001"
+  },
+  "interactives": {
+    "1": {
+      "name": "Frêne",
+      "gfxIds": [
+        650
+      ],
+      "skillIds": [
+        6
+      ],
+      "mapCount": 1
+    },
+    "2": {
+      "name": "Scie"
+    },
+    "8": {
+      "name": "Chêne",
+      "gfxIds": [
+        653
+      ],
+      "skillIds": [
+        10
+      ],
+      "mapCount": 1
+    },
+    "11": {
+      "name": "Table de confection"
+    },
+    "12": {
+      "name": "Atelier"
+    },
+    "13": {
+      "name": "Établi"
+    },
+    "15": {
+      "name": "Chaudron"
+    },
+    "16": {
+      "name": "Zaap",
+      "skillIds": [
+        114
+      ],
+      "mapCount": 1
+    },
+    "17": {
+      "name": "Fer"
+    },
+    "22": {
+      "name": "Four"
+    },
+    "24": {
+      "name": "Argent"
+    },
+    "25": {
+      "name": "Or"
+    },
+    "26": {
+      "name": "Bauxite"
+    },
+    "27": {
+      "name": "Moule"
+    },
+    "28": {
+      "name": "If",
+      "gfxIds": [
+        655
+      ],
+      "skillIds": [
+        33
+      ],
+      "mapCount": 1
+    },
+    "29": {
+      "name": "Ébène",
+      "gfxIds": [
+        657
+      ],
+      "skillIds": [
+        34
+      ],
+      "mapCount": 1
+    },
+    "30": {
+      "name": "Orme"
+    },
+    "31": {
+      "name": "Érable",
+      "gfxIds": [
+        654
+      ],
+      "skillIds": [
+        37
+      ],
+      "mapCount": 1
+    },
+    "32": {
+      "name": "Charme",
+      "gfxIds": [
+        658
+      ],
+      "skillIds": [
+        38
+      ],
+      "mapCount": 1
+    },
+    "33": {
+      "name": "Châtaignier",
+      "gfxIds": [
+        651
+      ],
+      "skillIds": [
+        39
+      ],
+      "mapCount": 1
+    },
+    "34": {
+      "name": "Noyer",
+      "gfxIds": [
+        652
+      ],
+      "skillIds": [
+        40
+      ],
+      "mapCount": 1
+    },
+    "35": {
+      "name": "Merisier",
+      "gfxIds": [
+        656
+      ],
+      "skillIds": [
+        41
+      ],
+      "mapCount": 1
+    },
+    "37": {
+      "name": "Kobalte"
+    },
+    "38": {
+      "name": "Blé",
+      "gfxIds": [
+        660
+      ],
+      "skillIds": [
+        45
+      ],
+      "mapCount": 1
+    },
+    "39": {
+      "name": "Houblon",
+      "gfxIds": [
+        661
+      ],
+      "skillIds": [
+        46
+      ],
+      "mapCount": 1
+    },
+    "40": {
+      "name": "Moulin"
+    },
+    "41": {
+      "name": "Meule"
+    },
+    "42": {
+      "name": "Lin"
+    },
+    "43": {
+      "name": "Orge",
+      "gfxIds": [
+        664
+      ],
+      "skillIds": [
+        53
+      ],
+      "mapCount": 1
+    },
+    "44": {
+      "name": "Seigle",
+      "gfxIds": [
+        665
+      ],
+      "skillIds": [
+        52
+      ],
+      "mapCount": 1
+    },
+    "45": {
+      "name": "Avoine",
+      "gfxIds": [
+        701
+      ],
+      "skillIds": [
+        57
+      ],
+      "mapCount": 1
+    },
+    "46": {
+      "name": "Chanvre",
+      "gfxIds": [
+        663
+      ],
+      "skillIds": [
+        54
+      ],
+      "mapCount": 1
+    },
+    "47": {
+      "name": "Malt",
+      "gfxIds": [
+        667
+      ],
+      "skillIds": [
+        58
+      ],
+      "mapCount": 1
+    },
+    "48": {
+      "name": "Tas de patates"
+    },
+    "49": {
+      "name": "Table à Patates"
+    },
+    "50": {
+      "name": "Concasseur"
+    },
+    "52": {
+      "name": "Étain"
+    },
+    "53": {
+      "name": "Cuivre"
+    },
+    "54": {
+      "name": "Manganèse"
+    },
+    "55": {
+      "name": "Bronze"
+    },
+    "56": {
+      "name": "Source de jouvence"
+    },
+    "57": {
+      "name": "Enclume"
+    },
+    "58": {
+      "name": "Machine à Coudre"
+    },
+    "60": {
+      "name": "Marmite"
+    },
+    "61": {
+      "name": "Edelweiss",
+      "gfxIds": [
+        680
+      ],
+      "skillIds": [
+        74
+      ],
+      "mapCount": 1
+    },
+    "62": {
+      "name": "Alembic"
+    },
+    "63": {
+      "name": "Froment"
+    },
+    "64": {
+      "name": "Épeautre"
+    },
+    "65": {
+      "name": "Sorgho"
+    },
+    "66": {
+      "name": "Menthe Sauvage",
+      "gfxIds": [
+        678
+      ],
+      "skillIds": [
+        72
+      ],
+      "mapCount": 1
+    },
+    "67": {
+      "name": "Trèfle à 5 feuilles",
+      "gfxIds": [
+        677
+      ],
+      "skillIds": [
+        71
+      ],
+      "mapCount": 1
+    },
+    "68": {
+      "name": "Orchidée Freyesque",
+      "gfxIds": [
+        679
+      ],
+      "skillIds": [
+        73
+      ],
+      "mapCount": 1
+    },
+    "69": {
+      "name": "Mortier & Pilon"
+    },
+    "70": {
+      "name": "Porte"
+    },
+    "71": {
+      "name": "Greuvette",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        128
+      ],
+      "mapCount": 1
+    },
+    "72": {
+      "name": "Somoon Agressif"
+    },
+    "73": {
+      "name": "Pwoulpe"
+    },
+    "74": {
+      "name": "Truite",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        125
+      ],
+      "mapCount": 1
+    },
+    "75": {
+      "name": "Goujon",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        124
+      ],
+      "mapCount": 1
+    },
+    "76": {
+      "name": "Poisson-Chaton",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        126
+      ],
+      "mapCount": 1
+    },
+    "77": {
+      "name": "Crabe",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        129
+      ],
+      "mapCount": 1
+    },
+    "78": {
+      "name": "Poisson Pané",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        130
+      ],
+      "mapCount": 1
+    },
+    "79": {
+      "name": "Carpe d'Iem",
+      "gfxIds": [
+        1018
+      ],
+      "skillIds": [
+        127
+      ],
+      "mapCount": 1
+    },
+    "80": {
+      "name": "Truite Vaseuse"
+    },
+    "81": {
+      "name": "Sardine Brillante"
+    },
+    "82": {
+      "name": "Coton"
+    },
+    "83": {
+      "name": "Fileuse"
+    },
+    "84": {
+      "name": "Puits"
+    },
+    "85": {
+      "name": "Coffre"
+    },
+    "86": {
+      "name": "Machine à Coudre"
+    },
+    "88": {
+      "name": "Établi en bois"
+    },
+    "90": {
+      "name": "Alambic"
+    },
+    "92": {
+      "name": "Enclume magique"
+    },
+    "93": {
+      "name": "Concasseur Munster"
+    },
+    "94": {
+      "name": "Plan de Travail"
+    },
+    "95": {
+      "name": "Plan de travail"
+    },
+    "96": {
+      "name": "Plan de Travail"
+    },
+    "97": {
+      "name": "Plan de Travail"
+    },
+    "98": {
+      "name": "Bombu",
+      "gfxIds": [
+        681
+      ],
+      "skillIds": [
+        139
+      ],
+      "mapCount": 1
+    },
+    "99": {
+      "name": "Ombre étrange"
+    },
+    "100": {
+      "name": "Pichon"
+    },
+    "101": {
+      "name": "Oliviolet"
+    },
+    "102": {
+      "name": "Machine de force"
+    },
+    "103": {
+      "name": "Établi Pyrotechnique"
+    },
+    "104": {
+      "name": "Koinkoin",
+      "gfxIds": [
+        9103
+      ],
+      "skillIds": [
+        152
+      ],
+      "mapCount": 1
+    },
+    "105": {
+      "name": "Poubelle",
+      "gfxIds": [
+        29506
+      ],
+      "skillIds": [
+        153
+      ],
+      "mapCount": 1
+    },
+    "106": {
+      "name": "Zaapi"
+    },
+    "107": {
+      "name": "Enclume à boucliers"
+    },
+    "108": {
+      "name": "Bambou"
+    },
+    "109": {
+      "name": "Bambou sombre"
+    },
+    "110": {
+      "name": "Bambou sacré"
+    },
+    "111": {
+      "name": "Riz"
+    },
+    "112": {
+      "name": "Pandouille"
+    },
+    "113": {
+      "name": "Dolomite"
+    },
+    "114": {
+      "name": "Silicate"
+    },
+    "115": {
+      "name": "Quibougent"
+    },
+    "116": {
+      "name": "Machine à Coudre Magique"
+    },
+    "117": {
+      "name": "Atelier Magique"
+    },
+    "118": {
+      "name": "Table Magique"
+    },
+    "119": {
+      "name": "Liste des artisans"
+    },
+    "120": {
+      "name": "Enclos"
+    },
+    "121": {
+      "name": "Kaliptus"
+    },
+    "122": {
+      "name": "Atelier de bricolage"
+    },
+    "127": {
+      "name": "Levier"
+    },
+    "128": {
+      "name": "Statue de classe"
+    },
+    "129": {
+      "name": "[NO_TRAD]Any IE"
+    },
+    "131": {
+      "name": "Perce-neige"
+    },
+    "132": {
+      "name": "Poisskaille"
+    },
+    "133": {
+      "name": "Tremble"
+    },
+    "134": {
+      "name": "Frostiz"
+    },
+    "135": {
+      "name": "Obsidienne"
+    },
+    "136": {
+      "name": "Coquillage"
+    },
+    "137": {
+      "name": "Machine à coudre de Poss'Ybel"
+    },
+    "138": {
+      "name": "Fabrique"
+    },
+    "139": {
+      "name": "Table de cuisine de mauvaise qualité"
+    },
+    "140": {
+      "name": "Atelier de mauvaise qualité"
+    },
+    "141": {
+      "name": "Établi de mauvaise qualité"
+    },
+    "142": {
+      "name": "Machine à coudre de mauvaise qualité"
+    },
+    "143": {
+      "name": "Machine à jouets"
+    },
+    "144": {
+      "name": "Pressoir à poisson"
+    },
+    "145": {
+      "name": "Atelier d'Emballage"
+    },
+    "146": {
+      "name": "Paquet Cadeau"
+    },
+    "147": {
+      "name": "Atelier d'emballage de cadeaux"
+    },
+    "148": {
+      "name": "Atelier des alchimistes"
+    },
+    "149": {
+      "name": "Atelier des bijoutiers"
+    },
+    "150": {
+      "name": "Atelier des bouchers"
+    },
+    "151": {
+      "name": "Atelier des bouchers et chasseurs"
+    },
+    "152": {
+      "name": "Atelier des boucliers"
+    },
+    "153": {
+      "name": "Atelier des boulangers"
+    },
+    "154": {
+      "name": "Atelier des bricoleurs"
+    },
+    "155": {
+      "name": "Atelier des bûcherons"
+    },
+    "156": {
+      "name": "Atelier des chasseurs"
+    },
+    "157": {
+      "name": "Atelier des cordonniers"
+    },
+    "158": {
+      "name": "Atelier des forgemages"
+    },
+    "159": {
+      "name": "Atelier des forgerons"
+    },
+    "160": {
+      "name": "Atelier des mineurs"
+    },
+    "161": {
+      "name": "Atelier des paysans"
+    },
+    "162": {
+      "name": "Atelier des poissonniers"
+    },
+    "163": {
+      "name": "Atelier des poissonniers et pêcheurs"
+    },
+    "164": {
+      "name": "Atelier des pêcheurs"
+    },
+    "165": {
+      "name": "Atelier des sculpteurs"
+    },
+    "166": {
+      "name": "Atelier des tailleurs"
+    },
+    "167": {
+      "name": "Arène"
+    },
+    "168": {
+      "name": "Banque"
+    },
+    "169": {
+      "name": "Bar Akouda"
+    },
+    "170": {
+      "name": "Bibliothèque"
+    },
+    "171": {
+      "name": "Boutiques de Nowel"
+    },
+    "172": {
+      "name": "Dojo"
+    },
+    "173": {
+      "name": "Église"
+    },
+    "174": {
+      "name": "Épicerie"
+    },
+    "175": {
+      "name": "Fabricant de skis"
+    },
+    "176": {
+      "name": "Hôtel de ville"
+    },
+    "177": {
+      "name": "Hôtel des métiers"
+    },
+    "178": {
+      "name": "Kanojedo"
+    },
+    "179": {
+      "name": "Kolizéum"
+    },
+    "180": {
+      "name": "Milice"
+    },
+    "181": {
+      "name": "Médecin de Frigost"
+    },
+    "182": {
+      "name": "Taverne"
+    },
+    "183": {
+      "name": "Taverne Alakarte"
+    },
+    "184": {
+      "name": "Taverne Atolmond"
+    },
+    "185": {
+      "name": "Taverne d'Argent"
+    },
+    "186": {
+      "name": "Taverne de Djaul"
+    },
+    "187": {
+      "name": "Taverne de la Bagrutte"
+    },
+    "188": {
+      "name": "Taverne de la Chopenbois"
+    },
+    "189": {
+      "name": "Taverne de la Misère"
+    },
+    "190": {
+      "name": "Taverne de la Tabasse"
+    },
+    "191": {
+      "name": "Taverne de Lisa Kaya"
+    },
+    "192": {
+      "name": "Taverne de Sakaï"
+    },
+    "193": {
+      "name": "Taverne du Bwork"
+    },
+    "194": {
+      "name": "Taverne du Chabrûlé"
+    },
+    "195": {
+      "name": "Taverne du Dernier Refuge"
+    },
+    "196": {
+      "name": "Taverne du Ferayeur"
+    },
+    "197": {
+      "name": "Taverne du Feubuk"
+    },
+    "198": {
+      "name": "Taverne du Pandawa Ivre"
+    },
+    "199": {
+      "name": "Taverne du Paradis Frigostien"
+    },
+    "200": {
+      "name": "Taverne du Pinchaut"
+    },
+    "201": {
+      "name": "Taverne du Ripate"
+    },
+    "202": {
+      "name": "Temple des guildes"
+    },
+    "203": {
+      "name": "Tour de Brâkmar"
+    },
+    "204": {
+      "name": "Tour des archives"
+    },
+    "205": {
+      "name": "Tour des ordres"
+    },
+    "206": {
+      "name": "Sous-marin Steamer",
+      "gfxIds": [
+        38073
+      ],
+      "skillIds": [
+        200,
+        212
+      ],
+      "mapCount": 1
+    },
+    "207": {
+      "name": "Autel"
+    },
+    "208": {
+      "name": "Krosmaster"
+    },
+    "209": {
+      "name": "Atelier d'Isidor Fèvre"
+    },
+    "210": {
+      "name": "Atelier d'Al Shab"
+    },
+    "211": {
+      "name": "Atelier de Frigostine"
+    },
+    "212": {
+      "name": "Atelier de Francky"
+    },
+    "213": {
+      "name": "Atelier de Dutch"
+    },
+    "214": {
+      "name": "Atelier de Brokkeitri"
+    },
+    "215": {
+      "name": "Atelier de Laurent Part"
+    },
+    "216": {
+      "name": "Atelier de Clarisse Tosha"
+    },
+    "217": {
+      "name": "Atelier d'Annette Daimpeau"
+    },
+    "218": {
+      "name": "Atelier de Carla Garfield"
+    },
+    "219": {
+      "name": "Métier d'Avenir"
+    },
+    "220": {
+      "name": "Tonneau d'explosifs"
+    },
+    "221": {
+      "name": "Fleur de Sutol"
+    },
+    "222": {
+      "name": "Barbecue"
+    },
+    "223": {
+      "name": "Cawotte fraîche"
+    },
+    "224": {
+      "name": "Alambic patiné de l'hôtel des métiers"
+    },
+    "225": {
+      "name": "Bouteille de Rhum"
+    },
+    "226": {
+      "name": "Ascenseur"
+    },
+    "227": {
+      "name": "Champignon"
+    },
+    "228": {
+      "name": "Table de Bowisse"
+    },
+    "229": {
+      "name": "Atelier de Mériana"
+    },
+    "230": {
+      "name": "Portail des Bworks"
+    },
+    "231": {
+      "name": "Distributeur de missions"
+    },
+    "232": {
+      "name": "Portail"
+    },
+    "233": {
+      "name": "Coffre en or"
+    },
+    "234": {
+      "name": "Glaçon"
+    },
+    "235": {
+      "name": "Aller vers"
+    },
+    "236": {
+      "name": "Pupitre"
+    },
+    "237": {
+      "name": "Table de planification"
+    },
+    "238": {
+      "name": "Aller vers l'instance A"
+    },
+    "239": {
+      "name": "Aller vers l'instance B"
+    },
+    "240": {
+      "name": "Aller vers l'instance C"
+    },
+    "241": {
+      "name": "Vieux Coffre XXIII"
+    },
+    "242": {
+      "name": "Établi d'horloger"
+    },
+    "243": {
+      "name": "Coffre XI"
+    },
+    "244": {
+      "name": "Coffre XXIII"
+    },
+    "245": {
+      "name": "Coffre XXXI"
+    },
+    "246": {
+      "name": "Coffre LIX"
+    },
+    "247": {
+      "name": "Horloge en avance de 2 minutes"
+    },
+    "248": {
+      "name": "Horloge en retard de 3 minutes"
+    },
+    "249": {
+      "name": "Horloge en avance de 7 minutes"
+    },
+    "250": {
+      "name": "Horloge en retard de 8 minutes"
+    },
+    "251": {
+      "name": "Œufs de Tempax"
+    },
+    "252": {
+      "name": "Atelier des Voyageurs"
+    },
+    "253": {
+      "name": "Portail Eliotrope"
+    },
+    "254": {
+      "name": "Ortie",
+      "gfxIds": [
+        3212
+      ],
+      "skillIds": [
+        68
+      ],
+      "mapCount": 1
+    },
+    "255": {
+      "name": "Sauge",
+      "gfxIds": [
+        3213
+      ],
+      "skillIds": [
+        69
+      ],
+      "mapCount": 1
+    },
+    "256": {
+      "name": "Ginseng",
+      "gfxIds": [
+        3230
+      ],
+      "skillIds": [
+        303
+      ],
+      "mapCount": 1
+    },
+    "257": {
+      "name": "Belladone"
+    },
+    "258": {
+      "name": "Mandragore"
+    },
+    "259": {
+      "name": "Noisetier",
+      "gfxIds": [
+        3222
+      ],
+      "skillIds": [
+        306
+      ],
+      "mapCount": 1
+    },
+    "260": {
+      "name": "Maïs"
+    },
+    "261": {
+      "name": "Millet"
+    },
+    "262": {
+      "name": "Bloc de pierre",
+      "gfxIds": [
+        2204
+      ],
+      "mapCount": 1
+    },
+    "263": {
+      "name": "Brochet"
+    },
+    "264": {
+      "name": "Kralamoure"
+    },
+    "265": {
+      "name": "Anguille"
+    },
+    "266": {
+      "name": "Dorade Grise"
+    },
+    "267": {
+      "name": "Perche"
+    },
+    "268": {
+      "name": "Raie"
+    },
+    "269": {
+      "name": "Lotte"
+    },
+    "270": {
+      "name": "Requin Marteau-Faucille"
+    },
+    "271": {
+      "name": "Bar Rikain"
+    },
+    "272": {
+      "name": "Morue"
+    },
+    "273": {
+      "name": "Tanche"
+    },
+    "274": {
+      "name": "Espadon"
+    },
+    "275": {
+      "name": "Enclume de Mulic Bere"
+    },
+    "276": {
+      "name": "Établi de Mulic Bere"
+    },
+    "277": {
+      "name": "Atelier de Mulic Bere"
+    },
+    "278": {
+      "name": "Assembleur de Mulic Bere"
+    },
+    "279": {
+      "name": "Atelier du Mage Ax"
+    },
+    "280": {
+      "name": "Plate-forme Huppermage"
+    },
+    "281": {
+      "name": "Trèfle à 4 feuilles"
+    },
+    "282": {
+      "name": "Indiquer une sortie"
+    },
+    "283": {
+      "name": "Chathon"
+    },
+    "284": {
+      "name": "Escalier"
+    },
+    "285": {
+      "name": "Porte blindée"
+    },
+    "286": {
+      "name": "Atelier indicible"
+    },
+    "287": {
+      "name": "Aquajou"
+    },
+    "288": {
+      "name": "Salikrone"
+    },
+    "289": {
+      "name": "Quisnoa"
+    },
+    "290": {
+      "name": "Patelle"
+    },
+    "291": {
+      "name": "Écume de mer"
+    },
+    "292": {
+      "name": "Table de Travail"
+    },
+    "293": {
+      "name": "Écume de mer"
+    },
+    "294": {
+      "name": "Aquajou"
+    },
+    "295": {
+      "name": "Salikrone"
+    },
+    "296": {
+      "name": "Quisnoa"
+    },
+    "297": {
+      "name": "Patelle"
+    },
+    "298": {
+      "name": "Atelier de Natacha Manka"
+    },
+    "299": {
+      "name": "Œufs frais"
+    },
+    "300": {
+      "name": "Maison",
+      "gfxIds": [
+        29518,
+        29519,
+        29520,
+        30193,
+        30194,
+        42274,
+        62995,
+        701340
+      ],
+      "skillIds": [
+        84,
+        97
+      ],
+      "mapCount": 1
+    },
+    "301": {
+      "name": "Arène de tournoi"
+    },
+    "302": {
+      "name": "Champignon aquatique"
+    },
+    "303": {
+      "name": "Agrypnite tue-sommeil"
+    },
+    "304": {
+      "name": "Agrypnite tue-sommeil grillée"
+    },
+    "305": {
+      "name": "Village Miniature"
+    },
+    "306": {
+      "name": "Machine à coudre astrubienne"
+    },
+    "307": {
+      "name": "Mansot de Galaethiel"
+    },
+    "308": {
+      "name": "Cadeau surprise"
+    },
+    "309": {
+      "name": "Boîte grinçante"
+    },
+    "310": {
+      "name": "Potion surprise"
+    },
+    "311": {
+      "name": "Atelier de fortune"
+    },
+    "312": {
+      "name": "Porte du Domaine des dieux"
+    },
+    "313": {
+      "name": "Hôtel de vente des ressources"
+    },
+    "314": {
+      "name": "Hôtel de vente des équipements"
+    },
+    "315": {
+      "name": "Hôtel de vente des consommables"
+    },
+    "316": {
+      "name": "Panneau directionnel",
+      "gfxIds": [
+        62977,
+        62987,
+        62988,
+        63286,
+        63288,
+        63292,
+        63294,
+        63649
+      ],
+      "skillIds": [
+        184,
+        339,
+        360,
+        361,
+        362
+      ],
+      "mapCount": 1
+    },
+    "317": {
+      "name": "Cristal"
+    },
+    "318": {
+      "name": "Hôtel de vente des runes"
+    },
+    "319": {
+      "name": "Hôtel de vente des créatures",
+      "gfxIds": [
+        63033
+      ],
+      "skillIds": [
+        355
+      ],
+      "mapCount": 1
+    },
+    "320": {
+      "name": "Hôtel de vente des âmes"
+    },
+    "321": {
+      "name": "Lin du Destin",
+      "gfxIds": [
+        662
+      ],
+      "mapCount": 1
+    },
+    "322": {
+      "name": "Papier d'emballage"
+    },
+    "323": {
+      "name": "Atelier de Nafd"
+    },
+    "324": {
+      "name": "Passage instable"
+    },
+    "325": {
+      "name": "Poubelle verte claire"
+    },
+    "326": {
+      "name": "Meule enchantée"
+    },
+    "327": {
+      "name": "Puits des Songes infinis"
+    },
+    "328": {
+      "name": "Zaap du sanctuaire"
+    },
+    "329": {
+      "name": "Squelette"
+    },
+    "330": {
+      "name": "Vestiaire"
+    },
+    "331": {
+      "name": "Machine de siège"
+    },
+    "332": {
+      "name": "Livre"
+    },
+    "333": {
+      "name": "Épée"
+    },
+    "334": {
+      "name": "Statue de Sadida corrompue"
+    },
+    "335": {
+      "name": "Fleur"
+    },
+    "336": {
+      "name": "Table de divination"
+    },
+    "337": {
+      "name": "Arbre-Lanterne"
+    },
+    "338": {
+      "name": "Lanterne Primordiale"
+    },
+    "339": {
+      "name": "Sanctuaire de Maître"
+    },
+    "340": {
+      "name": "Pont des granouilles"
+    },
+    "341": {
+      "name": "Source du chacha blanc"
+    },
+    "342": {
+      "name": "Source du bwak"
+    },
+    "343": {
+      "name": "Source du cochon pandalien"
+    },
+    "344": {
+      "name": "Meule d'affûtage"
+    },
+    "345": {
+      "name": "Bassin de trempe"
+    },
+    "346": {
+      "name": "Forge de Katana"
+    },
+    "347": {
+      "name": "Tapis de feuilles mortes"
+    },
+    "348": {
+      "name": "Poterie"
+    },
+    "349": {
+      "name": "Fujibakama"
+    },
+    "350": {
+      "name": "Statue de Kozaru"
+    },
+    "351": {
+      "name": "Bol à offrandes"
+    },
+    "352": {
+      "name": "Statue méditative"
+    },
+    "353": {
+      "name": "Encens"
+    },
+    "354": {
+      "name": "Bambou spirituel"
+    },
+    "355": {
+      "name": "Seau"
+    },
+    "356": {
+      "name": "Polisseur à riz"
+    },
+    "357": {
+      "name": "Tirelire de Nixie"
+    },
+    "358": {
+      "name": "Traces de sang"
+    },
+    "359": {
+      "name": "Vestige de zaap"
+    },
+    "360": {
+      "name": "Calliglyphes"
+    },
+    "361": {
+      "name": "Source du porcos pandalien"
+    },
+    "362": {
+      "name": "Cristal liquide"
+    },
+    "363": {
+      "name": "Cristal pliable"
+    },
+    "364": {
+      "name": "Tulipe en papier"
+    },
+    "365": {
+      "name": "Pichon d'encre"
+    },
+    "366": {
+      "name": "Puits de Feu Noir"
+    },
+    "367": {
+      "name": "Puits de Feu Blanc"
+    },
+    "368": {
+      "name": "Rocher"
+    },
+    "369": {
+      "name": "Pancarte usée"
+    },
+    "370": {
+      "name": "Parchemin du Dojo"
+    },
+    "371": {
+      "name": "Pinceau"
+    },
+    "372": {
+      "name": "Table de jeu"
+    },
+    "373": {
+      "name": "Machine à sous"
+    },
+    "374": {
+      "name": "Croc étrange"
+    },
+    "375": {
+      "name": "Débris d'épave"
+    },
+    "376": {
+      "name": "Butin des possédés"
+    },
+    "377": {
+      "name": "Glyphe Ravageur"
+    },
+    "378": {
+      "name": "Saucisse à moitié mangée"
+    },
+    "379": {
+      "name": "Statue du Ch'Tyx"
+    },
+    "380": {
+      "name": "Pioche"
+    },
+    "381": {
+      "name": "Hôtel de vente des cosmétiques"
+    },
+    "386": {
+      "name": "Tabinibus (20 kamas)"
+    },
+    "387": {
+      "name": "Ototube (20 kamas)"
+    },
+    "388": {
+      "name": "Coffre de guilde"
+    },
+    "389": {
+      "name": "Athanor sylvestre"
+    },
+    "390": {
+      "name": "Traces de sabots"
+    },
+    "391": {
+      "name": "Flacon vide"
+    },
+    "392": {
+      "name": "Morceau d'étoffe"
+    },
+    "393": {
+      "name": "Plante carnivore repue"
+    },
+    "395": {
+      "name": "Amarrante vulkaine"
+    },
+    "396": {
+      "name": "Palmier vulkain"
+    },
+    "397": {
+      "name": "Fleur de selles vulkaine"
+    },
+    "398": {
+      "name": "Magnok vulkain"
+    },
+    "399": {
+      "name": "Polichon kloune vulkain"
+    },
+    "400": {
+      "name": "Cendrepierre"
+    },
+    "401": {
+      "name": "Pin"
+    },
+    "402": {
+      "name": "Enclume des Marteaux-Aigris"
+    },
+    "403": {
+      "name": "Pupitre enchanté"
+    },
+    "404": {
+      "name": "Belladone enchantée"
+    },
+    "405": {
+      "name": "Mandragore enchantée"
+    },
+    "406": {
+      "name": "Aller vers l'instance A 1v1"
+    },
+    "407": {
+      "name": "Aller vers l'instance B 1v1"
+    },
+    "408": {
+      "name": "Aller vers l'instance C 1v1"
+    },
+    "409": {
+      "name": "Aller vers l'instance A 3v3"
+    },
+    "410": {
+      "name": "Aller vers l'instance B 3v3"
+    },
+    "411": {
+      "name": "Aller vers l'instance C 3v3"
+    },
+    "412": {
+      "name": "Prison à Altéré"
+    },
+    "413": {
+      "name": "Trône de Goultard"
+    },
+    "414": {
+      "name": "Forge de l'Horloge"
+    },
+    "415": {
+      "name": "Portail vers Bonta"
+    },
+    "416": {
+      "name": "Portail vers Brâkmar"
+    },
+    "417": {
+      "name": "Portail vers Sufokia"
+    },
+    "418": {
+      "name": "Portail vers Astrub"
+    },
+    "419": {
+      "name": "Portail vers Amakna"
+    },
+    "420": {
+      "name": "Télévision"
+    },
+    "421": {
+      "name": "Larve express"
+    },
+    "422": {
+      "name": "Azzznzzzrbz"
+    },
+    "423": {
+      "name": "Prendre le Métroboulododo"
+    },
+    "424": {
+      "name": "Prendre le Mztroboolododobz"
+    },
+    "425": {
+      "name": "Nozxbz rozalzbz"
+    },
+    "426": {
+      "name": "Compilateur à micro-ondes"
+    },
+    "427": {
+      "name": "Atelier à outils de chasse"
+    },
+    "428": {
+      "name": "Tunnel Kabombz"
+    },
+    "429": {
+      "name": "Notice"
+    },
+    "430": {
+      "name": "Bouton Agrandisseur"
+    },
+    "431": {
+      "name": "Bouton Réducteur"
+    },
+    "432": {
+      "name": "Bouton Téléporteur"
+    },
+    "433": {
+      "name": "Emplacement à croquette"
+    },
+    "434": {
+      "name": "Moelle de Rhoarim"
+    },
+    "435": {
+      "name": "Perle de Nectar"
+    },
+    "436": {
+      "name": "Œil de Gargandyas"
+    },
+    "437": {
+      "name": "Zœuf non fécondé"
+    },
+    "438": {
+      "name": "Cicatrice de Gargandyas"
+    },
+    "439": {
+      "name": "Jarre d'huile"
+    },
+    "440": {
+      "name": "Rzszrvzbz Nozxbz"
+    },
+    "441": {
+      "name": "Enutrosor"
+    },
+    "442": {
+      "name": "Srambad"
+    },
+    "443": {
+      "name": "Xélorium"
+    },
+    "444": {
+      "name": "Ecaflipus"
+    },
+    "445": {
+      "name": "Osavora"
+    },
+    "446": {
+      "name": "Sonde"
+    },
+    "447": {
+      "name": "Caveau"
+    },
+    "448": {
+      "name": "Note"
+    },
+    "449": {
+      "name": "Parchemin"
+    },
+    "450": {
+      "name": "Document"
+    },
+    "451": {
+      "name": "Prisme neutre"
+    },
+    "452": {
+      "name": "Bonmonstre de neige"
+    },
+    "453": {
+      "name": "Boîte d'Enutrof"
+    },
+    "454": {
+      "name": "Barque"
+    },
+    "455": {
+      "name": "Échelle"
+    },
+    "456": {
+      "name": "Corde"
+    },
+    "457": {
+      "name": "Scaphandre"
+    }
+  },
+  "skills": {
+    "6": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 303,
+        "name": "Bois de Frêne"
+      }
+    },
+    "10": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 60,
+      "gatheredItem": {
+        "id": 460,
+        "name": "Bois de Chêne"
+      }
+    },
+    "12": {
+      "name": "Créer un Bijou",
+      "jobId": 16,
+      "jobName": "Bijoutier",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "13": {
+      "name": "Travailler le cuir",
+      "jobId": 15,
+      "jobName": "Cordonnier",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "15": {
+      "name": "Sculpter",
+      "jobId": 13,
+      "jobName": "Sculpteur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "20": {
+      "name": "Forger",
+      "jobId": 11,
+      "jobName": "Forgeron",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "22": {
+      "name": "Eplucher",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "23": {
+      "name": "Préparer une Potion",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "24": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 312,
+        "name": "Fer"
+      }
+    },
+    "25": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 20,
+      "gatheredItem": {
+        "id": 441,
+        "name": "Cuivre"
+      }
+    },
+    "26": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 40,
+      "gatheredItem": {
+        "id": 442,
+        "name": "Bronze"
+      }
+    },
+    "27": {
+      "name": "Cuire",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "28": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 60,
+      "gatheredItem": {
+        "id": 443,
+        "name": "Kobalte"
+      }
+    },
+    "29": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 120,
+      "gatheredItem": {
+        "id": 350,
+        "name": "Argent"
+      }
+    },
+    "30": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 160,
+      "gatheredItem": {
+        "id": 313,
+        "name": "Or"
+      }
+    },
+    "31": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 140,
+      "gatheredItem": {
+        "id": 446,
+        "name": "Bauxite"
+      }
+    },
+    "32": {
+      "name": "Fondre",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "33": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 461,
+        "name": "Bois d'If"
+      }
+    },
+    "34": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 140,
+      "gatheredItem": {
+        "id": 449,
+        "name": "Bois d'Ébène"
+      }
+    },
+    "35": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 180,
+      "gatheredItem": {
+        "id": 470,
+        "name": "Bois d'Orme"
+      }
+    },
+    "37": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 80,
+      "gatheredItem": {
+        "id": 471,
+        "name": "Bois d'Érable"
+      }
+    },
+    "38": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 160,
+      "gatheredItem": {
+        "id": 472,
+        "name": "Bois de Charme"
+      }
+    },
+    "39": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 20,
+      "gatheredItem": {
+        "id": 473,
+        "name": "Bois de Châtaignier"
+      }
+    },
+    "40": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 40,
+      "gatheredItem": {
+        "id": 476,
+        "name": "Bois de Noyer"
+      }
+    },
+    "41": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 120,
+      "gatheredItem": {
+        "id": 474,
+        "name": "Bois de Merisier"
+      }
+    },
+    "42": {
+      "name": "Ramasser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 537,
+        "name": "Pomme de Terre"
+      }
+    },
+    "44": {
+      "name": "Sauvegarder",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 3,
+      "levelMin": 1
+    },
+    "45": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 289,
+        "name": "Blé"
+      }
+    },
+    "46": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 60,
+      "gatheredItem": {
+        "id": 401,
+        "name": "Houblon"
+      }
+    },
+    "47": {
+      "name": "Moudre",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "48": {
+      "name": "Polir une Pierre",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "50": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 80,
+      "gatheredItem": {
+        "id": 423,
+        "name": "Lin"
+      }
+    },
+    "52": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 532,
+        "name": "Seigle"
+      }
+    },
+    "53": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 20,
+      "gatheredItem": {
+        "id": 400,
+        "name": "Orge"
+      }
+    },
+    "54": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 140,
+      "gatheredItem": {
+        "id": 425,
+        "name": "Chanvre"
+      }
+    },
+    "55": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 444,
+        "name": "Étain"
+      }
+    },
+    "56": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 80,
+      "gatheredItem": {
+        "id": 445,
+        "name": "Manganèse"
+      }
+    },
+    "57": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 40,
+      "gatheredItem": {
+        "id": 533,
+        "name": "Avoine"
+      }
+    },
+    "58": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 120,
+      "gatheredItem": {
+        "id": 405,
+        "name": "Malt"
+      }
+    },
+    "62": {
+      "name": "Se régénérer",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 4,
+      "levelMin": 1
+    },
+    "63": {
+      "name": "Coudre",
+      "jobId": 27,
+      "jobName": "Tailleur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "68": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 421,
+        "name": "Ortie"
+      }
+    },
+    "69": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 20,
+      "gatheredItem": {
+        "id": 428,
+        "name": "Sauge"
+      }
+    },
+    "71": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 40,
+      "gatheredItem": {
+        "id": 395,
+        "name": "Trèfle à 5 feuilles"
+      }
+    },
+    "72": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 60,
+      "gatheredItem": {
+        "id": 380,
+        "name": "Menthe Sauvage"
+      }
+    },
+    "73": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 80,
+      "gatheredItem": {
+        "id": 593,
+        "name": "Orchidée Freyesque"
+      }
+    },
+    "74": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 594,
+        "name": "Edelweiss"
+      }
+    },
+    "81": {
+      "name": "Ajouter un code",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 1
+    },
+    "84": {
+      "name": "Entrer",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 1
+    },
+    "97": {
+      "name": "Acheter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 1
+    },
+    "98": {
+      "name": "Vendre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 1
+    },
+    "100": {
+      "name": "Modifier le code",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 1
+    },
+    "101": {
+      "name": "Scier",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "102": {
+      "name": "Puiser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 311,
+        "name": "Eau Potable"
+      }
+    },
+    "104": {
+      "name": "Ouvrir",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 6,
+      "levelMin": 1
+    },
+    "105": {
+      "name": "Verrouiller",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 6,
+      "levelMin": 1
+    },
+    "106": {
+      "name": "Déverrouiller",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 6,
+      "levelMin": 1
+    },
+    "108": {
+      "name": "Modifier le prix de vente",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 1
+    },
+    "109": {
+      "name": "Faire des bonbons",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "110": {
+      "name": "Utiliser établi",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "111": {
+      "name": "Se régénérer",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 7,
+      "levelMin": 1
+    },
+    "113": {
+      "name": "Forgemager",
+      "jobId": 44,
+      "jobName": "Forgemage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "114": {
+      "name": "Utiliser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 3,
+      "levelMin": 1
+    },
+    "118": {
+      "name": "Sculptemager",
+      "jobId": 48,
+      "jobName": "Sculptemage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "121": {
+      "name": "Fusionner des ressources",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "122": {
+      "name": "Egrener",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "124": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 1782,
+        "name": "Goujon"
+      }
+    },
+    "125": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 20,
+      "gatheredItem": {
+        "id": 1844,
+        "name": "Truite"
+      }
+    },
+    "126": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 40,
+      "gatheredItem": {
+        "id": 603,
+        "name": "Poisson-Chaton"
+      }
+    },
+    "127": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 60,
+      "gatheredItem": {
+        "id": 1794,
+        "name": "Carpe d'Iem"
+      }
+    },
+    "128": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 10,
+      "gatheredItem": {
+        "id": 598,
+        "name": "Greuvette"
+      }
+    },
+    "129": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 30,
+      "gatheredItem": {
+        "id": 1757,
+        "name": "Crabe Sourimi"
+      }
+    },
+    "130": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 50,
+      "gatheredItem": {
+        "id": 1750,
+        "name": "Poisson Pané"
+      }
+    },
+    "131": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 70,
+      "gatheredItem": {
+        "id": 1805,
+        "name": "Sardine Brillante"
+      }
+    },
+    "134": {
+      "name": "Préparer une viande",
+      "jobId": 41,
+      "jobName": "Chasseur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "135": {
+      "name": "Préparer un poisson",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "136": {
+      "name": "Pêcher",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 2187,
+        "name": "Pichon Eud'Compet"
+      }
+    },
+    "139": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 70,
+      "gatheredItem": {
+        "id": 2358,
+        "name": "Bois de Bombu"
+      }
+    },
+    "141": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 90,
+      "gatheredItem": {
+        "id": 2357,
+        "name": "Bois d'Oliviolet"
+      }
+    },
+    "150": {
+      "name": "Jouer",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "151": {
+      "name": "Invoquer une Fée",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "152": {
+      "name": "Pêcher koinkoin",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "153": {
+      "name": "Fouiller",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 6,
+      "levelMin": 1
+    },
+    "154": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 110,
+      "gatheredItem": {
+        "id": 7013,
+        "name": "Bois de Bambou"
+      }
+    },
+    "155": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 170,
+      "gatheredItem": {
+        "id": 7016,
+        "name": "Bois de Bambou Sombre"
+      }
+    },
+    "156": {
+      "name": "Forger un Bouclier",
+      "jobId": 60,
+      "jobName": "Façonneur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "157": {
+      "name": "Se faire transporter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 10,
+      "levelMin": 1
+    },
+    "158": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 190,
+      "gatheredItem": {
+        "id": 7014,
+        "name": "Bois de Bambou Sacré"
+      }
+    },
+    "159": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 7018,
+        "name": "Riz"
+      }
+    },
+    "160": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 120,
+      "gatheredItem": {
+        "id": 7059,
+        "name": "Graine de Pandouille"
+      }
+    },
+    "161": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 180,
+      "gatheredItem": {
+        "id": 7033,
+        "name": "Dolomite"
+      }
+    },
+    "162": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 7032,
+        "name": "Silicate"
+      }
+    },
+    "164": {
+      "name": "Cordomager",
+      "jobId": 62,
+      "jobName": "Cordomage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "166": {
+      "name": "Costumager",
+      "jobId": 64,
+      "jobName": "Costumage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "168": {
+      "name": "Joaillomager",
+      "jobId": 63,
+      "jobName": "Joaillomage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "170": {
+      "name": "Consulter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 12,
+      "levelMin": 1
+    },
+    "171": {
+      "name": "Bricoler",
+      "jobId": 65,
+      "jobName": "Bricoleur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "174": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 150,
+      "gatheredItem": {
+        "id": 7925,
+        "name": "Bois de Kaliptus"
+      }
+    },
+    "179": {
+      "name": "Actionner",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 14,
+      "levelMin": 1
+    },
+    "181": {
+      "name": "Briser des objets",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "183": {
+      "name": "Se rendre à Incarnam",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "184": {
+      "name": "Utiliser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "185": {
+      "name": "[@ref CoffreMaison]",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 6,
+      "levelMin": 0
+    },
+    "186": {
+      "name": "[@ref Maison]",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 0
+    },
+    "187": {
+      "name": "Sortir",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 0
+    },
+    "188": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 11102,
+        "name": "Perce-Neige"
+      }
+    },
+    "189": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 11106,
+        "name": "Poisskaille"
+      }
+    },
+    "190": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 11107,
+        "name": "Bois de Tremble"
+      }
+    },
+    "191": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 11109,
+        "name": "Frostiz"
+      }
+    },
+    "192": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 11110,
+        "name": "Obsidienne"
+      }
+    },
+    "193": {
+      "name": "Ramasser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 12472,
+        "name": "Coquillage Enda"
+      }
+    },
+    "195": {
+      "name": "Ramasser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 12473,
+        "name": "Coquillage Ité"
+      }
+    },
+    "196": {
+      "name": "Ramasser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 12474,
+        "name": "Coquillage Accio"
+      }
+    },
+    "198": {
+      "name": "[@ref Multienclos]",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 5,
+      "levelMin": 0
+    },
+    "199": {
+      "name": "Fabriquer une petite clef",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "200": {
+      "name": "Se rendre au temple",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "201": {
+      "name": "Forger un Trophée",
+      "jobId": 60,
+      "jobName": "Façonneur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "202": {
+      "name": "Coudre une doublure",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "203": {
+      "name": "Préparer une sauce",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "204": {
+      "name": "Fabriquer un balai",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "205": {
+      "name": "Coudre du tissu",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "206": {
+      "name": "Préparer de l'huile de foie",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "207": {
+      "name": "Fabriquer un jouet",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "209": {
+      "name": "Emballer un Cadeau",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "210": {
+      "name": "Ouvrir un paquet cadeau",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 12872,
+        "name": "Marron Glacé"
+      }
+    },
+    "211": {
+      "name": "Ressusciter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "212": {
+      "name": "Se rendre à Sufokia",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "213": {
+      "name": "Se rendre en Amakna",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "214": {
+      "name": "Ramasser un Cristal de Roche",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 13239,
+        "name": "Cristal de Roche"
+      }
+    },
+    "215": {
+      "name": "Ouvrir un coquillage",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 13285,
+        "name": "Perle de Sable"
+      }
+    },
+    "217": {
+      "name": "Fabriquer un Collier pour chienchien",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "218": {
+      "name": "Préparer un Plat cuisiné",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "219": {
+      "name": "Préparer une Friandise frigostienne",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "220": {
+      "name": "Fabriquer une Caisse de matériaux",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "221": {
+      "name": "Fabriquer une Paire de crampons frigostiens",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "222": {
+      "name": "Fabriquer une Épée Tunkou",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "223": {
+      "name": "Fabriquer un Bouclier frigostien",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "224": {
+      "name": "Fabriquer un Dépeceur Sourire",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "225": {
+      "name": "Fabriquer une Scie Bill",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "226": {
+      "name": "Fabriquer une Tapette Essapu",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "227": {
+      "name": "Fabriquer une Pelle Sbelsse",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "228": {
+      "name": "Préparer un Fromage de poisskaille",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "229": {
+      "name": "Fabriquer un Sac de munitions",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "230": {
+      "name": "Fabriquer une Cravache Hâlée",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "231": {
+      "name": "Fabriquer un Bois du jeu du Slibou",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "232": {
+      "name": "Fabriquer une Veste pour pêcheurs",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "233": {
+      "name": "Découper de la glace",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "234": {
+      "name": "Tisser un voile",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "235": {
+      "name": "Fabriquer des explosifs brâkmariens",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "236": {
+      "name": "Griller une Patte de Wabbit",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "237": {
+      "name": "Ramasser une cawotte",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 14503,
+        "name": "Cawotte fraîche"
+      }
+    },
+    "238": {
+      "name": "Fabriquer de la cire",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "239": {
+      "name": "Récupérer une bouteille",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 14808,
+        "name": "Rhum Marin"
+      }
+    },
+    "240": {
+      "name": "Vers les Salles des Embruns",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "241": {
+      "name": "Vers les Salles des Courants",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "242": {
+      "name": "Vers les Salles des Abîmes",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "243": {
+      "name": "Vers l'Aquadôme de Merkator",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "244": {
+      "name": "Utiliser (levier)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "245": {
+      "name": "Reconstituer une écaille",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "246": {
+      "name": "Fabriquer des semelles",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "247": {
+      "name": "Ramasser un champignon",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 14960,
+        "name": "Champignon Ligneux"
+      }
+    },
+    "248": {
+      "name": "Chercher un trésor (niveau 20)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "249": {
+      "name": "Chercher un trésor (niveau 40)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "250": {
+      "name": "Chercher un trésor (niveau 60)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "251": {
+      "name": "Chercher un trésor (niveau 80)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "252": {
+      "name": "Chercher un trésor (niveau 100)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "253": {
+      "name": "Chercher un trésor (niveau 120)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "254": {
+      "name": "Chercher un trésor (niveau 140)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "255": {
+      "name": "Chercher un trésor (niveau 160)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "256": {
+      "name": "Chercher un trésor (niveau 180)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "257": {
+      "name": "Chercher un trésor (niveau 200)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "258": {
+      "name": "Quitter la Dimension",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "259": {
+      "name": "Rester dans la Dimension",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "260": {
+      "name": "Ouvrir un coffre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "261": {
+      "name": "Ramasser un glaçon",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 12826,
+        "name": "Mini Nuit' de Nowel"
+      }
+    },
+    "262": {
+      "name": "Arène 1",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "263": {
+      "name": "Arène 2",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "264": {
+      "name": "Arène 3",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "265": {
+      "name": "Arène 4",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "266": {
+      "name": "Arène 5",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "267": {
+      "name": "Arène 6",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "268": {
+      "name": "Arène 7",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "269": {
+      "name": "Arène 8",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "270": {
+      "name": "Arène 9",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "271": {
+      "name": "Arène 10",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "272": {
+      "name": "Arène 11",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "273": {
+      "name": "Arène 12",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "275": {
+      "name": "Assembler une carte",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "276": {
+      "name": "Éplucher des Patates douces",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 15530,
+        "name": "Patates douces"
+      }
+    },
+    "277": {
+      "name": "Chercher un trésor légendaire",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "278": {
+      "name": "Fabriquer une montre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "279": {
+      "name": "Fabriquer une savonnette",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "280": {
+      "name": "Fabriquer des explosifs temporels paradoxaux",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "281": {
+      "name": "Ramasser des œufs",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 15870,
+        "name": "Œufs de Tempax"
+      }
+    },
+    "282": {
+      "name": "Fabriquer des explosifs temporels éternels",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "283": {
+      "name": "Fabriquer des explosifs temporels uchroniques",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "284": {
+      "name": "Fabriquer des explosifs temporels singuliers",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "285": {
+      "name": "Utiliser un détonateur temporel paradoxal",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "286": {
+      "name": "Utiliser un détonateur temporel singulier",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "287": {
+      "name": "Utiliser un détonateur temporel uchronique",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "288": {
+      "name": "Utiliser un détonateur temporel éternel",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "289": {
+      "name": "Vérifier l'état de l'atelier",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "290": {
+      "name": "Concocter une Potion de transparence",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "291": {
+      "name": "L'invasion du Xélorium",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "292": {
+      "name": "La légende de Méthée",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "293": {
+      "name": "Consulter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 17,
+      "levelMin": 1
+    },
+    "295": {
+      "name": "Obtenir de la ferraille",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "296": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 289,
+        "name": "Blé"
+      }
+    },
+    "298": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 312,
+        "name": "Fer"
+      }
+    },
+    "299": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 303,
+        "name": "Bois de Frêne"
+      }
+    },
+    "300": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 421,
+        "name": "Ortie"
+      }
+    },
+    "301": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 1782,
+        "name": "Goujon"
+      }
+    },
+    "302": {
+      "name": "Se rendre sur Incarnam",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "303": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 140,
+      "gatheredItem": {
+        "id": 16385,
+        "name": "Ginseng"
+      }
+    },
+    "304": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 160,
+      "gatheredItem": {
+        "id": 16387,
+        "name": "Belladone"
+      }
+    },
+    "305": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 180,
+      "gatheredItem": {
+        "id": 16389,
+        "name": "Mandragore"
+      }
+    },
+    "306": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 130,
+      "gatheredItem": {
+        "id": 16488,
+        "name": "Bois de Noisetier"
+      }
+    },
+    "307": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 160,
+      "gatheredItem": {
+        "id": 16454,
+        "name": "Maïs"
+      }
+    },
+    "308": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 180,
+      "gatheredItem": {
+        "id": 16456,
+        "name": "Millet"
+      }
+    },
+    "309": {
+      "name": "Extraire un bloc de pierre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 1873,
+        "name": "Bloc de pierre"
+      }
+    },
+    "310": {
+      "name": "Regarder vers Sidimote",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "311": {
+      "name": "Regarder vers Astrub",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "312": {
+      "name": "Regarder vers Sufokia",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "313": {
+      "name": "Regarder vers Frigost",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "314": {
+      "name": "Regarder vers l'île de Grobe",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "315": {
+      "name": "Regarder vers Saharach",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "316": {
+      "name": "Regarder vers l'île de Moon",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "317": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 80,
+      "gatheredItem": {
+        "id": 1847,
+        "name": "Brochet"
+      }
+    },
+    "318": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 90,
+      "gatheredItem": {
+        "id": 600,
+        "name": "Kralamoure"
+      }
+    },
+    "319": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 100,
+      "gatheredItem": {
+        "id": 16461,
+        "name": "Anguille"
+      }
+    },
+    "320": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 110,
+      "gatheredItem": {
+        "id": 16463,
+        "name": "Dorade Grise"
+      }
+    },
+    "321": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 120,
+      "gatheredItem": {
+        "id": 1801,
+        "name": "Perche"
+      }
+    },
+    "322": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 130,
+      "gatheredItem": {
+        "id": 1784,
+        "name": "Raie Bleue"
+      }
+    },
+    "323": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 140,
+      "gatheredItem": {
+        "id": 16465,
+        "name": "Lotte"
+      }
+    },
+    "324": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 150,
+      "gatheredItem": {
+        "id": 602,
+        "name": "Requin Marteau-Faucille"
+      }
+    },
+    "325": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 160,
+      "gatheredItem": {
+        "id": 1779,
+        "name": "Bar Rikain"
+      }
+    },
+    "326": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 170,
+      "gatheredItem": {
+        "id": 16467,
+        "name": "Morue"
+      }
+    },
+    "327": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 180,
+      "gatheredItem": {
+        "id": 16469,
+        "name": "Tanche"
+      }
+    },
+    "328": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 190,
+      "gatheredItem": {
+        "id": 16471,
+        "name": "Espadon"
+      }
+    },
+    "329": {
+      "name": "Forger un grattoir avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "330": {
+      "name": "Sculpter un grattoir avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "331": {
+      "name": "Bricoler un grattoir avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "332": {
+      "name": "Assembler un grattoir avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "333": {
+      "name": "Utiliser l'atelier du Mage Ax",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "334": {
+      "name": "Forger un knout avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "335": {
+      "name": "Sculpter un knout avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "336": {
+      "name": "Bricoler un knout avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "337": {
+      "name": "Assembler un knout avec Mulic Bere",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "338": {
+      "name": "Cueillir du trèfle à 4 feuilles",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 17562,
+        "name": "Trèfle à 4 feuilles"
+      }
+    },
+    "339": {
+      "name": "Indiquer une sortie",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "340": {
+      "name": "Ramasser du corail",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 17954,
+        "name": "Corail opalin"
+      }
+    },
+    "341": {
+      "name": "Faucher",
+      "jobId": 28,
+      "jobName": "Paysan",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 17993,
+        "name": "Quisnoa"
+      }
+    },
+    "342": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 17995,
+        "name": "Écume de mer"
+      }
+    },
+    "343": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 17991,
+        "name": "Bois d'Aquajou"
+      }
+    },
+    "344": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 17992,
+        "name": "Salikrone"
+      }
+    },
+    "345": {
+      "name": "Ramasser un coquillage",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 18087,
+        "name": "Coquillage de R'lyugluglu"
+      }
+    },
+    "346": {
+      "name": "Atelier Indicible",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "347": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 17994,
+        "name": "Patelle"
+      }
+    },
+    "348": {
+      "name": "Rédiger une caution",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "349": {
+      "name": "Atelier de Natacha Manka",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "350": {
+      "name": "Œufs frais",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "351": {
+      "name": "Façomager",
+      "jobId": 74,
+      "jobName": "Façomage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "352": {
+      "name": "Pêcher un champignon",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 426,
+        "name": "Fibre de Chanvre"
+      }
+    },
+    "353": {
+      "name": "Ramasser une Agrypnite",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 18850,
+        "name": "Agrypnite Tue-sommeil"
+      }
+    },
+    "354": {
+      "name": "Ramasser une Agrypnite grillée",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 18851,
+        "name": "Agrypnite Tue-sommeil Grillée"
+      }
+    },
+    "355": {
+      "name": "Consulter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "356": {
+      "name": "Fabriquer une mèche de bougie",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "357": {
+      "name": "Ouvrir un cadeau surprise",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 19238,
+        "name": "Surprise explosive"
+      }
+    },
+    "358": {
+      "name": "Atelier de fortune",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "359": {
+      "name": "Ramasser",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 19426,
+        "name": "Perle d'éternité"
+      }
+    },
+    "360": {
+      "name": "Panneau directionnel : texte libre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "361": {
+      "name": "Panneau directionnel : via référence hint",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "362": {
+      "name": "Panneau directionnel : via référence subarea",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "370": {
+      "name": "Faucher des Brins des possibles",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 20165,
+        "name": "Brin des possibles"
+      }
+    },
+    "371": {
+      "name": "Ramasser un papier d'emballage",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 20821,
+        "name": "Papier d'emballage"
+      }
+    },
+    "372": {
+      "name": "Confectionner une amélioration",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "373": {
+      "name": "Fabriquer une ration de docilité",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "374": {
+      "name": "Retourner dans l'anomalie Temporelle",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 15,
+      "levelMin": 1
+    },
+    "375": {
+      "name": "Tremper dans la sueur et le sang",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "376": {
+      "name": "Fabriquer de la peinture",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "377": {
+      "name": "Cuisiner",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "378": {
+      "name": "Atelier de fortune",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "380": {
+      "name": "Façonner une Prysmaradite",
+      "jobId": 60,
+      "jobName": "Façonneur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "381": {
+      "name": "Restaurer un livre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "382": {
+      "name": "Rapiécer une étoffe",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "383": {
+      "name": "Créer un Parchemin de Sort",
+      "jobId": 75,
+      "jobName": "Parchomage",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "384": {
+      "name": "Forger un Katana",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "385": {
+      "name": "Préparer un mélange fermenté",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "386": {
+      "name": "Cueillir du fujibakama",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 23345,
+        "name": "Feuille de Fujibakama"
+      }
+    },
+    "387": {
+      "name": "Sculpter un bâton en bambou spirituel",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 0,
+      "levelMin": 1
+    },
+    "388": {
+      "name": "Cuisiner des Wanchiaos",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 0,
+      "levelMin": 1
+    },
+    "389": {
+      "name": "Pêcher",
+      "jobId": 36,
+      "jobName": "Pêcheur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 23825,
+        "name": "Pichon d'encre"
+      }
+    },
+    "390": {
+      "name": "Brasser de la bière forte",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1
+    },
+    "391": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 23903,
+        "name": "Cristal pliable"
+      }
+    },
+    "392": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 23902,
+        "name": "Cristal liquide"
+      }
+    },
+    "393": {
+      "name": "Cueillir",
+      "jobId": 26,
+      "jobName": "Alchimiste",
+      "elementActionId": 1,
+      "levelMin": 200,
+      "gatheredItem": {
+        "id": 23824,
+        "name": "Tulipe en papier"
+      }
+    },
+    "394": {
+      "name": "Préparer du Rikipik",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "397": {
+      "name": "Jouer au Chinq",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "398": {
+      "name": "Modifier un Minouki",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "399": {
+      "name": "Créer une rune d'harmonie",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "400": {
+      "name": "Utiliser (avec portée)",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "401": {
+      "name": "Créer de l'ambre enchanté",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "402": {
+      "name": "Fabriquer du matériel de bestiologie",
+      "jobId": 78,
+      "jobName": "Bestiologue",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "403": {
+      "name": "Créer un mégaltéré",
+      "jobId": 78,
+      "jobName": "Bestiologue",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "404": {
+      "name": "Cueillir de l'amarrante vulkaine",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 27117,
+        "name": "Amarrante vulkaine"
+      }
+    },
+    "405": {
+      "name": "Déboiser du palmier vulkain",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 27118,
+        "name": "Palmier vulkain"
+      }
+    },
+    "406": {
+      "name": "Écrémer des fleurs de selles vulkaines",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 27119,
+        "name": "Fleur de selles vulkaine"
+      }
+    },
+    "407": {
+      "name": "Récolter du magnok vulkain",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 27120,
+        "name": "Magnok vulkain"
+      }
+    },
+    "408": {
+      "name": "Pêcher un polichon kloune vulkain",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 1,
+      "levelMin": 1,
+      "gatheredItem": {
+        "id": 27121,
+        "name": "Polichon kloune vulkain"
+      }
+    },
+    "410": {
+      "name": "Collecter",
+      "jobId": 24,
+      "jobName": "Mineur",
+      "elementActionId": 1,
+      "levelMin": 180,
+      "gatheredItem": {
+        "id": 27621,
+        "name": "Cendrepierre"
+      }
+    },
+    "411": {
+      "name": "Couper",
+      "jobId": 2,
+      "jobName": "Bûcheron",
+      "elementActionId": 1,
+      "levelMin": 90,
+      "gatheredItem": {
+        "id": 27375,
+        "name": "Bois de Pin"
+      }
+    },
+    "412": {
+      "name": "Fabriquer une fleur de Cendrepierre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "413": {
+      "name": "Tresser une corde",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 0
+    },
+    "415": {
+      "name": "Fabriquer une Idole",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 0,
+      "levelMin": 1
+    },
+    "417": {
+      "name": "Forger le Ménologium",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "419": {
+      "name": "Assembler l'analyseur onirique",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "420": {
+      "name": "Utiliser avec animation",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "421": {
+      "name": "Façonner une pierre d'âme spéciale",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 6,
+      "levelMin": 1
+    },
+    "422": {
+      "name": "Fabriquer du matériel d'élevage",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "423": {
+      "name": "Ouvrir l'enclos du débutant",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "424": {
+      "name": "Ouvrir l'enclos du novice",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 40
+    },
+    "425": {
+      "name": "Ouvrir l'enclos de l'apprenti",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 80
+    },
+    "426": {
+      "name": "Ouvrir l'enclos de l'initié",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 120
+    },
+    "427": {
+      "name": "Ouvrir l'enclos du vétéran",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 160
+    },
+    "428": {
+      "name": "Ouvrir l'enclos du maître",
+      "jobId": 79,
+      "jobName": "Éleveur",
+      "elementActionId": 2,
+      "levelMin": 200
+    },
+    "429": {
+      "name": "Fabriquer une plaque isolante",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "430": {
+      "name": "Préparer une marinade",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "431": {
+      "name": "Fabriquer un outil de chasse Rhoarim",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "432": {
+      "name": "Cuisiner une recette du chasseur-mangeur",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "433": {
+      "name": "Ztazzonbz Moboorgrrbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "434": {
+      "name": "Ztazzonbz Bombarnazzzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "435": {
+      "name": "Ztazzonbz Boorzzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "436": {
+      "name": "Station Moboorgrrbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "437": {
+      "name": "Station Bombarnazzzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "438": {
+      "name": "Station Boorzzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "439": {
+      "name": "Antzchambrzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "440": {
+      "name": "Antichambre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "441": {
+      "name": "Dzzzzndrzbz znkorzbz plzzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "442": {
+      "name": "Montzrbz znkorzbz plzzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "443": {
+      "name": "Dzzzzndrzbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "444": {
+      "name": "Montzrbz",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "445": {
+      "name": "Descendre encore plus",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "446": {
+      "name": "Monter encore plus",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "447": {
+      "name": "Descendre",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "448": {
+      "name": "Monter",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "449": {
+      "name": "Salle de Briefing",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "450": {
+      "name": "Laboratoire",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "451": {
+      "name": "Salle de localisation",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "452": {
+      "name": "Hall des voyageurs",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "453": {
+      "name": "Salle du Portail dimensionnel",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "454": {
+      "name": "Salle du Générateur",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "455": {
+      "name": "Prison - bas-fonds",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "456": {
+      "name": "Prison",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "457": {
+      "name": "Recycler des ressources",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 2,
+      "levelMin": 1
+    },
+    "458": {
+      "name": "Évaluer le bonmonstre de neige",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 30,
+      "levelMin": 1
+    },
+    "459": {
+      "name": "Téléportation 1",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "460": {
+      "name": "Téléportation 2",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "461": {
+      "name": "Téléportation 3",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "462": {
+      "name": "Téléportation 4",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "463": {
+      "name": "Téléportation 5",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "464": {
+      "name": "Téléportation 6",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "465": {
+      "name": "Téléportation 7",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "466": {
+      "name": "Téléportation 8",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "467": {
+      "name": "Téléportation 9",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    },
+    "468": {
+      "name": "Téléportation 10",
+      "jobId": 1,
+      "jobName": "Base",
+      "elementActionId": 16,
+      "levelMin": 1
+    }
+  },
+  "items": {
+    "289": {
+      "name": "Blé"
+    },
+    "303": {
+      "name": "Bois de Frêne"
+    },
+    "311": {
+      "name": "Eau Potable"
+    },
+    "312": {
+      "name": "Fer"
+    },
+    "313": {
+      "name": "Or"
+    },
+    "350": {
+      "name": "Argent"
+    },
+    "380": {
+      "name": "Menthe Sauvage"
+    },
+    "395": {
+      "name": "Trèfle à 5 feuilles"
+    },
+    "400": {
+      "name": "Orge"
+    },
+    "401": {
+      "name": "Houblon"
+    },
+    "405": {
+      "name": "Malt"
+    },
+    "421": {
+      "name": "Ortie"
+    },
+    "423": {
+      "name": "Lin"
+    },
+    "425": {
+      "name": "Chanvre"
+    },
+    "426": {
+      "name": "Fibre de Chanvre"
+    },
+    "428": {
+      "name": "Sauge"
+    },
+    "441": {
+      "name": "Cuivre"
+    },
+    "442": {
+      "name": "Bronze"
+    },
+    "443": {
+      "name": "Kobalte"
+    },
+    "444": {
+      "name": "Étain"
+    },
+    "445": {
+      "name": "Manganèse"
+    },
+    "446": {
+      "name": "Bauxite"
+    },
+    "449": {
+      "name": "Bois d'Ébène"
+    },
+    "460": {
+      "name": "Bois de Chêne"
+    },
+    "461": {
+      "name": "Bois d'If"
+    },
+    "470": {
+      "name": "Bois d'Orme"
+    },
+    "471": {
+      "name": "Bois d'Érable"
+    },
+    "472": {
+      "name": "Bois de Charme"
+    },
+    "473": {
+      "name": "Bois de Châtaignier"
+    },
+    "474": {
+      "name": "Bois de Merisier"
+    },
+    "476": {
+      "name": "Bois de Noyer"
+    },
+    "532": {
+      "name": "Seigle"
+    },
+    "533": {
+      "name": "Avoine"
+    },
+    "537": {
+      "name": "Pomme de Terre"
+    },
+    "593": {
+      "name": "Orchidée Freyesque"
+    },
+    "594": {
+      "name": "Edelweiss"
+    },
+    "598": {
+      "name": "Greuvette"
+    },
+    "600": {
+      "name": "Kralamoure"
+    },
+    "602": {
+      "name": "Requin Marteau-Faucille"
+    },
+    "603": {
+      "name": "Poisson-Chaton"
+    },
+    "1750": {
+      "name": "Poisson Pané"
+    },
+    "1757": {
+      "name": "Crabe Sourimi"
+    },
+    "1779": {
+      "name": "Bar Rikain"
+    },
+    "1782": {
+      "name": "Goujon"
+    },
+    "1784": {
+      "name": "Raie Bleue"
+    },
+    "1794": {
+      "name": "Carpe d'Iem"
+    },
+    "1801": {
+      "name": "Perche"
+    },
+    "1805": {
+      "name": "Sardine Brillante"
+    },
+    "1844": {
+      "name": "Truite"
+    },
+    "1847": {
+      "name": "Brochet"
+    },
+    "1873": {
+      "name": "Bloc de pierre"
+    },
+    "2187": {
+      "name": "Pichon Eud'Compet"
+    },
+    "2357": {
+      "name": "Bois d'Oliviolet"
+    },
+    "2358": {
+      "name": "Bois de Bombu"
+    },
+    "7013": {
+      "name": "Bois de Bambou"
+    },
+    "7014": {
+      "name": "Bois de Bambou Sacré"
+    },
+    "7016": {
+      "name": "Bois de Bambou Sombre"
+    },
+    "7018": {
+      "name": "Riz"
+    },
+    "7032": {
+      "name": "Silicate"
+    },
+    "7033": {
+      "name": "Dolomite"
+    },
+    "7059": {
+      "name": "Graine de Pandouille"
+    },
+    "7925": {
+      "name": "Bois de Kaliptus"
+    },
+    "11102": {
+      "name": "Perce-Neige"
+    },
+    "11106": {
+      "name": "Poisskaille"
+    },
+    "11107": {
+      "name": "Bois de Tremble"
+    },
+    "11109": {
+      "name": "Frostiz"
+    },
+    "11110": {
+      "name": "Obsidienne"
+    },
+    "12472": {
+      "name": "Coquillage Enda"
+    },
+    "12473": {
+      "name": "Coquillage Ité"
+    },
+    "12474": {
+      "name": "Coquillage Accio"
+    },
+    "12826": {
+      "name": "Mini Nuit' de Nowel"
+    },
+    "12872": {
+      "name": "Marron Glacé"
+    },
+    "13239": {
+      "name": "Cristal de Roche"
+    },
+    "13285": {
+      "name": "Perle de Sable"
+    },
+    "14503": {
+      "name": "Cawotte fraîche"
+    },
+    "14808": {
+      "name": "Rhum Marin"
+    },
+    "14960": {
+      "name": "Champignon Ligneux"
+    },
+    "15530": {
+      "name": "Patates douces"
+    },
+    "15870": {
+      "name": "Œufs de Tempax"
+    },
+    "16385": {
+      "name": "Ginseng"
+    },
+    "16387": {
+      "name": "Belladone"
+    },
+    "16389": {
+      "name": "Mandragore"
+    },
+    "16454": {
+      "name": "Maïs"
+    },
+    "16456": {
+      "name": "Millet"
+    },
+    "16461": {
+      "name": "Anguille"
+    },
+    "16463": {
+      "name": "Dorade Grise"
+    },
+    "16465": {
+      "name": "Lotte"
+    },
+    "16467": {
+      "name": "Morue"
+    },
+    "16469": {
+      "name": "Tanche"
+    },
+    "16471": {
+      "name": "Espadon"
+    },
+    "16488": {
+      "name": "Bois de Noisetier"
+    },
+    "17562": {
+      "name": "Trèfle à 4 feuilles"
+    },
+    "17954": {
+      "name": "Corail opalin"
+    },
+    "17991": {
+      "name": "Bois d'Aquajou"
+    },
+    "17992": {
+      "name": "Salikrone"
+    },
+    "17993": {
+      "name": "Quisnoa"
+    },
+    "17994": {
+      "name": "Patelle"
+    },
+    "17995": {
+      "name": "Écume de mer"
+    },
+    "18087": {
+      "name": "Coquillage de R'lyugluglu"
+    },
+    "18850": {
+      "name": "Agrypnite Tue-sommeil"
+    },
+    "18851": {
+      "name": "Agrypnite Tue-sommeil Grillée"
+    },
+    "19238": {
+      "name": "Surprise explosive"
+    },
+    "19426": {
+      "name": "Perle d'éternité"
+    },
+    "20165": {
+      "name": "Brin des possibles"
+    },
+    "20821": {
+      "name": "Papier d'emballage"
+    },
+    "23345": {
+      "name": "Feuille de Fujibakama"
+    },
+    "23824": {
+      "name": "Tulipe en papier"
+    },
+    "23825": {
+      "name": "Pichon d'encre"
+    },
+    "23902": {
+      "name": "Cristal liquide"
+    },
+    "23903": {
+      "name": "Cristal pliable"
+    },
+    "27117": {
+      "name": "Amarrante vulkaine"
+    },
+    "27118": {
+      "name": "Palmier vulkain"
+    },
+    "27119": {
+      "name": "Fleur de selles vulkaine"
+    },
+    "27120": {
+      "name": "Magnok vulkain"
+    },
+    "27121": {
+      "name": "Polichon kloune vulkain"
+    },
+    "27375": {
+      "name": "Bois de Pin"
+    },
+    "27621": {
+      "name": "Cendrepierre"
+    }
+  },
+  "jobs": {
+    "1": {
+      "name": "Base"
+    },
+    "2": {
+      "name": "Bûcheron"
+    },
+    "11": {
+      "name": "Forgeron"
+    },
+    "13": {
+      "name": "Sculpteur"
+    },
+    "15": {
+      "name": "Cordonnier"
+    },
+    "16": {
+      "name": "Bijoutier"
+    },
+    "24": {
+      "name": "Mineur"
+    },
+    "26": {
+      "name": "Alchimiste"
+    },
+    "27": {
+      "name": "Tailleur"
+    },
+    "28": {
+      "name": "Paysan"
+    },
+    "36": {
+      "name": "Pêcheur"
+    },
+    "41": {
+      "name": "Chasseur"
+    },
+    "44": {
+      "name": "Forgemage"
+    },
+    "48": {
+      "name": "Sculptemage"
+    },
+    "60": {
+      "name": "Façonneur"
+    },
+    "62": {
+      "name": "Cordomage"
+    },
+    "63": {
+      "name": "Joaillomage"
+    },
+    "64": {
+      "name": "Costumage"
+    },
+    "65": {
+      "name": "Bricoleur"
+    },
+    "74": {
+      "name": "Façomage"
+    },
+    "75": {
+      "name": "Parchomage"
+    },
+    "78": {
+      "name": "Bestiologue"
+    },
+    "79": {
+      "name": "Éleveur"
+    }
+  }
+}

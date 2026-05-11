@@ -41,9 +41,12 @@ import UnityPy, UnityPy.config
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.0f1"
 
 APP = Path(__file__).resolve().parent.parent  # dofus-app/
+REPO = APP.parent  # repo root
 SRC_DIR = Path(r"F:\Jeux\Dofus-dofus3\Dofus_Data\StreamingAssets\Content\Map\Data")
-OUT = APP / "data" / "maps"
-INDEX = APP / "data" / "maps_index.json"
+# Output goes to the v2 toolkit's data dir (the live consumer). The legacy
+# dofus-app/data/maps/ is no longer the source of truth.
+OUT = REPO / "app" / "plugins" / "dofus" / "data" / "maps"
+INDEX = REPO / "app" / "plugins" / "dofus" / "data" / "maps_index.json"
 
 
 def pack_cell(c):
@@ -61,12 +64,19 @@ def pack_cell(c):
 
 
 def resolve_interactives(interactive_refs, refids_by_rid):
-    """Turn [{"rid": N}, ...] into [[cellId, interactionId, gfxId], ...].
+    """Turn [{"rid": N}, ...] into [[cellId, interactionId, gfxId, posX, posY], ...].
 
     Each interactiveElement is a SerializeReference that points into the
     MapMetadata's `references` table; the referenced object
-    (ClientInteractiveAnimatedElementTransform) carries `cellId`,
-    `m_interactionId`, and `gfxId` (graphical asset) which we care about.
+    (ClientInteractiveAnimatedElementTransform) carries cellId, m_interactionId,
+    gfxId, and a 2D transform whose m31/m32 fields are the actual rendering
+    position in world pixels.
+
+    The transform position lets the consumer detect ghost interactives — those
+    visible from this map but actually anchored on a neighbour. A ghost has
+    m31/m32 OUTSIDE the iso-projected position of its (logical) cellId by far
+    more than typical sub-cell variation. See the backend filter for the
+    threshold.
     """
     out = []
     for e in interactive_refs:
@@ -77,9 +87,14 @@ def resolve_interactives(interactive_refs, refids_by_rid):
         cell = d.get("cellId")
         iid = d.get("m_interactionId") or d.get("interactionId") or 0
         gfx = d.get("gfxId") or 0
+        tr = d.get("transform") or {}
+        m31 = tr.get("m31", 0.0)
+        m32 = tr.get("m32", 0.0)
         if cell is None:
             continue
-        out.append([int(cell), int(iid), int(gfx)])
+        # Round to 2 decimals to keep the JSON compact (positions are stored at
+        # quarter-pixel precision in the bundle anyway).
+        out.append([int(cell), int(iid), int(gfx), round(float(m31), 2), round(float(m32), 2)])
     return out
 
 
