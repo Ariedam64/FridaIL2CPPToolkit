@@ -186,13 +186,13 @@ export class Session extends EventEmitter {
         return out;
     }
 
-    async attach(pid: number): Promise<Profile> {
+    async attach(pid: number, opts: { skipFridaAttach?: boolean } = {}): Promise<Profile> {
         if (this.attachInFlight) {
             // A previous attach is still in flight. Wait for it to finish or fail,
             // then proceed (the user wants the LATEST pid attached).
             try { await this.attachInFlight; } catch { /* previous failed; we'll retry */ }
         }
-        this.attachInFlight = this._doAttach(pid);
+        this.attachInFlight = this._doAttach(pid, opts);
         try {
             return await this.attachInFlight;
         } finally {
@@ -200,8 +200,8 @@ export class Session extends EventEmitter {
         }
     }
 
-    private async _doAttach(pid: number): Promise<Profile> {
-        await this.fridaClient.attach(pid);
+    private async _doAttach(pid: number, opts: { skipFridaAttach?: boolean } = {}): Promise<Profile> {
+        if (!opts.skipFridaAttach) await this.fridaClient.attach(pid);
 
         const detected = await detectBuildId(this.fridaClient);
 
