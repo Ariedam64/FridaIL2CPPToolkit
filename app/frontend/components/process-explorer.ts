@@ -239,10 +239,39 @@ export function renderProcessExplorer(host: HTMLElement): ExplorerHandle {
 
     async function performSearch(query: string): Promise<void> {
         try {
-            const { result } = await api.rpc<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>(
-                "searchClasses", [query, 100]
-            );
-            renderSearchResults(result);
+            const q = query.toLowerCase();
+            // Collect obf names whose friendly label matches the query. We do
+            // this client-side against the labels cache so the agent doesn't
+            // need to know about labels.
+            const labelObfs: string[] = [];
+            const lc = labelsCacheForSearch?.classes ?? {};
+            for (const obf of Object.keys(lc)) {
+                const label = (lc[obf]?.label ?? "").toLowerCase();
+                if (label && label.includes(q)) labelObfs.push(obf);
+            }
+
+            const [obfHits, labelHits] = await Promise.all([
+                api.rpc<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>(
+                    "searchClasses", [query, 100],
+                ).then((r) => r.result),
+                labelObfs.length === 0
+                    ? Promise.resolve([])
+                    : api.rpc<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>(
+                        "lookupClassesByName", [labelObfs],
+                    ).then((r) => r.result),
+            ]);
+
+            // Dedupe on shortName, label hits first so renamed classes float
+            // to the top when both branches match.
+            const seen = new Set<string>();
+            const merged: typeof obfHits = [];
+            for (const r of [...labelHits, ...obfHits]) {
+                if (seen.has(r.shortName)) continue;
+                seen.add(r.shortName);
+                merged.push(r);
+                if (merged.length >= 100) break;
+            }
+            renderSearchResults(merged);
         } catch (e) {
             tree.innerHTML = `<div style="color:var(--danger);padding:1em">${escape(String(e))}</div>`;
         }

@@ -2,6 +2,11 @@
 import { api } from "../core/api.js";
 import { icons } from "../core/icons.js";
 import { openInstancePicker } from "./instance-picker-modal.js";
+import {
+    resolveClass, resolveField, resolveMethod,
+    hasClassLabel, hasFieldLabel, hasMethodLabel,
+    onLabelsChange,
+} from "../core/label-resolver.js";
 
 interface MethodEntry { isStatic: boolean; returnType: string; name: string; params: string; }
 interface FieldEntry { isStatic: boolean; type: string; name: string; }
@@ -44,7 +49,22 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
     host.className = "class-pane";
     host.innerHTML = `<div style="padding:24px;color:var(--text-faint)">Click a class in the explorer to view its detail.</div>`;
 
+    // Track currently-shown class so we can re-render in place when its
+    // friendly-name spans need a refresh (a rename on any visible member or
+    // type fires `label-change`). Debounced so a burst of renames coalesces.
+    let currentFullName: string | null = null;
+    let rerenderTimer: ReturnType<typeof setTimeout> | null = null;
+    onLabelsChange(() => {
+        if (!currentFullName) return;
+        if (rerenderTimer) clearTimeout(rerenderTimer);
+        rerenderTimer = setTimeout(() => {
+            rerenderTimer = null;
+            if (currentFullName) void show(currentFullName);
+        }, 50);
+    });
+
     async function show(fullName: string): Promise<void> {
+        currentFullName = fullName;
         let liveInstanceCount: number | null = null;  // null = not yet probed, 0 = none, >0 = some
         host.innerHTML = `<div style="padding:24px;color:var(--text-faint)">Loading ${escape(fullName)}…</div>`;
         let dump: string;
@@ -71,24 +91,46 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
             }
         } catch { /* ignore */ }
 
-        const fieldsHtml = fields.map((f) => `
-            <div class="member-row">
+        // Render a single type token using the class label store. Namespaced
+        // types (`Core.X.Y`) aren't labeled so resolveClass returns input as-is.
+        // We don't try to parse generics/arrays here — those keep their raw
+        // form, which is still correct visually.
+        const renderType = (raw: string): string => {
+            const friendly = resolveClass(raw);
+            return friendly !== raw
+                ? `<span class="friendly">${escape(friendly)}</span><span class="obf-tag">[${escape(raw)}]</span>`
+                : escape(raw);
+        };
+
+        const fieldsHtml = fields.map((f) => {
+            const labeled = hasFieldLabel(shortName, f.name);
+            const nameHtml = labeled
+                ? `<span class="name friendly">${escape(resolveField(shortName, f.name))}</span><span class="obf-tag">[${escape(f.name)}]</span>`
+                : `<span class="name">${escape(f.name)}</span>`;
+            return `
+            <div class="member-row${labeled ? " labeled" : ""}">
                 <span class="kind-tag field">field</span>
                 ${f.isStatic ? '<span class="static-badge">static</span>' : ""}
-                <span class="type">${escape(f.type)}</span>
-                <span class="name">${escape(f.name)}</span>
+                <span class="type">${renderType(f.type)}</span>
+                ${nameHtml}
                 <div class="actions">
                     <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(f.name)}">${icons.clipboard()}</button>
                 </div>
             </div>
-        `).join("");
+            `;
+        }).join("");
 
-        const methodsHtml = methods.map((m) => `
-            <div class="member-row${hooked.has(m.name) ? " hooked" : ""}" data-method="${escape(m.name)}">
+        const methodsHtml = methods.map((m) => {
+            const labeled = hasMethodLabel(shortName, m.name);
+            const nameHtml = labeled
+                ? `<span class="name friendly">${escape(resolveMethod(shortName, m.name))}</span><span class="obf-tag">[${escape(m.name)}]</span>`
+                : `<span class="name">${escape(m.name)}</span>`;
+            return `
+            <div class="member-row${hooked.has(m.name) ? " hooked" : ""}${labeled ? " labeled" : ""}" data-method="${escape(m.name)}">
                 <span class="kind-tag method">method</span>
                 ${m.isStatic ? '<span class="static-badge">static</span>' : ""}
-                <span class="ret">${escape(m.returnType)}</span>
-                <span class="name">${escape(m.name)}</span>
+                <span class="ret">${renderType(m.returnType)}</span>
+                ${nameHtml}
                 <span class="params">(${escape(m.params)})</span>
                 <div class="actions">
                     <button class="icon-btn-mini hook-btn" data-method="${escape(m.name)}">${icons.hook()} Hook</button>
@@ -97,7 +139,14 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                     <button class="icon-btn-mini" data-copy="${escape(fullName)}.${escape(m.name)}(${escape(m.params)})">${icons.clipboard()}</button>
                 </div>
             </div>
-        `).join("");
+            `;
+        }).join("");
+
+        const classFriendly = resolveClass(shortName);
+        const classLabeled = hasClassLabel(shortName);
+        const headerTitleHtml = classLabeled
+            ? `<h1><span class="friendly">${escape(classFriendly)}</span><span class="obf-tag" style="font-size:0.6em;vertical-align:middle">[${escape(shortName)}]</span></h1>`
+            : `<h1>${escape(shortName)}</h1>`;
 
         host.innerHTML = `
             <div class="breadcrumb">
@@ -106,7 +155,7 @@ export function renderClassDetail(host: HTMLElement): ClassDetailHandle {
                 <span class="crumb last">${escape(shortName)}</span>
             </div>
             <div class="class-header">
-                <h1>${escape(shortName)}</h1>
+                ${headerTitleHtml}
                 <span class="badge-tag">${escape(fullName)}</span>
                 <div class="actions">
                     <button class="pill" id="cd-bookmark">${icons.star()}</button>

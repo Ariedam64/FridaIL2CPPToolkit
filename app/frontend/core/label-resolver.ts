@@ -94,6 +94,11 @@ export function hasFieldLabel(className: string, fieldName: string): boolean {
     return labels.fields[`${className}.${fieldName}`] !== undefined;
 }
 
+/** True if a method has been renamed. */
+export function hasMethodLabel(className: string, methodName: string): boolean {
+    return labels.methods[`${className}.${methodName}`] !== undefined;
+}
+
 /** Subscribe to label-state changes. Returns disposer. Triggers initial fetch. */
 export function onLabelsChange(cb: () => void): () => void {
     listeners.add(cb);

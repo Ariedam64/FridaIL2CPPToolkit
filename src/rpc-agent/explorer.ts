@@ -121,6 +121,43 @@ export function searchClasses(
 }
 
 /**
+ * Resolve a list of obfuscated short class names to the same shape as
+ * `searchClasses`. Used by the explorer's friendly-label search path: the
+ * backend matches labels client-side (substring against `label.toLowerCase()`),
+ * gets a small set of obfNames, then asks the agent to fill in their
+ * namespace/assembly so they can be rendered in the result list.
+ *
+ * Unknown names are silently dropped (no entry in the output). Duplicates in
+ * input are deduped on the way out.
+ */
+export function lookupClassesByName(
+    obfNames: string[],
+): Promise<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>> {
+    return inVm(() => {
+        buildExplorerIndex();
+        const wanted = new Set(obfNames);
+        const out: Array<{ shortName: string; fullName: string; assembly: string; ns: string }> = [];
+        const seen = new Set<string>();
+        for (const asm of _asmIndex!) {
+            for (const [nsKey, classes] of asm.namespaces) {
+                const ns = nsKey === "(root)" ? "" : nsKey;
+                for (const shortName of classes) {
+                    if (!wanted.has(shortName) || seen.has(shortName)) continue;
+                    out.push({
+                        shortName,
+                        fullName: ns ? `${ns}.${shortName}` : shortName,
+                        assembly: asm.name,
+                        ns,
+                    });
+                    seen.add(shortName);
+                }
+            }
+        }
+        return out;
+    }) as unknown as Promise<Array<{ shortName: string; fullName: string; assembly: string; ns: string }>>;
+}
+
+/**
  * Pre-warm the explorer index during attach so the first user click is instant.
  * Safe to call multiple times — buildExplorerIndex() is idempotent.
  */
