@@ -237,12 +237,14 @@ export class Session extends EventEmitter {
                 const oldLabels = await this.profileManager.loadProfileLabels(gameName, previousBuildId);
                 const oldMethodLabels = await this.profileManager.loadProfileMethodLabels(gameName, previousBuildId);
                 const oldFieldLabels = await this.profileManager.loadProfileFieldLabels(gameName, previousBuildId);
+                const oldLabelFingerprints = await this.profileManager.loadProfileLabelFingerprints(gameName, previousBuildId);
                 const result = matchFingerprints({
                     oldFps,
                     newFps: currentFps,
                     oldLabels,
                     oldMethodLabels,
                     oldFieldLabels,
+                    oldLabelFingerprints,
                 });
                 for (const m of result.auto) {
                     profile.labels.set(m.key, m.label);

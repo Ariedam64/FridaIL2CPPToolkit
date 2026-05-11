@@ -29,6 +29,11 @@ interface ClassFingerprint {
     methodCount: number;
     fields: FieldFingerprint[];
     methods: MethodFingerprint[];
+    /** Stable structural fingerprint — same algorithm as
+     *  `network.extractStructuralSignature` so it can be compared 1:1 against
+     *  a label's `fingerprint` captured at rename time. Null when the class
+     *  has no namespace-qualified type references (degenerate case). */
+    structuralFp: string | null;
 }
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
@@ -114,5 +119,47 @@ function fingerprint(klass: Il2Cpp.Class): ClassFingerprint {
         methodCount: klass.methods.length,
         fields,
         methods,
+        structuralFp: computeStructuralFp(klass, fields, methods),
     };
+}
+
+// Same algorithm as network.extractStructuralSignature — must stay in lockstep
+// so labels created via the rename route compare 1:1 against fingerprints
+// emitted here at migration time.
+function computeStructuralFp(klass: Il2Cpp.Class, fields: FieldFingerprint[], methods: MethodFingerprint[]): string | null {
+    const isStable = (t: string | undefined): boolean => !!t && t.includes(".");
+
+    const ftCounts = new Map<string, number>();
+    for (const f of fields) {
+        if (isStable(f.typeName)) ftCounts.set(f.typeName, (ftCounts.get(f.typeName) ?? 0) + 1);
+    }
+
+    const shapes = new Set<string>();
+    for (const m of methods) {
+        const tokens = [m.returnType, ...m.paramTypes];
+        if (tokens.some(isStable)) {
+            shapes.add(`${m.isStatic ? "s" : "i"}(${m.paramTypes.join(",")}):${m.returnType}`);
+        }
+    }
+
+    if (ftCounts.size === 0 && shapes.size === 0) return null;
+
+    const fc = klass.fields.length;
+    const mc = klass.methods.length;
+    const ftStr = [...ftCounts.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([t, n]) => `${t}*${n}`).join("|");
+    const msStr = [...shapes].sort().join("|");
+    const sig = `S2:fc=${fc};mc=${mc};ft=[${ftStr}];ms=[${msStr}]`;
+    return fnv1a64(sig);
+}
+
+function fnv1a64(s: string): string {
+    let h1 = 0x811c9dc5 | 0, h2 = 0x1000193 | 0;
+    for (let i = 0; i < s.length; i++) {
+        const c = s.charCodeAt(i);
+        h1 ^= c; h1 = Math.imul(h1, 16777619) | 0;
+        h2 ^= (c * 31) | 0; h2 = Math.imul(h2, 2166136261) | 0;
+    }
+    return (h1 >>> 0).toString(16).padStart(8, "0") + (h2 >>> 0).toString(16).padStart(8, "0");
 }

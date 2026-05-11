@@ -55,6 +55,15 @@ export function mountLabels(app: Express, deps: LabelsDeps): void {
                                 "extractProtobufSignature", [key.className, 3],
                             );
                             if (r && r.signature) sig = { signature: r.signature, fingerprint: r.fingerprint };
+                            else {
+                                // Non-protobuf class (controllers, wrappers, services). Fall back
+                                // to a stable-types-only structural signature so migration can
+                                // still re-link the label after an obf-name rotation.
+                                const s = await deps.session.fridaClient.call<{ cls: string; signature: string; fingerprint: string } | null>(
+                                    "extractStructuralSignature", [key.className],
+                                );
+                                if (s && s.signature) sig = { signature: s.signature, fingerprint: s.fingerprint };
+                            }
                         } else {
                             // For fields and methods we extract from the parent
                             // class dump. A field's signature is its typeName;
@@ -123,7 +132,15 @@ export function mountLabels(app: Express, deps: LabelsDeps): void {
                 if (r?.signature) {
                     p.labels.decorate({ kind: "class", className }, { signature: r.signature, fingerprint: r.fingerprint });
                     stats.classes.ok++;
-                } else { stats.classes.failed++; }
+                } else {
+                    const s = await deps.session.fridaClient.call<{ cls: string; signature: string; fingerprint: string } | null>(
+                        "extractStructuralSignature", [className],
+                    );
+                    if (s?.signature) {
+                        p.labels.decorate({ kind: "class", className }, { signature: s.signature, fingerprint: s.fingerprint });
+                        stats.classes.ok++;
+                    } else { stats.classes.failed++; }
+                }
             } catch { stats.classes.failed++; }
         }
         for (const [k, entry] of Object.entries(dump.fields ?? {})) {

@@ -165,6 +165,18 @@ export class ProfileManager {
         return out;
     }
 
+    /** Class-label fingerprints (`obfName → fingerprint`). Only entries that
+     *  actually have a stored fingerprint are returned, so missing values
+     *  signal "fall back to similarity scoring". */
+    async loadProfileLabelFingerprints(gameName: string, buildId: string): Promise<Record<string, string>> {
+        const data = await this.readLabelsFile(gameName, buildId);
+        const out: Record<string, string> = {};
+        for (const [obf, entry] of Object.entries(data.classes ?? {})) {
+            if (entry.fingerprint) out[obf] = entry.fingerprint;
+        }
+        return out;
+    }
+
     async loadProfileMethodLabels(gameName: string, buildId: string): Promise<Record<string, string>> {
         const data = await this.readLabelsFile(gameName, buildId);
         const out: Record<string, string> = {};
@@ -184,9 +196,9 @@ export class ProfileManager {
     }
 
     private async readLabelsFile(gameName: string, buildId: string): Promise<{
-        classes?: Record<string, { label: string }>;
-        methods?: Record<string, { label: string }>;
-        fields?: Record<string, { label: string }>;
+        classes?: Record<string, { label: string; signature?: string; fingerprint?: string }>;
+        methods?: Record<string, { label: string; signature?: string; fingerprint?: string }>;
+        fields?: Record<string, { label: string; signature?: string; fingerprint?: string }>;
     }> {
         const labelsPath = path.join(this.profilesRoot, gameName, buildId, "labels.json");
         if (!fs.existsSync(labelsPath)) return {};

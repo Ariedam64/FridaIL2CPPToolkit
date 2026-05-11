@@ -29,6 +29,12 @@ export interface MatchInput {
     oldMethodLabels?: Record<string, string>;
     /** Field labels keyed by `${classObf}.${fieldObf}`. Optional, defaults to {}. */
     oldFieldLabels?: Record<string, string>;
+    /** Class-label fingerprints (`obfName → fingerprint`) captured at rename
+     *  time. When present and they match a new class's `structuralFp` uniquely,
+     *  the engine resolves the migration with high confidence — handy when
+     *  obf names rotate (the case structural-similarity scoring handles poorly
+     *  because its Jaccards still reference obf names). */
+    oldLabelFingerprints?: Record<string, string>;
 }
 
 const AUTO_THRESHOLD = 0.95;
@@ -38,11 +44,24 @@ export function matchFingerprints(input: MatchInput): MigrationResult {
     const { oldFps, newFps, oldLabels } = input;
     const oldMethodLabels = input.oldMethodLabels ?? {};
     const oldFieldLabels = input.oldFieldLabels ?? {};
+    const oldLabelFingerprints = input.oldLabelFingerprints ?? {};
     const result: MigrationResult = { auto: [], review: [], lost: [] };
 
     const newByToken = new Map<string, ClassFingerprint>();
     for (const fp of newFps) {
         if (fp.token) newByToken.set(fp.token, fp);
+    }
+
+    // Index new classes by structural fingerprint. Multiple classes can hash
+    // to the same value (collision or genuinely-identical shapes — rare but
+    // we must guard), so we keep a list per key and only auto-match when
+    // exactly one class claims a fingerprint.
+    const newByStructFp = new Map<string, ClassFingerprint[]>();
+    for (const fp of newFps) {
+        if (!fp.structuralFp) continue;
+        const list = newByStructFp.get(fp.structuralFp) ?? [];
+        list.push(fp);
+        newByStructFp.set(fp.structuralFp, list);
     }
 
     const runPass2 = (oldCls: ClassFingerprint, newCls: ClassFingerprint): void => {
@@ -97,6 +116,28 @@ export function matchFingerprints(input: MatchInput): MigrationResult {
                 runPass2(oldFp, tokMatch);
                 continue;
             }
+        }
+
+        // Pass 1.5 — exact structural-fingerprint match. Resilient to obf
+        // rotation because the FP is computed over namespace-qualified types
+        // (which don't rotate) only.
+        const storedFp = oldLabelFingerprints[oldFp.obfName];
+        if (storedFp) {
+            const fpMatches = newByStructFp.get(storedFp);
+            if (fpMatches && fpMatches.length === 1) {
+                const newCls = fpMatches[0];
+                result.auto.push({
+                    key, label,
+                    oldObf: oldFp.obfName,
+                    newObf: newCls.obfName,
+                    reason: `structural fingerprint match (${storedFp})`,
+                });
+                runPass2(oldFp, newCls);
+                continue;
+            }
+            // Collision (≥2 new classes share the FP) — fall through to
+            // similarity scoring so a tie-breaker decides. Single-match
+            // success is the only fast-path here.
         }
 
         const candidates = newFps

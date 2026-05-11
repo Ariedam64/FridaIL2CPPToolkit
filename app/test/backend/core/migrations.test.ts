@@ -154,6 +154,68 @@ describe("matchFingerprints", () => {
         expect(result.review).toHaveLength(0);
         expect(result.lost).toHaveLength(0);
     });
+
+    it("auto-migrates via structural fingerprint when token is absent (obf rotation)", () => {
+        // Old class had label "MovementController", no token, but its
+        // structural FP was captured at rename time. After update the class
+        // has a different obf name, no token, but the same structural FP.
+        const oldFps = [cls("dve", {
+            token: null,
+            methodCount: 5,
+            fields: fieldsFromTypes(["dezt:Core.Rendering.Entity.Entity"]),
+            methods: methodsFromSigs(["txh(fpf)void"]),
+        })];
+        const newFps = [cls("xyz", {
+            token: null,
+            methodCount: 5,
+            fields: fieldsFromTypes(["aaa:Core.Rendering.Entity.Entity"]),
+            methods: methodsFromSigs(["bbb(fpf)void"]),
+            structuralFp: "DEADBEEF",
+        })];
+
+        const result = matchFingerprints({
+            oldFps, newFps,
+            oldLabels: { dve: "MovementController" },
+            oldLabelFingerprints: { dve: "DEADBEEF" },
+        });
+
+        expect(result.auto).toHaveLength(1);
+        expect(result.auto[0].oldObf).toBe("dve");
+        expect(result.auto[0].newObf).toBe("xyz");
+        expect(result.auto[0].reason).toContain("structural fingerprint");
+    });
+
+    it("falls through to similarity when structural FP collides on the new side", () => {
+        // Two new classes share the FP — engine should NOT auto-resolve on FP
+        // alone and instead let the similarity-scoring path decide.
+        const oldFps = [cls("dve", {
+            token: null,
+            methodCount: 1,
+            fields: fieldsFromTypes(["a:Foo"]),
+            methods: methodsFromSigs(["m()void"]),
+        })];
+        const newFps = [
+            cls("xyz", { token: null, methodCount: 1,
+                fields: fieldsFromTypes(["a:Foo"]),
+                methods: methodsFromSigs(["m()void"]),
+                structuralFp: "COLLIDE" }),
+            cls("abc", { token: null, methodCount: 1,
+                fields: fieldsFromTypes(["unrelated:Bar"]),
+                methods: methodsFromSigs(["other()int"]),
+                structuralFp: "COLLIDE" }),
+        ];
+
+        const result = matchFingerprints({
+            oldFps, newFps,
+            oldLabels: { dve: "MovementController" },
+            oldLabelFingerprints: { dve: "COLLIDE" },
+        });
+
+        // Whichever path picks the winner, the FP fast-path itself MUST NOT
+        // claim the auto-resolution — that's what we're asserting.
+        const fpAuto = result.auto.find((a) => a.reason.includes("structural fingerprint"));
+        expect(fpAuto).toBeUndefined();
+    });
 });
 
 describe("matchClassMembers — fields (STRICT)", () => {

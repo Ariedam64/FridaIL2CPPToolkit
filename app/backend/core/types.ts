@@ -108,6 +108,12 @@ export interface ClassFingerprint {
     methodCount: number;
     fields: FieldFingerprint[];
     methods: MethodFingerprint[];
+    /** Optional FNV-1a fingerprint of the class's stable-types signature.
+     *  Computed by the agent (lockstep with `extractStructuralSignature`) so
+     *  the migration engine can do an exact lookup against the previous
+     *  build's label fingerprints. Absent on legacy fingerprints captured
+     *  before the structural feature shipped — those fall back to similarity. */
+    structuralFp?: string | null;
 }
 
 export interface MigrationAutoRecord {

@@ -1,6 +1,6 @@
 // RPC methods for network capture: startNetworkCapture, stopNetworkCapture, resolveProtobufName, sampleResolvedProtobufs.
 import "frida-il2cpp-bridge";
-import { findClass, stringifyValue } from "../lib";
+import { findClass, findClassExact, stringifyValue } from "../lib";
 import { getSingleton } from "./singleton-cache";
 
 function inVm<T>(fn: () => T | Promise<T>): Promise<T> {
@@ -1213,6 +1213,68 @@ export function extractClassFields(className: string): Promise<RuntimeClassSnaps
         } catch {}
         const sig = fields.map(f => `${f.isStatic ? "s" : "i"}:${f.type}`).join(";");
         return { cls: className, classFingerprint: fingerprint(sig), fields };
+    });
+}
+
+/**
+ * Compute a "structural" fingerprint for a non-protobuf class — UI controllers,
+ * wrappers, services. Used as a migration fallback when `extractProtobufSignature`
+ * returns null (= class has no MessageDescriptor getter).
+ *
+ * Stability strategy: only features that survive an obf-name rotation are
+ * counted. Specifically we keep types whose name contains a namespace dot
+ * (`Core.*`, `System.*`, `Google.*`, `UnityEngine.*`, …) because those names
+ * are baked into managed metadata and don't rotate. The class's role (and
+ * thus the set of stable types it references) tends to be invariant between
+ * patches even when its private fields/methods get shuffled.
+ *
+ * Format `S2:fc=N;mc=M;ft=[<typeHistogram>];ms=[<methodShapes>]`:
+ *  - fc/mc : total field / method counts (any visibility)
+ *  - ft    : sorted `Type*count` of stable-typed fields
+ *  - ms    : sorted unique `i|s(p1,p2,…):ret` for methods touching ≥1 stable type
+ *
+ * Returns null if the class has zero stable types referenced (degenerate —
+ * would collide too easily to be useful).
+ */
+export function extractStructuralSignature(className: string): Promise<{ cls: string; signature: string; fingerprint: string } | null> {
+    return inVm(() => {
+        const klass = findClassExact(className) ?? findClass(className);
+        if (!klass) return null;
+
+        const isStable = (t: string | undefined): boolean => !!t && t.includes(".");
+
+        const ftCounts = new Map<string, number>();
+        let fc = 0;
+        for (const f of klass.fields) {
+            fc++;
+            try {
+                const t = f.type.name;
+                if (isStable(t)) ftCounts.set(t, (ftCounts.get(t) ?? 0) + 1);
+            } catch {}
+        }
+
+        const methodShapes = new Set<string>();
+        let mc = 0;
+        for (const m of klass.methods) {
+            mc++;
+            try {
+                const rt = m.returnType?.name ?? "?";
+                const params = (m.parameters as Il2Cpp.Parameter[]).map((p) => p.type?.name ?? "?");
+                const tokens = [rt, ...params];
+                if (tokens.some(isStable)) {
+                    methodShapes.add(`${m.isStatic ? "s" : "i"}(${params.join(",")}):${rt}`);
+                }
+            } catch {}
+        }
+
+        if (ftCounts.size === 0 && methodShapes.size === 0) return null;
+
+        const ftStr = [...ftCounts.entries()]
+            .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+            .map(([t, n]) => `${t}*${n}`).join("|");
+        const msStr = [...methodShapes].sort().join("|");
+        const sig = `S2:fc=${fc};mc=${mc};ft=[${ftStr}];ms=[${msStr}]`;
+        return { cls: klass.name, signature: sig, fingerprint: fingerprint(sig) };
     });
 }
 
