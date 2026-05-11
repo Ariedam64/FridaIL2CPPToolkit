@@ -14,6 +14,13 @@ export interface LabelEntry {
     label: string;
     createdAt: string;   // ISO 8601
     updatedAt: string;   // ISO 8601
+    /** Protobuf signature captured at rename time. Lets the migration engine
+     *  re-link this label to its renamed class on a future game version even
+     *  if the obfuscated `className` key has changed. Optional — pre-existing
+     *  entries (renamed before this feature) won't have it. */
+    signature?: string;
+    /** Short hash of the signature, used as a faster compare key. */
+    fingerprint?: string;
 }
 
 export interface LabelChangeEvent {

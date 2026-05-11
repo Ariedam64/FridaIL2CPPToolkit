@@ -27,6 +27,12 @@ export class LabelStore {
     private classes = new Map<string, LabelEntry>();
     private methods = new Map<string, LabelEntry>();
     private fields = new Map<string, LabelEntry>();
+    // Reverse indices: friendly label → obf key. Methods/fields are scoped per
+    // class because the same friendly label (e.g. "id") can exist on multiple
+    // classes. classObf is the *current* obf class name (post-migration).
+    private classesByLabel = new Map<string, string>();
+    private methodsByLabel = new Map<string, string>();   // key = `${classObf}.${label}`
+    private fieldsByLabel = new Map<string, string>();    // key = `${classObf}.${label}`
     private listeners: Array<Listener<LabelChangeEvent>> = [];
     private filePath: string;
     private dirty = false;
@@ -62,6 +68,20 @@ export class LabelStore {
         return this.classes.size + this.methods.size + this.fields.size;
     }
 
+    /** Reverse lookup: friendly label → current obf name. For class kind only
+     *  the label is enough; for field/method kinds the parent class's obf
+     *  name must be supplied (typically the result of a prior class lookup),
+     *  because the same friendly label can exist on multiple classes. */
+    resolveByLabel(kind: "class", label: string): string | null;
+    resolveByLabel(kind: "method", label: string, classObf: string): string | null;
+    resolveByLabel(kind: "field", label: string, classObf: string): string | null;
+    resolveByLabel(kind: "class" | "method" | "field", label: string, classObf?: string): string | null {
+        if (kind === "class") return this.classesByLabel.get(label) ?? null;
+        if (!classObf) return null;
+        const map = kind === "field" ? this.fieldsByLabel : this.methodsByLabel;
+        return map.get(`${classObf}.${label}`) ?? null;
+    }
+
     isObfuscated(key: LabelKey): boolean {
         const name = key.kind === "class" ? key.className
                    : key.kind === "method" ? key.methodName
@@ -69,9 +89,9 @@ export class LabelStore {
         return /^[a-z]{1,4}$/.test(name);
     }
 
-    set(key: LabelKey, friendly: string): void {
+    set(key: LabelKey, friendly: string, sig?: { signature?: string; fingerprint?: string }): void {
         const old = this.get(key);
-        if (old === friendly) return;
+        if (old === friendly && !sig) return;
 
         const apply = (): void => {
             const now = new Date().toISOString();
@@ -80,6 +100,10 @@ export class LabelStore {
                 label: friendly,
                 createdAt: existing ? existing.createdAt : now,
                 updatedAt: now,
+                // Carry over existing sig if the new call didn't include one,
+                // so a later non-class rename doesn't wipe the captured shape.
+                signature:   sig?.signature   ?? existing?.signature,
+                fingerprint: sig?.fingerprint ?? existing?.fingerprint,
             };
             this.put(key, entry);
             this.markDirty();
@@ -97,6 +121,28 @@ export class LabelStore {
         };
         this.pushUndo({ apply, revert });
         apply();
+    }
+
+    /** Attach a signature/fingerprint to an existing entry without changing
+     *  the label or producing an undo frame. Used by the backfill endpoint
+     *  to retro-fit signatures on labels created before the feature existed. */
+    decorate(key: LabelKey, sig: { signature?: string; fingerprint?: string }): boolean {
+        const entry = this.lookup(key);
+        if (!entry) return false;
+        let changed = false;
+        if (sig.signature && entry.signature !== sig.signature) {
+            entry.signature = sig.signature;
+            changed = true;
+        }
+        if (sig.fingerprint && entry.fingerprint !== sig.fingerprint) {
+            entry.fingerprint = sig.fingerprint;
+            changed = true;
+        }
+        if (changed) {
+            entry.updatedAt = new Date().toISOString();
+            this.markDirty();
+        }
+        return changed;
     }
 
     remove(key: LabelKey): void {
@@ -160,7 +206,10 @@ export class LabelStore {
             this.fields.set(k, v);
             imported++;
         }
-        if (imported > 0) this.markDirty();
+        if (imported > 0) {
+            this.rebuildReverseIndices();
+            this.markDirty();
+        }
         return { imported, skipped };
     }
 
@@ -237,6 +286,7 @@ export class LabelStore {
             for (const [k, v] of Object.entries(data.classes ?? {})) this.classes.set(k, v);
             for (const [k, v] of Object.entries(data.methods ?? {})) this.methods.set(k, v);
             for (const [k, v] of Object.entries(data.fields ?? {})) this.fields.set(k, v);
+            this.rebuildReverseIndices();
         } catch {
             // Corrupted JSON — back up the file and start fresh
             const backup = `${this.filePath}.corrupted.${Date.now()}.json`;
@@ -264,18 +314,58 @@ export class LabelStore {
     }
 
     private put(key: LabelKey, entry: LabelEntry): void {
+        // Drop any prior reverse entry first — a re-set may carry a different
+        // label and we don't want a stale friendly→obf mapping lingering.
+        this.dropReverse(key);
         switch (key.kind) {
-            case "class":  this.classes.set(key.className, entry); break;
-            case "method": this.methods.set(`${key.className}.${key.methodName}`, entry); break;
-            case "field":  this.fields.set(`${key.className}.${key.fieldName}`, entry); break;
+            case "class":
+                this.classes.set(key.className, entry);
+                this.classesByLabel.set(entry.label, key.className);
+                break;
+            case "method":
+                this.methods.set(`${key.className}.${key.methodName}`, entry);
+                this.methodsByLabel.set(`${key.className}.${entry.label}`, key.methodName);
+                break;
+            case "field":
+                this.fields.set(`${key.className}.${key.fieldName}`, entry);
+                this.fieldsByLabel.set(`${key.className}.${entry.label}`, key.fieldName);
+                break;
         }
     }
 
     private delete(key: LabelKey): void {
+        this.dropReverse(key);
         switch (key.kind) {
             case "class":  this.classes.delete(key.className); break;
             case "method": this.methods.delete(`${key.className}.${key.methodName}`); break;
             case "field":  this.fields.delete(`${key.className}.${key.fieldName}`); break;
+        }
+    }
+
+    private dropReverse(key: LabelKey): void {
+        const existing = this.lookup(key);
+        if (!existing) return;
+        switch (key.kind) {
+            case "class":  this.classesByLabel.delete(existing.label); break;
+            case "method": this.methodsByLabel.delete(`${key.className}.${existing.label}`); break;
+            case "field":  this.fieldsByLabel.delete(`${key.className}.${existing.label}`); break;
+        }
+    }
+
+    private rebuildReverseIndices(): void {
+        this.classesByLabel.clear();
+        this.methodsByLabel.clear();
+        this.fieldsByLabel.clear();
+        for (const [k, v] of this.classes) this.classesByLabel.set(v.label, k);
+        for (const [k, v] of this.methods) {
+            const dot = k.indexOf(".");
+            if (dot < 0) continue;
+            this.methodsByLabel.set(`${k.slice(0, dot)}.${v.label}`, k.slice(dot + 1));
+        }
+        for (const [k, v] of this.fields) {
+            const dot = k.indexOf(".");
+            if (dot < 0) continue;
+            this.fieldsByLabel.set(`${k.slice(0, dot)}.${v.label}`, k.slice(dot + 1));
         }
     }
 }
