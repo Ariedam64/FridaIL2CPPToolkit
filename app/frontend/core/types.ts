@@ -60,6 +60,9 @@ export interface NetField {
     name: string;
     kind: NetFieldKind;
     preview: string;
+    /** Full untruncated value, present only when `preview` was clipped agent-side.
+     *  Used by Copy JSON to emit complete strings / hex without bloating UI render. */
+    valueRaw?: string;
     children?: NetField[];
 }
 

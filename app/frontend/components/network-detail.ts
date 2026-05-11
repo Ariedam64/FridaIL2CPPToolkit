@@ -26,32 +26,60 @@ function escape(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+/** Extract the inner className of a `nested` field from its preview, e.g.
+ *  "→ kbi (7 fields)" → "kbi".  Returns null if not a nested preview. */
+function extractInnerClass(preview: string): string | null {
+    const m = preview.match(/^→\s+(\S+)/);
+    return m ? m[1] : null;
+}
+
+/** True if a field name is an array index like "[0]" — those can't be renamed. */
+function isArrayIndex(name: string): boolean {
+    return /^\[\d+\]$/.test(name) || name === "…";
+}
+
 function renderField(
     f: NetField,
     expanded: Set<string>,
     path: string,
-    className: string,
+    /** className of the type that DECLARES this field (= where the rename is keyed) */
+    parentClassName: string,
     isTopLevel: boolean,
 ): string {
     const childPath = `${path}.${f.name}`;
     const hasChildren = !!f.children?.length;
     const open = hasChildren && expanded.has(childPath);
     const caret = hasChildren ? `<span class="net-caret" data-path="${childPath}">${open ? icons.chevronDown(10) : icons.chevronRight(10)}</span>` : `<span class="net-caret-spacer"></span>`;
-    const renamed = isTopLevel && hasFieldLabel(className, f.name);
+
+    // Rename is allowed on any non-index field — both top-level and nested.
+    const isRenamable = !isArrayIndex(f.name);
+    const renamed = isRenamable && hasFieldLabel(parentClassName, f.name);
     const nameDisplay = renamed
-        ? `<strong style="color:var(--syntax-name)">${escape(resolveField(className, f.name))}</strong> <span style="color:var(--text-faint);font-size:10px">[${escape(f.name)}]</span>`
+        ? `<strong style="color:var(--syntax-name)">${escape(resolveField(parentClassName, f.name))}</strong> <span style="color:var(--text-faint);font-size:10px">[${escape(f.name)}]</span>`
         : `${escape(f.name)}`;
-    const renamableAttr = isTopLevel ? `data-rename-field="${escape(f.name)}"` : "";
+    const renamableAttr = isRenamable
+        ? `data-rename-field="${escape(f.name)}" data-rename-class="${escape(parentClassName)}"`
+        : "";
+    // Display the full untruncated value when the agent kept it on the side
+    // (`valueRaw` is set whenever `preview` was clipped to MAX_FIELD_PREVIEW_CHARS).
+    const display = f.valueRaw ?? f.preview;
     const html = `
-        <div class="net-field-line" ${renamableAttr} ${isTopLevel ? 'title="Right-click to rename"' : ""}>
+        <div class="net-field-line" ${renamableAttr} ${isRenamable ? 'title="Right-click to rename"' : ""}>
             ${caret}
             <span class="net-field-name">${nameDisplay}</span>
             <span class="net-field-kind">${escape(f.kind)}</span>
-            <span class="net-field-value" style="color:${KIND_COLORS[f.kind]}">${escape(f.preview)}</span>
+            <span class="net-field-value" style="color:${KIND_COLORS[f.kind]}">${escape(display)}</span>
         </div>
     `;
     if (open && hasChildren) {
-        const inner = (f.children ?? []).map((c) => renderField(c, expanded, childPath, className, false)).join("");
+        // For nested children, the className changes: their container is the
+        // inner class extracted from this field's preview ("→ kbi …"). If we
+        // can't parse one (rare), keep the parent — labels would land on the
+        // wrong class but at least the UI stays interactive.
+        const innerCls = f.kind === "nested" || f.kind === "array"
+            ? (extractInnerClass(f.preview) ?? parentClassName)
+            : parentClassName;
+        const inner = (f.children ?? []).map((c) => renderField(c, expanded, childPath, innerCls, false)).join("");
         return html + `<div class="net-nested">${inner}</div>`;
     }
     return html;
@@ -115,12 +143,14 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                 rerender();
             });
         });
-        // Right-click on a top-level field → rename via labels.ts
+        // Right-click on any renamable field (top-level or nested) → rename via labels.ts.
+        // The data-rename-class attribute carries the className of the type that
+        // declares the field (so nested fields land on the right class label).
         host.querySelectorAll<HTMLElement>(".net-field-line[data-rename-field]").forEach((row) => {
             row.addEventListener("contextmenu", async (ev) => {
                 ev.preventDefault();
                 const fieldName = row.dataset.renameField!;
-                const className = frame.typeKey.className;
+                const className = row.dataset.renameClass ?? frame.typeKey.className;
                 const current = hasFieldLabel(className, fieldName) ? resolveField(className, fieldName) : "";
                 const next = window.prompt(`Rename field ${className}.${fieldName} →\n(empty to remove the rename)`, current);
                 if (next === null) return;
@@ -130,7 +160,6 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
                     } else {
                         await api.setLabel("field", { kind: "field", className, fieldName }, next);
                     }
-                    // No need to refetch; the WS label-change subscriber updates state and rerenders.
                 } catch (err) {
                     alert(`Rename failed: ${err instanceof Error ? err.message : String(err)}`);
                 }
@@ -139,7 +168,7 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
         host.querySelector<HTMLButtonElement>("#net-detail-close")?.addEventListener("click", () => opts.onClose?.());
         host.querySelector<HTMLButtonElement>("#net-detail-rename")?.addEventListener("click", () => opts.onRename?.(frame.typeKey));
         host.querySelector<HTMLButtonElement>("#net-detail-copy")?.addEventListener("click", () => {
-            void navigator.clipboard.writeText(JSON.stringify(frame, null, 2));
+            void navigator.clipboard.writeText(JSON.stringify(inflateForCopy(frame), null, 2));
         });
         host.querySelector<HTMLButtonElement>("#net-detail-expand")?.addEventListener("click", () => {
             collectAllPaths(frame.fields, "", expanded);
@@ -164,6 +193,23 @@ export function mountNetworkDetail(host: HTMLElement, frame: NetFrame, opts: Det
         offLabels();
         if (origCleanup) origCleanup();
     };
+}
+
+/** Build a copy of the frame where each field's `preview` is replaced by its
+ *  full `valueRaw` (when present) and the `valueRaw` key is stripped. Lets the
+ *  Copy JSON button output complete strings/hex without the agent-side 80-char
+ *  ellipsis used for compact UI display. */
+function inflateForCopy(frame: NetFrame): NetFrame {
+    return { ...frame, fields: inflateFields(frame.fields) };
+}
+
+function inflateFields(fields: NetField[]): NetField[] {
+    return fields.map((f) => {
+        const { valueRaw, children, ...rest } = f;
+        const out: NetField = { ...rest, preview: valueRaw ?? f.preview };
+        if (children?.length) out.children = inflateFields(children);
+        return out;
+    });
 }
 
 function collectAllPaths(fields: NetField[], prefix: string, into: Set<string>): void {

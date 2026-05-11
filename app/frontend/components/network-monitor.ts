@@ -7,6 +7,7 @@ import { mountNetworkSummary } from "./network-summary.js";
 import { mountNetworkInspector } from "./network-inspector.js";
 import { showNetworkConfig } from "./network-config.js";
 import { resolveClass, hasClassLabel, onLabelsChange } from "../core/label-resolver.js";
+import { muteStore } from "./network-mute-store.js";
 
 const SIDEBAR_WIDTH_KEY = "frida.network.sidebar.width";
 
@@ -147,10 +148,14 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
             const matches = !needle || `${t.key.ns ?? ""}.${t.key.className}`.toLowerCase().includes(needle);
             if (!matches) return "";
             const dot = t.countByDirection.in > 0 ? "var(--success)" : "var(--danger)";
-            return `<div class="net-tree-row" data-ns="${escape(t.key.ns ?? "")}" data-cls="${escape(t.key.className)}" style="padding:3px 8px;cursor:pointer;display:flex;gap:6px;align-items:baseline">
+            const muted = muteStore.has(t.key.className);
+            const muteIcon = muted ? "🔕" : "🔔";
+            const rowOpacity = muted ? "opacity:0.45;text-decoration:line-through" : "";
+            return `<div class="net-tree-row" data-ns="${escape(t.key.ns ?? "")}" data-cls="${escape(t.key.className)}" style="padding:3px 8px;cursor:pointer;display:flex;gap:6px;align-items:baseline;${rowOpacity}">
                 <span style="color:${dot};font-size:7px">●</span>
                 <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${display}</span>
                 <span style="color:var(--text-faint);font-size:10px">×${t.count}</span>
+                <button class="net-tree-mute" data-cls="${escape(t.key.className)}" title="${muted ? "Unmute" : "Mute"} this class" style="background:transparent;border:0;color:var(--text-faint);cursor:pointer;font-size:11px;padding:0 2px">${muteIcon}</button>
             </div>`;
         };
         tree.innerHTML = `
@@ -160,12 +165,19 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
             ${outTypes.map(renderType).join("")}
         `;
         tree.querySelectorAll<HTMLElement>(".net-tree-row").forEach((row) => {
-            row.addEventListener("click", () => {
+            row.addEventListener("click", (e) => {
+                if ((e.target as HTMLElement).classList.contains("net-tree-mute")) return;
                 const ns = row.dataset.ns!;
                 const cls = row.dataset.cls!;
                 const key = { ns: ns === "" ? null : ns, className: cls };
                 inspectorPreselect = key;
                 mountTab("inspector");
+            });
+        });
+        tree.querySelectorAll<HTMLButtonElement>(".net-tree-mute").forEach((btn) => {
+            btn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                muteStore.toggle(btn.dataset.cls!);
             });
         });
     }
@@ -205,6 +217,7 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
     const offTreeRefresh2 = subscribe("network-frames-cleared", () => { void refreshTree(); });
     const offCfgChange = subscribe("serializer-config-change", () => { /* nothing visible to do here */ });
     const offLabels = onLabelsChange(() => { void refreshTree(); });
+    const offMute = muteStore.onChange(() => { void refreshTree(); });
 
     void refreshTree();
     mountTab("stream");
@@ -214,6 +227,7 @@ export function mountNetworkMonitor(host: HTMLElement): () => void {
         offTreeRefresh2();
         offCfgChange();
         offLabels();
+        offMute();
         if (disposeTab) disposeTab();
         if (inspectorHandle) inspectorHandle.dispose();
     };

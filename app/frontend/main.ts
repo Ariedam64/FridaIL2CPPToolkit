@@ -56,10 +56,19 @@ async function mountPage(tab: NavTab): Promise<void> {
     // Plugin fallback
     const plugin = getPlugin(tab);
     if (plugin) {
+        // Sub-tab resolution: URL wins (deep links / refreshes preserve view),
+        // else fall back to the last sub the user picked on this plugin (kept
+        // in localStorage). Without this fallback, leaving the plugin and
+        // coming back always resets to the plugin's default sub.
+        const subFromUrl = parseSubTab(location.hash);
+        const subFromStorage = getLastSubTab(plugin.id);
         await mountPluginPage(pageHost, plugin, {
             profile: cachedProfile,
-            currentSubTab: parseSubTab(location.hash),
-            setSubTab: (key) => { location.hash = `#/${plugin.id}?sub=${encodeURIComponent(key)}`; },
+            currentSubTab: subFromUrl ?? subFromStorage,
+            setSubTab: (key) => {
+                setLastSubTab(plugin.id, key);
+                location.hash = `#/${plugin.id}?sub=${encodeURIComponent(key)}`;
+            },
             onAttachClick: () => void showProcessPicker(),
         });
         return;
@@ -72,6 +81,13 @@ async function mountPage(tab: NavTab): Promise<void> {
 function parseSubTab(hash: string): string | null {
     const m = /\?sub=([^&]+)/.exec(hash);
     return m ? decodeURIComponent(m[1]) : null;
+}
+
+function getLastSubTab(pluginId: string): string | null {
+    try { return localStorage.getItem(`plugin-subtab:${pluginId}`); } catch { return null; }
+}
+function setLastSubTab(pluginId: string, sub: string): void {
+    try { localStorage.setItem(`plugin-subtab:${pluginId}`, sub); } catch { /* ignore */ }
 }
 
 const navHandle = renderNavIcons(document.getElementById("nav-icons-host")!, {

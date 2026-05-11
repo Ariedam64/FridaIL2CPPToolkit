@@ -4,7 +4,7 @@
 
 export const MAX_FRAME_DEPTH = 2;
 export const MAX_FIELD_PREVIEW_CHARS = 80;
-export const MAX_FRAME_BYTES = 50_000;
+export const MAX_FRAME_BYTES = 250_000;
 export const RING_BUFFER_SIZE = 5000;
 export const FRAME_BROADCAST_THROTTLE_MS = 20;
 export const ANTI_FLOOD_THROWS_PER_SEC = 50;
@@ -23,6 +23,10 @@ export interface FrameField {
     name: string;
     kind: FrameFieldKind;
     preview: string;
+    /** Full untruncated value, set ONLY when `preview` was clipped. The
+     *  Copy-JSON path inflates `preview` from this so users get full strings /
+     *  full byte hex without bloating the live UI render. */
+    valueRaw?: string;
     children?: FrameField[];
 }
 
