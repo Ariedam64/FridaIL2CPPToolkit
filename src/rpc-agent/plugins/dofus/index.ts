@@ -9,3 +9,4 @@ export * from "./actions/movement";
 export * from "./actions/change-map";
 export * from "./actions/player-state";
 export * from "./actions/entity-probe";
+export * from "./actions/map-state";

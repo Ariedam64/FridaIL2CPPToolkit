@@ -73,27 +73,49 @@ async function getCurrentMapId(): Promise<{ mapId: number } | { error: string; s
 // =============================================================================
 
 interface PlayerState {
-    currentMapId: number | null;
     currentCellId: number | null;
     targetCellId: number | null;
+    cellPath: number[];
     isMoving: boolean;
     characterId: string | null;
 }
 const playerState: PlayerState = {
-    currentMapId: null, currentCellId: null, targetCellId: null,
-    isMoving: false, characterId: null,
+    currentCellId: null, targetCellId: null,
+    cellPath: [], isMoving: false, characterId: null,
 };
+
+interface MapEntitySnapshot {
+    entityId: string;
+    cellId: number | null;
+    name: string | null;
+    level: number | null;
+}
+interface MapState {
+    mapId: number | null;
+    entities: MapEntitySnapshot[];
+}
+const mapState: MapState = { mapId: null, entities: [] };
 
 async function fetchInitialPlayerState(): Promise<void> {
     try {
         const r = await fetch("/api/dofus/player/state");
         if (!r.ok) return;
         const s = await r.json() as Partial<PlayerState>;
-        playerState.currentMapId = s.currentMapId ?? null;
         playerState.currentCellId = s.currentCellId ?? null;
         playerState.targetCellId = s.targetCellId ?? null;
+        playerState.cellPath = Array.isArray(s.cellPath) ? s.cellPath : [];
         playerState.isMoving = !!s.isMoving;
         playerState.characterId = s.characterId ?? null;
+    } catch { /* keep zeros */ }
+}
+
+async function fetchInitialMapState(): Promise<void> {
+    try {
+        const r = await fetch("/api/dofus/map/state");
+        if (!r.ok) return;
+        const s = await r.json() as Partial<MapState>;
+        mapState.mapId = s.mapId ?? null;
+        mapState.entities = Array.isArray(s.entities) ? s.entities : [];
     } catch { /* keep zeros */ }
 }
 
@@ -389,9 +411,9 @@ function redrawMoveCanvas(host: HTMLElement): void {
     // When stationary, target == current, only the disc is visible.
     // Only drawn on the map we know the player is on.
     if (
-        playerState.currentMapId !== null
+        mapState.mapId !== null
         && moveState.mapId !== null
-        && playerState.currentMapId === moveState.mapId
+        && mapState.mapId === moveState.mapId
     ) {
         // Target ring (orange) — drawn first so the current disc covers it
         // if the cells coincide.
@@ -574,7 +596,7 @@ function renderHeader(meta: MapMeta | null, mapId: number, runtime: RuntimeMap):
     const totalCount = runtime.interactives.length;
     const lastSeen = runtime.lastSeenAt ? `vu ${fmtAge(runtime.lastSeenAt)}` : "depuis le legacy import";
     // Player block — only meaningful when the PlayerStore agrees we're on this map.
-    const onThisMap = playerState.currentMapId === mapId;
+    const onThisMap = mapState.mapId === mapId;
     const cellNow = onThisMap && playerState.currentCellId !== null
         ? `<code style="color:#facc15">cell ${playerState.currentCellId}</code>`
         : `<code style="color:#666">cell ?</code>`;
@@ -707,7 +729,7 @@ async function refresh(host: HTMLElement): Promise<void> {
     // of truth, no WS-itx dependency. Falls back to the legacy
     // /api/dofus/map/current ONLY if the PlayerStore hasn't bootstrapped yet
     // (covers the brief window before the first state-fetch resolves).
-    let mapId = playerState.currentMapId;
+    let mapId = mapState.mapId;
     if (mapId === null) {
         const cur = await getCurrentMapId();
         if ("error" in cur) {
@@ -743,14 +765,14 @@ async function refresh(host: HTMLElement): Promise<void> {
  *  Avoids the full refresh() round-trips when only the player moved within
  *  the current map (no map change, no interactives change). */
 function refreshHeaderLite(host: HTMLElement): void {
-    if (playerState.currentMapId === null || !moveState.runtime) return;
+    if (mapState.mapId === null || !moveState.runtime) return;
     const meta = moveState.detail;
-    setRegion(host, "header", renderHeader(meta, playerState.currentMapId, moveState.runtime));
+    setRegion(host, "header", renderHeader(meta, mapState.mapId, moveState.runtime));
 }
 
-/** Renders the live PlayerStore snapshot as a pretty-printed JSON block.
- *  Pure read-out for debugging — the bot uses /api/dofus/player/state or the
- *  WS push directly. */
+/** Renders the live PlayerStore + MapStateStore snapshots as JSON blocks.
+ *  Pure read-out for debugging — the bot uses /api/dofus/{player,map}/state
+ *  or the corresponding WS pushes directly. */
 function renderPlayerRaw(): string {
     return `
         <details open style="background:#0d0d0d;border:1px solid #1f1f1f;border-radius:6px;padding:6px 12px">
@@ -758,6 +780,12 @@ function renderPlayerRaw(): string {
                 PlayerState (raw)
             </summary>
             <pre style="margin:8px 0 4px;font-family:var(--font-code,monospace);font-size:11px;color:#bbb;line-height:1.5;white-space:pre">${JSON.stringify(playerState, null, 2)}</pre>
+        </details>
+        <details open style="background:#0d0d0d;border:1px solid #1f1f1f;border-radius:6px;padding:6px 12px;margin-top:8px">
+            <summary style="cursor:pointer;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px">
+                MapState (raw)
+            </summary>
+            <pre style="margin:8px 0 4px;font-family:var(--font-code,monospace);font-size:11px;color:#bbb;line-height:1.5;white-space:pre">${JSON.stringify(mapState, null, 2)}</pre>
         </details>
     `;
 }
@@ -840,38 +868,40 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
         if (cn && REFRESH_TRIGGER_CLASSES.has(cn)) scheduleRefresh();
     });
 
-    // Player state — listen to the backend-pushed event. Two paths:
-    //  - SAME map      → just redraw the canvas marker + patch the header
-    //                    line (no backend round-trip)
-    //  - MAP CHANGED   → scheduleRefresh() to pull fresh static + runtime
-    //                    data for the new map.
-    // This split is what keeps the game smooth: a continuous-move emits 2-3
-    // WS frames in tight burst, and a full refresh per frame stalled the UI.
-    let lastSeenMapId = playerState.currentMapId;
+    // Player state changes (cell/move) — light redraws only. Map-id changes
+    // come on a separate event below.
     unsubPlayer = subscribe("dofus-player-state-changed", (msg: { state?: Partial<PlayerState> }) => {
         const s = msg?.state ?? {};
-        playerState.currentMapId = s.currentMapId ?? null;
         playerState.currentCellId = s.currentCellId ?? null;
         playerState.targetCellId = s.targetCellId ?? null;
+        playerState.cellPath = Array.isArray(s.cellPath) ? s.cellPath : [];
         playerState.isMoving = !!s.isMoving;
         playerState.characterId = s.characterId ?? playerState.characterId;
-
-        // Always reflect the new state in the raw block — cheap and gives
-        // the user immediate feedback on every WS push.
         refreshPlayerRaw(host);
-        if (playerState.currentMapId !== lastSeenMapId) {
-            lastSeenMapId = playerState.currentMapId;
-            scheduleRefresh();
-            return;
-        }
-        // Same map — cheap in-memory updates only.
         const movePanelHost = host.querySelector<HTMLElement>("[data-region='move-panel']");
         if (movePanelHost) redrawMoveCanvas(movePanelHost);
         refreshHeaderLite(host);
     });
+
+    // Map state changes (mapId, entities) — full refresh on mapId change.
+    let lastSeenMapId = mapState.mapId;
+    const unsubMapState = subscribe("dofus-map-state-changed", (msg: { state?: Partial<MapState> }) => {
+        const s = msg?.state ?? {};
+        mapState.mapId = s.mapId ?? null;
+        mapState.entities = Array.isArray(s.entities) ? s.entities : [];
+        refreshPlayerRaw(host);
+        if (mapState.mapId !== lastSeenMapId) {
+            lastSeenMapId = mapState.mapId;
+            scheduleRefresh();
+        }
+    });
+    // Track the unsub through the existing cleanup hook.
+    const prevUnsubPlayer = unsubPlayer;
+    unsubPlayer = (): void => { try { prevUnsubPlayer(); } catch {} try { unsubMapState(); } catch {} };
+
     // Bootstrap: fetch the initial state and do one full refresh.
-    void fetchInitialPlayerState().then(() => {
-        lastSeenMapId = playerState.currentMapId;
+    void Promise.all([fetchInitialPlayerState(), fetchInitialMapState()]).then(() => {
+        lastSeenMapId = mapState.mapId;
         refreshPlayerRaw(host);
         scheduleRefresh();
     });

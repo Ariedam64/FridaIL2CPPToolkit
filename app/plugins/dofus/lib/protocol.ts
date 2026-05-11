@@ -275,14 +275,21 @@ export interface ResolvedChangeMapProto {
 
 export const PLAYER_STATE_PROTO = {
     classes: {
-        MovementController: { friendly: "MovementController", fallback: "dve" },
-        MapRenderer:        { friendly: "MapRenderer",        fallback: "MapRenderer" },
-        LocalCharacter:     { friendly: "LocalCharacter",     fallback: "gic" },
+        MovementController:     { friendly: "MovementController",      fallback: "dve" },
+        LocalCharacter:         { friendly: "LocalCharacter",          fallback: "gic" },
+        // WS-update trigger: server broadcasts every entity's movement —
+        // one frame per move, even our own (filter by entityId === characterId).
+        // Carries the cellPath we're about to follow → targetCellId + isMoving.
+        MapEntityMovement:      { friendly: "mapEntityMovement",       fallback: "itv" },
+        // WS-update trigger: client sends `itr` when our move ends.
+        // Empty payload — used purely as a signal to clear cellPath / isMoving.
+        MoveStop:               { friendly: "MoveStop",                fallback: "itr" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         MovementController_targetCellId: { classKey: "MovementController", friendly: "targetCellId", fallback: "dezz" },
-        MapRenderer_currentMapId:        { classKey: "MapRenderer",        friendly: "currentMapId", fallback: "czav" },
         LocalCharacter_characterId:      { classKey: "LocalCharacter",     friendly: "characterId",  fallback: "<dsck>k__BackingField" },
+        MapEntityMovement_entityId:      { classKey: "MapEntityMovement",  friendly: "entityId",     fallback: "efss" },
+        MapEntityMovement_cellPath:      { classKey: "MapEntityMovement",  friendly: "cellPath",     fallback: "efsq" },
     } as Record<string, ProtoMemberSpec>,
     methods: {} as Record<string, ProtoMemberSpec>,
 } as const;
@@ -291,4 +298,58 @@ export interface ResolvedPlayerStateProto {
     classes: Record<keyof typeof PLAYER_STATE_PROTO["classes"], string>;
     fields:  Record<keyof typeof PLAYER_STATE_PROTO["fields"],  string>;
     methods: Record<keyof typeof PLAYER_STATE_PROTO["methods"], string>;
+}
+
+// =============================================================================
+// Map state — what we track at the map level (mapId + entity list). Bootstrap
+// flow: read MapRenderer.currentMapId → forge an isp(mapId) so the server
+// re-broadcasts an itx → MapStateStore parses entities (entityId, cellId,
+// name, level). After init, every natural itx (= every map change) keeps the
+// store in sync. Updates of entity position during the map-stay are tracked
+// independently via the itv handler in PlayerStore.
+// =============================================================================
+
+export const MAP_STATE_PROTO = {
+    classes: {
+        // For the initial mapId read.
+        MapRenderer:            { friendly: "MapRenderer",             fallback: "MapRenderer" },
+        // For triggering the bootstrap itx.
+        MapEnteredNotification: { friendly: "MapEnteredNotification",  fallback: "isp" },
+        Dispatcher:             { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
+        // For matching the incoming itx + the entity-data deep chain.
+        MapInfo:                { friendly: "mapInfo",                 fallback: "itx" },
+        MapEntity:              { friendly: "MapEntity",               fallback: "khg" },
+        EntityPosition:         { friendly: "EntityPosition",          fallback: "kjp" },
+        EntityLook:             { friendly: "EntityLook",              fallback: "khe" },
+        CharacterAttributes:    { friendly: "CharacterAttributes",     fallback: "kgl" },
+        CharacterCard:          { friendly: "CharacterCard",           fallback: "kgb" },
+        CharacterProgression:   { friendly: "CharacterProgression",    fallback: "kfy" },
+        LevelInfo:              { friendly: "LevelInfo",               fallback: "kli" },
+    } as Record<string, ProtoClassSpec>,
+    fields: {
+        MapRenderer_currentMapId:        { classKey: "MapRenderer",            friendly: "currentMapId", fallback: "czav" },
+        MapEnteredNotification_flag1:    { classKey: "MapEnteredNotification", friendly: "flag1",        fallback: "eflj" },
+        MapEnteredNotification_mapId:    { classKey: "MapEnteredNotification", friendly: "mapId",        fallback: "efll" },
+        MapInfo_mapId:                   { classKey: "MapInfo",                friendly: "mapId",        fallback: "efti" },
+        MapInfo_entities:                { classKey: "MapInfo",                friendly: "entities",     fallback: "eftd" },
+        MapEntity_entityId:              { classKey: "MapEntity",              friendly: "entityId",     fallback: "epww" },
+        MapEntity_position:              { classKey: "MapEntity",              friendly: "position",     fallback: "epxa" },
+        MapEntity_look:                  { classKey: "MapEntity",              friendly: "look",         fallback: "epxc" },
+        EntityPosition_cellId:           { classKey: "EntityPosition",         friendly: "cellId",       fallback: "eqqq" },
+        EntityLook_characterAttributes:  { classKey: "EntityLook",             friendly: "characterAttributes", fallback: "epwr" },
+        CharacterAttributes_characterCard: { classKey: "CharacterAttributes",  friendly: "characterCard", fallback: "epsa" },
+        CharacterCard_name:              { classKey: "CharacterCard",          friendly: "name",         fallback: "eppb" },
+        CharacterCard_progression:       { classKey: "CharacterCard",          friendly: "progression",  fallback: "eppe" },
+        CharacterProgression_levelInfo:  { classKey: "CharacterProgression",   friendly: "levelInfo",    fallback: "epor" },
+        LevelInfo_level:                 { classKey: "LevelInfo",              friendly: "level",        fallback: "ereh" },
+    } as Record<string, ProtoMemberSpec>,
+    methods: {
+        Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },
+    } as Record<string, ProtoMemberSpec>,
+} as const;
+
+export interface ResolvedMapStateProto {
+    classes: Record<keyof typeof MAP_STATE_PROTO["classes"], string>;
+    fields:  Record<keyof typeof MAP_STATE_PROTO["fields"],  string>;
+    methods: Record<keyof typeof MAP_STATE_PROTO["methods"], string>;
 }

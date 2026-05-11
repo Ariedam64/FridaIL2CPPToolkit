@@ -45,8 +45,18 @@ export interface ItxObfNames {
     // which `dve.dezz` doesn't pick up (it only updates on click).
     entitiesArray: string;                // eftd
     entity_entityId: string;              // epww (long)
-    entity_position: string;              // epxa (nested kjp)
+    entity_position: string;              // epxa (nested EntityPosition / kjp)
     position_cellId: string;              // eqqq (int)
+    // Deep chain into the per-entity character data — name + level for
+    // player-class entities. NPCs/monsters lack these so every level of the
+    // walk is null-tolerant.
+    entity_look: string;                  // epxc → EntityLook (khe)
+    look_characterAttributes: string;     // epwr → CharacterAttributes (kgl)
+    characterAttributes_characterCard: string;  // epsa → CharacterCard (kgb)
+    characterCard_name: string;           // eppb (string)
+    characterCard_progression: string;    // eppe → CharacterProgression (kfy)
+    progression_levelInfo: string;        // epor → LevelInfo (kli)
+    levelInfo_level: string;              // ereh (int)
 }
 
 export const DEFAULT_ITX_OBF: ItxObfNames = {
@@ -72,6 +82,13 @@ export const DEFAULT_ITX_OBF: ItxObfNames = {
     entity_entityId: "epww",
     entity_position: "epxa",
     position_cellId: "eqqq",
+    entity_look: "epxc",
+    look_characterAttributes: "epwr",
+    characterAttributes_characterCard: "epsa",
+    characterCard_name: "eppb",
+    characterCard_progression: "eppe",
+    progression_levelInfo: "epor",
+    levelInfo_level: "ereh",
 };
 
 export interface ParsedSkill {
@@ -99,10 +116,16 @@ export interface ParsedStatedElement {
 
 /** One entity present on the map at the moment the itx was broadcast.
  *  `entityId` is the server-side stable id (matches `LocalCharacter.characterId`
- *  for the local player). Kept as string to dodge JS-side int53 surprises. */
+ *  for the local player). Kept as string to dodge JS-side int53 surprises.
+ *
+ *  `name` / `level` are only populated for player-class entities — NPCs and
+ *  monsters reach this stage with the deeper `CharacterCard` ref missing, so
+ *  the walk is null-tolerant and returns null when any link breaks. */
 export interface ParsedEntity {
     entityId: string;
     cellId: number;
+    name: string | null;
+    level: number | null;
 }
 
 export interface ParsedItx {
@@ -164,7 +187,30 @@ export function parseItx(frame: NetworkFrame, obf: ItxObfNames = DEFAULT_ITX_OBF
             const pos = findField(khg.children, obf.entity_position);
             const cellId = pos?.children ? intFromField(findField(pos.children, obf.position_cellId)) : null;
             if (cellId === null) continue;
-            entities.push({ entityId, cellId });
+
+            // Walk khg.look.characterAttributes.characterCard for name + level.
+            // Each hop bails to null on a missing/non-nested link so NPCs and
+            // monsters (which lack the deeper character data) end up with
+            // { name: null, level: null }.
+            let name: string | null = null;
+            let level: number | null = null;
+            const look = findField(khg.children, obf.entity_look);
+            const charAttrs = look?.children ? findField(look.children, obf.look_characterAttributes) : undefined;
+            const charCard = charAttrs?.children ? findField(charAttrs.children, obf.characterAttributes_characterCard) : undefined;
+            if (charCard?.children) {
+                const nameField = findField(charCard.children, obf.characterCard_name);
+                if (nameField && nameField.preview && nameField.preview !== "null") {
+                    // String fields arrive with surrounding quotes in the preview.
+                    name = nameField.preview.replace(/^"|"$/g, "");
+                }
+                const progression = findField(charCard.children, obf.characterCard_progression);
+                const levelInfo = progression?.children ? findField(progression.children, obf.progression_levelInfo) : undefined;
+                if (levelInfo?.children) {
+                    level = intFromField(findField(levelInfo.children, obf.levelInfo_level));
+                }
+            }
+
+            entities.push({ entityId, cellId, name, level });
         }
     }
 

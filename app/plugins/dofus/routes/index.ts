@@ -12,6 +12,7 @@ import { MapInteractivesStore } from "../lib/map-interactives-store";
 import { isGhostInteractive } from "../lib/ghost-filter";
 import { LabelStore } from "../../../backend/core/labels";
 import { PlayerStore } from "../lib/player-store";
+import { MapStateStore } from "../lib/map-state-store";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -77,29 +78,46 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     // 4 movement-related obfs (resolved through labels so it survives renames).
     // -------------------------------------------------------------------------
     let playerStore: PlayerStore | null = null;
+    let mapStateStore: MapStateStore | null = null;
     let detachPlayerListener: (() => void) | null = null;
-    function rewirePlayerStore(): void {
-        if (detachPlayerListener) { detachPlayerListener(); detachPlayerListener = null; }
-        if (playerStore) { playerStore.dispose(); playerStore = null; }
+    let detachMapStateListener: (() => void) | null = null;
+
+    function rewireStores(): void {
+        if (detachPlayerListener)   { detachPlayerListener();   detachPlayerListener = null; }
+        if (detachMapStateListener) { detachMapStateListener(); detachMapStateListener = null; }
+        if (playerStore)   { playerStore.dispose();   playerStore = null; }
+        if (mapStateStore) { mapStateStore.dispose(); mapStateStore = null; }
         const profile = deps.session.profile();
         if (!profile) return;
-        playerStore = new PlayerStore(deps.session, profile.labels, deps.session.fridaClient);
+
+        playerStore   = new PlayerStore(deps.session, profile.labels, deps.session.fridaClient);
+        mapStateStore = new MapStateStore(deps.session, profile.labels, deps.session.fridaClient);
+
         detachPlayerListener = playerStore.onChange((state) => {
             deps.session.emit("dofus-player-state-changed", state);
         });
-        // Initial read so the first GET doesn't return null state.
+        detachMapStateListener = mapStateStore.onChange((state) => {
+            deps.session.emit("dofus-map-state-changed", state);
+        });
+
+        // Bootstrap from the runtime: PlayerStore reads dve/gic via the agent,
+        // MapStateStore reads MapRenderer.currentMapId then forges an isp so
+        // the server re-broadcasts an itx (entity list lands a moment later).
         void playerStore.refresh();
+        void mapStateStore.bootstrap();
     }
 
     deps.session.on("profile-attached", () => {
         rewireInteractives();
-        rewirePlayerStore();
+        rewireStores();
         void autoArmNetworkCapture();
     });
     deps.session.on("profile-detached", () => {
         if (detachInteractives) { detachInteractives(); detachInteractives = null; }
-        if (detachPlayerListener) { detachPlayerListener(); detachPlayerListener = null; }
-        if (playerStore) { playerStore.dispose(); playerStore = null; }
+        if (detachPlayerListener)   { detachPlayerListener();   detachPlayerListener = null; }
+        if (detachMapStateListener) { detachMapStateListener(); detachMapStateListener = null; }
+        if (playerStore)   { playerStore.dispose();   playerStore = null; }
+        if (mapStateStore) { mapStateStore.dispose(); mapStateStore = null; }
         // Recreate map interactives with a stub LabelStore so disk reads keep working.
         rewireInteractives();
     });
@@ -133,8 +151,8 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     app.get("/api/dofus/player/state", (_req, res) => {
         if (!playerStore) {
             res.json({
-                currentMapId: null, currentCellId: null, targetCellId: null,
-                isMoving: false, characterId: null,
+                currentCellId: null, targetCellId: null,
+                cellPath: [], isMoving: false, characterId: null,
             });
             return;
         }
@@ -148,6 +166,26 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         if (!playerStore) { res.status(503).json({ error: "not attached" }); return; }
         await playerStore.refresh();
         res.json(playerStore.getState());
+    });
+
+    /** Snapshot of the current map (mapId + entity list with name/level/cell).
+     *  Sourced from the latest itx the server broadcast — at attach we force
+     *  an itx by forging a self-addressed `isp` so the data is available
+     *  immediately, without waiting for a natural map change. */
+    app.get("/api/dofus/map/state", (_req, res) => {
+        if (!mapStateStore) {
+            res.json({ mapId: null, entities: [] });
+            return;
+        }
+        res.json(mapStateStore.getState());
+    });
+
+    /** Manually re-bootstrap the MapStateStore (read mapId + forge isp).
+     *  Useful for debugging — the natural flow handles map changes already. */
+    app.post("/api/dofus/map/state/refresh", async (_req, res) => {
+        if (!mapStateStore) { res.status(503).json({ error: "not attached" }); return; }
+        await mapStateStore.bootstrap();
+        res.json(mapStateStore.getState());
     });
 
     /** Current mapId — read from the MapInteractivesStore which tracks the

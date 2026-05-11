@@ -86,6 +86,8 @@ export function mountWsBridge(server: HttpServer, session: Session): void {
     // ---- dofus plugin events ----
     session.on("dofus-player-state-changed", (state: unknown) =>
         broadcast({ type: "dofus-player-state-changed", state }));
+    session.on("dofus-map-state-changed", (state: unknown) =>
+        broadcast({ type: "dofus-map-state-changed", state }));
 
     session.on("profile-attached", (profile) => broadcast({
         type: "profile-attached",
