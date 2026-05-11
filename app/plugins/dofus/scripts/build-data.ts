@@ -80,7 +80,7 @@ function readJson<T>(p: string): T {
     if (!fs.existsSync(p)) {
         throw new Error(
             `required file not found: ${p}\n` +
-            `(run the datacenter dump first — see dofus-app/scripts/dump-datacenter.js)`,
+            `(run the datacenter dump first — see scripts/dump-datacenter.js at repo root)`,
         );
     }
     return JSON.parse(fs.readFileSync(p, "utf8")) as T;
