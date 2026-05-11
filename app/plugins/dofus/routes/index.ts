@@ -174,7 +174,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
      *  immediately, without waiting for a natural map change. */
     app.get("/api/dofus/map/state", (_req, res) => {
         if (!mapStateStore) {
-            res.json({ mapId: null, entities: [] });
+            res.json({ mapId: null, entities: [], interactables: [] });
             return;
         }
         res.json(mapStateStore.getState());

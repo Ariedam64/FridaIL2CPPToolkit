@@ -325,6 +325,10 @@ export const MAP_STATE_PROTO = {
         CharacterCard:          { friendly: "CharacterCard",           fallback: "kgb" },
         CharacterProgression:   { friendly: "CharacterProgression",    fallback: "kfy" },
         LevelInfo:              { friendly: "LevelInfo",               fallback: "kli" },
+        // For the interactables join (eftq + eftt) into MapState.interactables.
+        InteractiveElement:     { friendly: "InteractiveElement",      fallback: "kne" },
+        InteractiveElementSkill:{ friendly: "InteractiveElementSkill", fallback: "knc" },
+        StatedElement:          { friendly: "StatedElement",           fallback: "kdb" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         MapRenderer_currentMapId:        { classKey: "MapRenderer",            friendly: "currentMapId", fallback: "czav" },
@@ -342,6 +346,21 @@ export const MAP_STATE_PROTO = {
         CharacterCard_progression:       { classKey: "CharacterCard",          friendly: "progression",  fallback: "eppe" },
         CharacterProgression_levelInfo:  { classKey: "CharacterProgression",   friendly: "levelInfo",    fallback: "epor" },
         LevelInfo_level:                 { classKey: "LevelInfo",              friendly: "level",        fallback: "ereh" },
+        // Interactables join fields — itx.eftt (interactives) ↔ itx.eftq
+        // (statedElements) by elementId. enabled/disabled skills carry the
+        // skillId + skillInstanceUid the bot needs to invoke an action.
+        MapInfo_interactives:            { classKey: "MapInfo",                friendly: "interactives", fallback: "eftt" },
+        MapInfo_statedElements:          { classKey: "MapInfo",                friendly: "statedElements", fallback: "eftq" },
+        InteractiveElement_elementId:        { classKey: "InteractiveElement",     friendly: "elementId",        fallback: "erqk" },
+        InteractiveElement_interactiveTypeId:{ classKey: "InteractiveElement",     friendly: "interactiveTypeId",fallback: "erqx" },
+        InteractiveElement_enabledSkills:    { classKey: "InteractiveElement",     friendly: "enabledSkills",    fallback: "erqn" },
+        InteractiveElement_disabledSkills:   { classKey: "InteractiveElement",     friendly: "disabledSkills",   fallback: "erqv" },
+        InteractiveElementSkill_skillId:         { classKey: "InteractiveElementSkill", friendly: "skillId",          fallback: "erpy" },
+        InteractiveElementSkill_skillInstanceUid:{ classKey: "InteractiveElementSkill", friendly: "skillInstanceUid", fallback: "erqd" },
+        StatedElement_state:        { classKey: "StatedElement", friendly: "state",        fallback: "eoun" },
+        StatedElement_onCurrentMap: { classKey: "StatedElement", friendly: "onCurrentMap", fallback: "eoup" },
+        StatedElement_elementId:    { classKey: "StatedElement", friendly: "elementId",    fallback: "eour" },
+        StatedElement_cell:         { classKey: "StatedElement", friendly: "cell",         fallback: "eout" },
     } as Record<string, ProtoMemberSpec>,
     methods: {
         Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },

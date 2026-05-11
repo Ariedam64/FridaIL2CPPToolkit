@@ -90,11 +90,25 @@ interface MapEntitySnapshot {
     name: string | null;
     level: number | null;
 }
+interface MapInteractableSkill { skillId: number; skillInstanceUid: number }
+interface MapInteractable {
+    elementId: number;
+    cellId: number | null;
+    interactiveTypeId: number;
+    state: number;
+    enabledSkills: MapInteractableSkill[];
+    disabledSkills: MapInteractableSkill[];
+    /** state === 0: resource is mature / off cooldown. */
+    isReady: boolean;
+    /** enabledSkills.length > 0: player has the job + level. */
+    canHarvest: boolean;
+}
 interface MapState {
     mapId: number | null;
     entities: MapEntitySnapshot[];
+    interactables: MapInteractable[];
 }
-const mapState: MapState = { mapId: null, entities: [] };
+const mapState: MapState = { mapId: null, entities: [], interactables: [] };
 
 async function fetchInitialPlayerState(): Promise<void> {
     try {
@@ -116,6 +130,7 @@ async function fetchInitialMapState(): Promise<void> {
         const s = await r.json() as Partial<MapState>;
         mapState.mapId = s.mapId ?? null;
         mapState.entities = Array.isArray(s.entities) ? s.entities : [];
+        mapState.interactables = Array.isArray(s.interactables) ? s.interactables : [];
     } catch { /* keep zeros */ }
 }
 
@@ -889,6 +904,7 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
         const s = msg?.state ?? {};
         mapState.mapId = s.mapId ?? null;
         mapState.entities = Array.isArray(s.entities) ? s.entities : [];
+        mapState.interactables = Array.isArray(s.interactables) ? s.interactables : [];
         refreshPlayerRaw(host);
         if (mapState.mapId !== lastSeenMapId) {
             lastSeenMapId = mapState.mapId;

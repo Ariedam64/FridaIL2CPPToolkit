@@ -32,14 +32,47 @@ export interface MapEntitySnapshot {
     level: number | null;
 }
 
+export interface MapInteractableSkill {
+    skillId: number;
+    skillInstanceUid: number;
+}
+
+/** Server-visible interactable (resource node, NPC, zaap, etc.) on the
+ *  current map. Built by joining `itx.statedElements` (filtered to
+ *  `onCurrentMap = true`) with `itx.interactives` by elementId.
+ *
+ *  Two orthogonal booleans encode whether the bot can act on it right now:
+ *    - `isReady`    — server-side state: the resource is mature / off cooldown
+ *    - `canHarvest` — player-side state: we have a usable skill (right job
+ *                    + level). Tied to the `enabledSkills` bucket.
+ *  A bot can act when BOTH are true. They diverge in real plays — e.g. a
+ *  mature bamboo on a paysan-only map shows `isReady && !canHarvest`. */
+export interface MapInteractable {
+    elementId: number;
+    cellId: number | null;
+    interactiveTypeId: number;
+    /** Harvest cooldown state. 0 = ready, ≥1 = ticks until refresh. Non-
+     *  harvestable interactables (zaap, NPC dialogue) keep this at 0. */
+    state: number;
+    enabledSkills:  MapInteractableSkill[];
+    disabledSkills: MapInteractableSkill[];
+    /** Derived: `state === 0`. The resource is mature / off cooldown. */
+    isReady: boolean;
+    /** Derived: `enabledSkills.length > 0`. The player has the right job +
+     *  level to interact with this element. Disabled skills are surfaced
+     *  separately so the bot can detect "we'd be able to harvest if X". */
+    canHarvest: boolean;
+}
+
 export interface MapState {
     mapId: number | null;
     entities: MapEntitySnapshot[];
+    interactables: MapInteractable[];
 }
 
 type Listener = (state: MapState) => void;
 
-const NULL_STATE: MapState = { mapId: null, entities: [] };
+const NULL_STATE: MapState = { mapId: null, entities: [], interactables: [] };
 
 interface AgentMapIdSnapshot { ok: boolean; mapId: number | null; reason?: string }
 
@@ -72,7 +105,11 @@ export class MapStateStore {
     }
 
     getState(): MapState {
-        return { mapId: this.state.mapId, entities: [...this.state.entities] };
+        return {
+            mapId: this.state.mapId,
+            entities: [...this.state.entities],
+            interactables: [...this.state.interactables],
+        };
     }
 
     onChange(cb: Listener): () => void {
@@ -150,6 +187,19 @@ export class MapStateStore {
             characterCard_progression:          f.CharacterCard_progression,
             progression_levelInfo:              f.CharacterProgression_levelInfo,
             levelInfo_level:                    f.LevelInfo_level,
+            // Interactables join.
+            interactivesArray:                  f.MapInfo_interactives,
+            statedElementsArray:                f.MapInfo_statedElements,
+            interactiveElementId:               f.InteractiveElement_elementId,
+            interactiveTypeId:                  f.InteractiveElement_interactiveTypeId,
+            interactiveSkillsActive:            f.InteractiveElement_enabledSkills,
+            interactiveSkillsDisabled:          f.InteractiveElement_disabledSkills,
+            skillId:                            f.InteractiveElementSkill_skillId,
+            skillInstanceUid:                   f.InteractiveElementSkill_skillInstanceUid,
+            statedElement_state:                f.StatedElement_state,
+            statedElement_onCurrentMap:         f.StatedElement_onCurrentMap,
+            statedElement_elementId:            f.StatedElement_elementId,
+            statedElement_cell:                 f.StatedElement_cell,
         };
     }
 
@@ -157,13 +207,46 @@ export class MapStateStore {
         if (frame.typeKey.className !== this.resolvedProto.classes.MapInfo) return;
         const parsed = parseItx(frame, this.currentItxObfNames());
         if (!parsed) return;
+
         const entities: MapEntitySnapshot[] = parsed.entities.map((e) => ({
-            entityId: e.entityId,
-            cellId:   e.cellId,
-            name:     e.name,
-            level:    e.level,
+            entityId: e.entityId, cellId: e.cellId, name: e.name, level: e.level,
         }));
-        const next: MapState = { mapId: parsed.mapId, entities };
+
+        // Interactables = (statedElements where onCurrentMap=true) ⨝ interactives
+        // on elementId. The stated entry brings the live cellId + cooldown state;
+        // the interactives entry brings the skill lists. Static map decor that
+        // has an interactive entry but no stated entry (NPCs, zaaps, etc.) is
+        // also surfaced — the absence of a stated record just means there's no
+        // harvest cooldown to track.
+        const statedByElementId = new Map<number, typeof parsed.statedElements[number]>();
+        for (const se of parsed.statedElements) statedByElementId.set(se.elementId, se);
+
+        const interactables: MapInteractable[] = [];
+        for (const i of parsed.interactives) {
+            const se = statedByElementId.get(i.elementId);
+            // Skip ghosts — the server announces neighbouring-map interactives
+            // for visual continuity but they're not actionable from here.
+            if (se && !se.onCurrentMap) continue;
+            const enabledSkills:  MapInteractableSkill[] = [];
+            const disabledSkills: MapInteractableSkill[] = [];
+            for (const s of i.skills) {
+                const bucket = s.active ? enabledSkills : disabledSkills;
+                bucket.push({ skillId: s.skillId, skillInstanceUid: s.skillInstanceUid });
+            }
+            const state = se ? se.state : 0;
+            interactables.push({
+                elementId: i.elementId,
+                cellId: se ? se.cell : null,
+                interactiveTypeId: i.typeId,
+                state,
+                enabledSkills,
+                disabledSkills,
+                isReady: state === 0,
+                canHarvest: enabledSkills.length > 0,
+            });
+        }
+
+        const next: MapState = { mapId: parsed.mapId, entities, interactables };
         if (!this.diff(this.state, next)) return;
         this.state = next;
         this.emit();
@@ -178,6 +261,18 @@ export class MapStateStore {
             if (ea.cellId !== eb.cellId) return true;
             if (ea.name !== eb.name) return true;
             if (ea.level !== eb.level) return true;
+        }
+        if (a.interactables.length !== b.interactables.length) return true;
+        for (let i = 0; i < a.interactables.length; i++) {
+            const ia = a.interactables[i], ib = b.interactables[i];
+            if (ia.elementId !== ib.elementId) return true;
+            if (ia.cellId !== ib.cellId) return true;
+            if (ia.interactiveTypeId !== ib.interactiveTypeId) return true;
+            if (ia.state !== ib.state) return true;
+            if (ia.isReady !== ib.isReady) return true;
+            if (ia.canHarvest !== ib.canHarvest) return true;
+            if (ia.enabledSkills.length !== ib.enabledSkills.length) return true;
+            if (ia.disabledSkills.length !== ib.disabledSkills.length) return true;
         }
         return false;
     }
