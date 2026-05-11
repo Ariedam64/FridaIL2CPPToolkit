@@ -37,31 +37,36 @@ export interface MapInteractableSkill {
     skillInstanceUid: number;
 }
 
-/** Server-visible interactable (resource node, NPC, zaap, etc.) on the
- *  current map. Built by joining `itx.statedElements` (filtered to
- *  `onCurrentMap = true`) with `itx.interactives` by elementId.
+/** Server-visible interactable on the current map — covers everything the
+ *  player can act on, not just harvestables: resource nodes, zaaps, doors,
+ *  NPCs, trash cans, houses, percepteur stones, etc. Built by joining
+ *  `itx.statedElements` (filtered to `onCurrentMap = true`) with
+ *  `itx.interactives` by elementId.
  *
  *  Two orthogonal booleans encode whether the bot can act on it right now:
- *    - `isReady`    — server-side state: the resource is mature / off cooldown
- *    - `canHarvest` — player-side state: we have a usable skill (right job
- *                    + level). Tied to the `enabledSkills` bucket.
- *  A bot can act when BOTH are true. They diverge in real plays — e.g. a
- *  mature bamboo on a paysan-only map shows `isReady && !canHarvest`. */
+ *    - `isReady`     — server-side: state === 0 (off cooldown / mature).
+ *                      Non-cooldown elements like zaaps stay at 0.
+ *    - `canInteract` — player-side: we have at least one enabled skill
+ *                      (right job + level for a resource, "open" for a
+ *                      door, "enter" for a house, etc.).
+ *  A bot can act when BOTH are true. They genuinely diverge — e.g. a
+ *  mature bamboo on a paysan-only map shows `isReady && !canInteract`. */
 export interface MapInteractable {
     elementId: number;
     cellId: number | null;
     interactiveTypeId: number;
-    /** Harvest cooldown state. 0 = ready, ≥1 = ticks until refresh. Non-
-     *  harvestable interactables (zaap, NPC dialogue) keep this at 0. */
+    /** Cooldown state on the wire. 0 = available, ≥1 = ticks until refresh.
+     *  Non-cooldown interactables (zaap, door, NPC dialogue) keep this at 0. */
     state: number;
     enabledSkills:  MapInteractableSkill[];
     disabledSkills: MapInteractableSkill[];
-    /** Derived: `state === 0`. The resource is mature / off cooldown. */
+    /** Derived: `state === 0`. Element is off cooldown / available. */
     isReady: boolean;
-    /** Derived: `enabledSkills.length > 0`. The player has the right job +
-     *  level to interact with this element. Disabled skills are surfaced
-     *  separately so the bot can detect "we'd be able to harvest if X". */
-    canHarvest: boolean;
+    /** Derived: `enabledSkills.length > 0`. Player has at least one action
+     *  the game lets them perform on this element right now. Disabled skills
+     *  are surfaced separately so the bot can detect "we'd be able to act
+     *  if X" (missing job level, missing key, missing alignment, etc.). */
+    canInteract: boolean;
 }
 
 export interface MapState {
@@ -215,9 +220,9 @@ export class MapStateStore {
         // Interactables = (statedElements where onCurrentMap=true) ⨝ interactives
         // on elementId. The stated entry brings the live cellId + cooldown state;
         // the interactives entry brings the skill lists. Static map decor that
-        // has an interactive entry but no stated entry (NPCs, zaaps, etc.) is
-        // also surfaced — the absence of a stated record just means there's no
-        // harvest cooldown to track.
+        // has an interactive entry but no stated entry (NPCs, zaaps, doors, etc.)
+        // is also surfaced — the absence of a stated record just means there's
+        // no cooldown to track.
         const statedByElementId = new Map<number, typeof parsed.statedElements[number]>();
         for (const se of parsed.statedElements) statedByElementId.set(se.elementId, se);
 
@@ -242,7 +247,7 @@ export class MapStateStore {
                 enabledSkills,
                 disabledSkills,
                 isReady: state === 0,
-                canHarvest: enabledSkills.length > 0,
+                canInteract: enabledSkills.length > 0,
             });
         }
 
@@ -270,7 +275,7 @@ export class MapStateStore {
             if (ia.interactiveTypeId !== ib.interactiveTypeId) return true;
             if (ia.state !== ib.state) return true;
             if (ia.isReady !== ib.isReady) return true;
-            if (ia.canHarvest !== ib.canHarvest) return true;
+            if (ia.canInteract !== ib.canInteract) return true;
             if (ia.enabledSkills.length !== ib.enabledSkills.length) return true;
             if (ia.disabledSkills.length !== ib.disabledSkills.length) return true;
         }

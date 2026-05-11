@@ -101,7 +101,7 @@ interface MapInteractable {
     /** state === 0: resource is mature / off cooldown. */
     isReady: boolean;
     /** enabledSkills.length > 0: player has the job + level. */
-    canHarvest: boolean;
+    canInteract: boolean;
 }
 interface MapState {
     mapId: number | null;
