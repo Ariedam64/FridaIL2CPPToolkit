@@ -83,6 +83,10 @@ export function mountWsBridge(server: HttpServer, session: Session): void {
     session.on("network-frames-cleared", () => broadcast({ type: "network-frames-cleared" }));
     session.on("serializer-config-change", () => broadcast({ type: "serializer-config-change" }));
 
+    // ---- dofus plugin events ----
+    session.on("dofus-player-state-changed", (state: unknown) =>
+        broadcast({ type: "dofus-player-state-changed", state }));
+
     session.on("profile-attached", (profile) => broadcast({
         type: "profile-attached",
         profile: { manifest: profile.manifest, rootPath: profile.rootPath },

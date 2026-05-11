@@ -29,6 +29,7 @@ let currentWorld = 1;
 let currentMaps: WorldMap[] = [];
 let currentSelected: number | null = null;
 let currentHover: number | null = null;
+let currentPlayerMapId: number | null = null;
 let currentHitTest: WorldCanvasResult | null = null;
 let allWorlds: WorldMeta[] = [];
 let currentDims: WorldMapDims | undefined = undefined;
@@ -233,10 +234,34 @@ export async function mountMap(host: HTMLElement, _ctx: PluginPageContext): Prom
         if (cn && STATS_REFRESH_TRIGGER.has(cn)) scheduleStatsRefresh();
     });
     void refreshStats();
-    // Best-effort cleanup on host disconnect — the WS subscription leaks
+
+    // Player marker — listen to PlayerStore updates so the yellow disc
+    // follows the player across maps without a refresh.
+    const unsubPlayer = subscribe(
+        "dofus-player-state-changed",
+        (msg: { state?: { currentMapId?: number | null } }) => {
+            const next = msg?.state?.currentMapId ?? null;
+            if (next !== currentPlayerMapId) {
+                currentPlayerMapId = next;
+                void reRender(canvas);
+            }
+        },
+    );
+    // Initial fetch so the marker shows up even before the player moves.
+    fetch("/api/dofus/player/state")
+        .then((r) => r.json())
+        .then((s: { currentMapId?: number | null }) => {
+            if (typeof s?.currentMapId === "number") {
+                currentPlayerMapId = s.currentMapId;
+                void reRender(canvas);
+            }
+        })
+        .catch(() => { /* not attached yet — marker stays hidden */ });
+
+    // Best-effort cleanup on host disconnect — the WS subscriptions leak
     // otherwise across mount/unmount cycles.
     const obs = new MutationObserver(() => {
-        if (!host.isConnected) { unsubStats(); obs.disconnect(); }
+        if (!host.isConnected) { unsubStats(); unsubPlayer(); obs.disconnect(); }
     });
     if (host.parentNode) obs.observe(host.parentNode, { childList: true, subtree: true });
 
@@ -316,6 +341,7 @@ async function reRender(canvas: HTMLCanvasElement): Promise<void> {
         maps: currentMaps,
         selectedMapId: currentSelected,
         hoveredMapId: currentHover,
+        playerMapId: currentPlayerMapId,
         dims: currentDims,
         tiles: currentTiles,
     });

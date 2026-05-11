@@ -11,6 +11,7 @@ import { ChangeMapActions } from "../lib/change-map-actions";
 import { MapInteractivesStore } from "../lib/map-interactives-store";
 import { isGhostInteractive } from "../lib/ghost-filter";
 import { LabelStore } from "../../../backend/core/labels";
+import { PlayerStore } from "../lib/player-store";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -69,10 +70,37 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         if (fs) detachInteractives = mapInteractives.attach(fs);
     }
     mapInteractives = makeMapInteractivesStore();
-    deps.session.on("profile-attached", () => { rewireInteractives(); void autoArmNetworkCapture(); });
+
+    // -------------------------------------------------------------------------
+    // PlayerStore — live mirror of player position/move state.
+    // Created on profile-attached, disposed on detached. WS-frame-driven via
+    // 4 movement-related obfs (resolved through labels so it survives renames).
+    // -------------------------------------------------------------------------
+    let playerStore: PlayerStore | null = null;
+    let detachPlayerListener: (() => void) | null = null;
+    function rewirePlayerStore(): void {
+        if (detachPlayerListener) { detachPlayerListener(); detachPlayerListener = null; }
+        if (playerStore) { playerStore.dispose(); playerStore = null; }
+        const profile = deps.session.profile();
+        if (!profile) return;
+        playerStore = new PlayerStore(deps.session, profile.labels, deps.session.fridaClient);
+        detachPlayerListener = playerStore.onChange((state) => {
+            deps.session.emit("dofus-player-state-changed", state);
+        });
+        // Initial read so the first GET doesn't return null state.
+        void playerStore.refresh();
+    }
+
+    deps.session.on("profile-attached", () => {
+        rewireInteractives();
+        rewirePlayerStore();
+        void autoArmNetworkCapture();
+    });
     deps.session.on("profile-detached", () => {
         if (detachInteractives) { detachInteractives(); detachInteractives = null; }
-        // Recreate with a stub LabelStore so disk reads keep working.
+        if (detachPlayerListener) { detachPlayerListener(); detachPlayerListener = null; }
+        if (playerStore) { playerStore.dispose(); playerStore = null; }
+        // Recreate map interactives with a stub LabelStore so disk reads keep working.
         rewireInteractives();
     });
 
@@ -96,6 +124,31 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     // Trigger once at mount — covers the case where the profile is already
     // attached when the plugin loads (warm reload, tsx watch).
     void autoArmNetworkCapture();
+
+    /** Snapshot of the player's live state (mapId, target cell, isMoving).
+     *  Read off the in-memory PlayerStore — no agent round-trip per request.
+     *  The store refreshes itself on every move-related WS frame, so polling
+     *  this endpoint is cheap (it's just memory).
+     *  Returns null fields when the agent isn't attached yet. */
+    app.get("/api/dofus/player/state", (_req, res) => {
+        if (!playerStore) {
+            res.json({
+                currentMapId: null, currentCellId: null, targetCellId: null,
+                isMoving: false, characterId: null,
+            });
+            return;
+        }
+        res.json(playerStore.getState());
+    });
+
+    /** Force a re-read from the live instances. Mostly useful for the UI to
+     *  recover after a `profile-detached` blip or for manual debugging — the
+     *  store auto-refreshes on movement frames, so this rarely needs calling. */
+    app.post("/api/dofus/player/state/refresh", async (_req, res) => {
+        if (!playerStore) { res.status(503).json({ error: "not attached" }); return; }
+        await playerStore.refresh();
+        res.json(playerStore.getState());
+    });
 
     /** Current mapId — read from the MapInteractivesStore which tracks the
      *  latest `itx` (sent by the server on every map change). No class

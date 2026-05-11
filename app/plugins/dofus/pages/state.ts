@@ -35,7 +35,6 @@ interface MapDetail extends MapMeta {
     interactives: Array<[number, number, number]>;
 }
 
-const POLL_MS = 10000;
 const REFRESH_TRIGGER_CLASSES = new Set(["itx", "iet", "ieu"]);
 const REFRESH_DEBOUNCE_MS = 150;
 
@@ -64,6 +63,38 @@ async function getCurrentMapId(): Promise<{ mapId: number } | { error: string; s
     const data = await r.json().catch(() => ({}));
     if (!r.ok) return { error: data?.error ?? `HTTP ${r.status}`, status: r.status };
     return { mapId: data.mapId };
+}
+
+// =============================================================================
+// PlayerStore mirror — fed by the WS "dofus-player-state-changed" event.
+// Used to draw a player-position marker on the move-panel canvas and to
+// surface position/isMoving in the header. We don't poll: each move-related
+// WS frame triggers a backend refresh, which pushes the new state here.
+// =============================================================================
+
+interface PlayerState {
+    currentMapId: number | null;
+    currentCellId: number | null;
+    targetCellId: number | null;
+    isMoving: boolean;
+    characterId: string | null;
+}
+const playerState: PlayerState = {
+    currentMapId: null, currentCellId: null, targetCellId: null,
+    isMoving: false, characterId: null,
+};
+
+async function fetchInitialPlayerState(): Promise<void> {
+    try {
+        const r = await fetch("/api/dofus/player/state");
+        if (!r.ok) return;
+        const s = await r.json() as Partial<PlayerState>;
+        playerState.currentMapId = s.currentMapId ?? null;
+        playerState.currentCellId = s.currentCellId ?? null;
+        playerState.targetCellId = s.targetCellId ?? null;
+        playerState.isMoving = !!s.isMoving;
+        playerState.characterId = s.characterId ?? null;
+    } catch { /* keep zeros */ }
 }
 
 async function getMapDetail(mapId: number): Promise<MapDetail | null> {
@@ -352,6 +383,51 @@ function redrawMoveCanvas(host: HTMLElement): void {
         }
     }
 
+    // Player markers. Two layers when the player is in motion:
+    //   - Yellow filled disc on `currentCellId` = "you are physically here"
+    //   - Orange ring on `targetCellId` = "you're heading there"
+    // When stationary, target == current, only the disc is visible.
+    // Only drawn on the map we know the player is on.
+    if (
+        playerState.currentMapId !== null
+        && moveState.mapId !== null
+        && playerState.currentMapId === moveState.mapId
+    ) {
+        // Target ring (orange) — drawn first so the current disc covers it
+        // if the cells coincide.
+        if (playerState.isMoving && playerState.targetCellId !== null) {
+            const { cx, cy } = cellCenter(playerState.targetCellId);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#fb923c";
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Current-position disc (yellow).
+        if (playerState.currentCellId !== null) {
+            const { cx, cy } = cellCenter(playerState.currentCellId);
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cx, cy, 8, 0, Math.PI * 2);
+            ctx.fillStyle = "#facc15";
+            ctx.globalAlpha = 0.85;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#000";
+            ctx.stroke();
+            // Inner dot for legibility when a cell label overlaps.
+            ctx.beginPath();
+            ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+            ctx.fillStyle = "#000";
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
     // Labels — cellId on regular walkable cells, path step number on path
     // cells (so the order is unambiguous), big bold "F"/"T" on from/to.
     // Also label interactive cells (often non-walkable) so the user can see
@@ -497,6 +573,17 @@ function renderHeader(meta: MapMeta | null, mapId: number, runtime: RuntimeMap):
     const liveCount = runtime.interactives.filter((i) => i.source === "live").length;
     const totalCount = runtime.interactives.length;
     const lastSeen = runtime.lastSeenAt ? `vu ${fmtAge(runtime.lastSeenAt)}` : "depuis le legacy import";
+    // Player block — only meaningful when the PlayerStore agrees we're on this map.
+    const onThisMap = playerState.currentMapId === mapId;
+    const cellNow = onThisMap && playerState.currentCellId !== null
+        ? `<code style="color:#facc15">cell ${playerState.currentCellId}</code>`
+        : `<code style="color:#666">cell ?</code>`;
+    const cellTarget = playerState.isMoving && playerState.targetCellId !== null && playerState.targetCellId !== playerState.currentCellId
+        ? ` → <code style="color:#fb923c">${playerState.targetCellId}</code>`
+        : "";
+    const movingBadge = playerState.isMoving
+        ? `<span style="background:#7c2d12;color:#fed7aa;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px">MOVING</span>`
+        : `<span style="background:#14532d;color:#86efac;padding:1px 6px;border-radius:3px;font-size:10px;margin-left:6px">IDLE</span>`;
     return `
         <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
             <div>
@@ -505,6 +592,9 @@ function renderHeader(meta: MapMeta | null, mapId: number, runtime: RuntimeMap):
                 <div style="font-size:12px;color:#888">
                     mapId <code style="color:#9bd">${mapId}</code>
                     ${meta ? ` · pos (${meta.posX}, ${meta.posY}) · area ${meta.areaId}` : ""}
+                </div>
+                <div style="font-size:12px;color:#888;margin-top:4px">
+                    Player ${cellNow}${cellTarget}${movingBadge}
                 </div>
             </div>
             <div style="text-align:right;font-size:11px;color:#888">
@@ -613,37 +703,67 @@ function setEmptyMessage(host: HTMLElement, msg: string, hint?: string): void {
 }
 
 async function refresh(host: HTMLElement): Promise<void> {
-    const cur = await getCurrentMapId();
-    if ("error" in cur) {
-        if (cur.status === 503) setEmptyMessage(host, "Pas attaché à un jeu Dofus", "Attache l'agent Frida pour voir l'état runtime.");
-        else if (cur.status === 404) setEmptyMessage(host, "Map courante pas encore connue", cur.error);
-        else setEmptyMessage(host, "Erreur", cur.error);
-        return;
+    // mapId comes from the PlayerStore (MapRenderer instance) — single source
+    // of truth, no WS-itx dependency. Falls back to the legacy
+    // /api/dofus/map/current ONLY if the PlayerStore hasn't bootstrapped yet
+    // (covers the brief window before the first state-fetch resolves).
+    let mapId = playerState.currentMapId;
+    if (mapId === null) {
+        const cur = await getCurrentMapId();
+        if ("error" in cur) {
+            if (cur.status === 503) setEmptyMessage(host, "Pas attaché à un jeu Dofus", "Attache l'agent Frida pour voir l'état runtime.");
+            else if (cur.status === 404) setEmptyMessage(host, "Map courante pas encore connue", cur.error);
+            else setEmptyMessage(host, "Erreur", cur.error);
+            return;
+        }
+        mapId = cur.mapId;
     }
 
     // Move panel canvas — load detail when map changes (no-op otherwise).
-    // Force ensureMapDetailFor to be host-aware for redraw.
     const movePanelEl = host.querySelector<HTMLElement>("[data-region='move-panel']");
-    if (movePanelEl) await ensureMapDetailFor(cur.mapId, movePanelEl);
+    if (movePanelEl) await ensureMapDetailFor(mapId, movePanelEl);
 
-    const runtime = await getMapRuntime(cur.mapId);
+    const runtime = await getMapRuntime(mapId);
     if (!runtime) {
-        setEmptyMessage(host, "Données runtime indisponibles", `Map ${cur.mapId} — réessaie dans 1 seconde`);
+        setEmptyMessage(host, "Données runtime indisponibles", `Map ${mapId} — réessaie dans 1 seconde`);
         return;
     }
     const meta = moveState.detail; // reuse the detail we already fetched
 
-    // Push the runtime into the move state so the canvas can shade interactive
-    // cells by their live availability (harvest cooldown, etc.). Triggered on
-    // every refresh — i.e. whenever an itx/iet/ieu lands on the WS.
     moveState.runtime = runtime;
     if (movePanelEl) redrawMoveCanvas(movePanelEl);
 
-    setRegion(host, "header", renderHeader(meta, cur.mapId, runtime));
+    setRegion(host, "header", renderHeader(meta, mapId, runtime));
     setRegion(host, "grid", renderGrid(runtime));
-    // Fetch + render the static DB summary in parallel — the store
-    // auto-enriches it on every itx, so this updates live without manual ops.
     void fetchStaticDbSummary().then((db) => setRegion(host, "db", renderDb(db)));
+}
+
+/** Lightweight header refresh — re-renders only the position/isMoving line
+ *  using the in-memory `playerState` + `moveState.runtime` we already have.
+ *  Avoids the full refresh() round-trips when only the player moved within
+ *  the current map (no map change, no interactives change). */
+function refreshHeaderLite(host: HTMLElement): void {
+    if (playerState.currentMapId === null || !moveState.runtime) return;
+    const meta = moveState.detail;
+    setRegion(host, "header", renderHeader(meta, playerState.currentMapId, moveState.runtime));
+}
+
+/** Renders the live PlayerStore snapshot as a pretty-printed JSON block.
+ *  Pure read-out for debugging — the bot uses /api/dofus/player/state or the
+ *  WS push directly. */
+function renderPlayerRaw(): string {
+    return `
+        <details open style="background:#0d0d0d;border:1px solid #1f1f1f;border-radius:6px;padding:6px 12px">
+            <summary style="cursor:pointer;color:#666;font-size:11px;text-transform:uppercase;letter-spacing:1px">
+                PlayerState (raw)
+            </summary>
+            <pre style="margin:8px 0 4px;font-family:var(--font-code,monospace);font-size:11px;color:#bbb;line-height:1.5;white-space:pre">${JSON.stringify(playerState, null, 2)}</pre>
+        </details>
+    `;
+}
+
+function refreshPlayerRaw(host: HTMLElement): void {
+    setRegion(host, "player-raw", renderPlayerRaw());
 }
 
 export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Promise<void> {
@@ -651,11 +771,15 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
     host.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:18px">
             <div data-region="header"></div>
+            <div data-region="player-raw"></div>
             <div data-region="move-panel"></div>
             <div data-region="grid"></div>
             <div data-region="db"></div>
         </div>
     `;
+
+    // Initial PlayerState raw block (nulls until the WS push lands).
+    refreshPlayerRaw(host);
 
     // Build the move panel skeleton ONCE — refresh() never touches it.
     const movePanelHost = host.querySelector<HTMLElement>("[data-region='move-panel']");
@@ -688,14 +812,14 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
         });
     }
 
-    let pollTimer: ReturnType<typeof setTimeout> | null = null;
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
     let unsubFrame: (() => void) | null = null;
+    let unsubPlayer: (() => void) | null = null;
 
     const cleanup = (): void => {
-        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
         if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
         if (unsubFrame) { unsubFrame(); unsubFrame = null; }
+        if (unsubPlayer) { unsubPlayer(); unsubPlayer = null; }
     };
 
     const doRefresh = async (): Promise<void> => {
@@ -714,6 +838,42 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
     unsubFrame = subscribe("network-frame-added", (msg: { frame?: { typeKey?: { className?: string } } }) => {
         const cn = msg?.frame?.typeKey?.className;
         if (cn && REFRESH_TRIGGER_CLASSES.has(cn)) scheduleRefresh();
+    });
+
+    // Player state — listen to the backend-pushed event. Two paths:
+    //  - SAME map      → just redraw the canvas marker + patch the header
+    //                    line (no backend round-trip)
+    //  - MAP CHANGED   → scheduleRefresh() to pull fresh static + runtime
+    //                    data for the new map.
+    // This split is what keeps the game smooth: a continuous-move emits 2-3
+    // WS frames in tight burst, and a full refresh per frame stalled the UI.
+    let lastSeenMapId = playerState.currentMapId;
+    unsubPlayer = subscribe("dofus-player-state-changed", (msg: { state?: Partial<PlayerState> }) => {
+        const s = msg?.state ?? {};
+        playerState.currentMapId = s.currentMapId ?? null;
+        playerState.currentCellId = s.currentCellId ?? null;
+        playerState.targetCellId = s.targetCellId ?? null;
+        playerState.isMoving = !!s.isMoving;
+        playerState.characterId = s.characterId ?? playerState.characterId;
+
+        // Always reflect the new state in the raw block — cheap and gives
+        // the user immediate feedback on every WS push.
+        refreshPlayerRaw(host);
+        if (playerState.currentMapId !== lastSeenMapId) {
+            lastSeenMapId = playerState.currentMapId;
+            scheduleRefresh();
+            return;
+        }
+        // Same map — cheap in-memory updates only.
+        const movePanelHost = host.querySelector<HTMLElement>("[data-region='move-panel']");
+        if (movePanelHost) redrawMoveCanvas(movePanelHost);
+        refreshHeaderLite(host);
+    });
+    // Bootstrap: fetch the initial state and do one full refresh.
+    void fetchInitialPlayerState().then(() => {
+        lastSeenMapId = playerState.currentMapId;
+        refreshPlayerRaw(host);
+        scheduleRefresh();
     });
 
     // Delegated click handler for per-instance "use" chips inside the grid.
@@ -750,10 +910,8 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
         })();
     });
 
-    const tick = async (): Promise<void> => {
-        if (!host.isConnected) { cleanup(); return; }
-        await doRefresh();
-        pollTimer = setTimeout(tick, POLL_MS);
-    };
-    void tick();
+    // No more 10s slow-poll: the PlayerStore push (`dofus-player-state-changed`)
+    // covers map changes, and `network-frame-added` for itx/iet/ieu covers
+    // interactive-state changes. If both signals miss for some reason, the
+    // user can refresh the panel by re-clicking the tab.
 }

@@ -11,6 +11,9 @@ export interface WorldCanvasOpts {
     maps: WorldMap[];
     selectedMapId?: number | null;
     hoveredMapId?: number | null;
+    /** Map the player is currently standing on. Rendered as a yellow disc
+     *  centered on the tile (atlas mode) or on the cell (colored grid). */
+    playerMapId?: number | null;
     /** Pixel size of one map tile in colored-grid fallback. Default 14. */
     tileSize?: number;
     /** When provided together with `tiles`, render the real Dofus atlas. */
@@ -50,6 +53,7 @@ export function renderWorldCanvas(
             wm: opts.dims, tiles: opts.tiles, maps: opts.maps,
             selectedMapId: opts.selectedMapId ?? null,
             hoveredMapId: opts.hoveredMapId ?? null,
+            playerMapId: opts.playerMapId ?? null,
         });
     }
     return renderColoredGrid(canvas, opts);
@@ -91,6 +95,23 @@ function renderColoredGrid(canvas: HTMLCanvasElement, opts: WorldCanvasOpts): Wo
         }
 
         tileByXY[`${m.posX},${m.posY}`] = m.mapId;
+    }
+
+    // Player marker — yellow disc on the player's tile in fallback mode.
+    if (opts.playerMapId != null) {
+        const m = opts.maps.find((x) => x.mapId === opts.playerMapId);
+        if (m) {
+            const cx = (m.posX - minX) * tileSize + padding + tileSize / 2;
+            const cy = (m.posY - minY) * tileSize + padding + tileSize / 2;
+            const r = Math.max(3, tileSize * 0.35);
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(250, 204, 21, 0.95)";
+            ctx.fill();
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = "#000";
+            ctx.stroke();
+        }
     }
 
     const hitTest = (px: number, py: number): number | null => {
@@ -141,6 +162,7 @@ interface AtlasOpts {
     maps: WorldMap[];
     selectedMapId: number | null;
     hoveredMapId: number | null;
+    playerMapId: number | null;
 }
 
 async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<WorldCanvasResult> {
@@ -228,6 +250,31 @@ async function renderAtlas(canvas: HTMLCanvasElement, opts: AtlasOpts): Promise<
             ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1;
             ctx.strokeRect(a.x * tileScale * renderScale, a.y * tileScale * renderScale,
                            a.w * tileScale * renderScale, a.h * tileScale * renderScale);
+        }
+    }
+
+    // Player marker — yellow disc centered on the tile the player is on.
+    // Drawn last so it sits on top of selection/hover outlines.
+    if (opts.playerMapId != null) {
+        const m = opts.maps.find((x) => x.mapId === opts.playerMapId);
+        if (m) {
+            const a = worldToAtlasXY(wm, m.posX, m.posY);
+            const cx = (a.x + a.w / 2) * tileScale * renderScale;
+            const cy = (a.y + a.h / 2) * tileScale * renderScale;
+            // Radius proportional to tile size so it stays visible at all zooms.
+            const r = Math.max(4, Math.min(a.w, a.h) * tileScale * renderScale * 0.18);
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(250, 204, 21, 0.95)";
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#000";
+            ctx.stroke();
+            // Inner dot for high-zoom clarity.
+            ctx.beginPath();
+            ctx.arc(cx, cy, Math.max(1, r * 0.25), 0, Math.PI * 2);
+            ctx.fillStyle = "#000";
+            ctx.fill();
         }
     }
 

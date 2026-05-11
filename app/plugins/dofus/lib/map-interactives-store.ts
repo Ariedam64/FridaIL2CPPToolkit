@@ -20,14 +20,18 @@ import * as path from "node:path";
 import type { FrameStore } from "../../../backend/core/network/frame-store";
 import type { NetworkFrame } from "../../../backend/core/network/types";
 import type { LabelStore } from "../../../backend/core/labels";
-import { parseItx, parseStateUpdate, parseElementUpdate, type ItxObfNames, type ParsedInteractive, type ParsedStatedElement } from "./itx-parser";
+import { parseItx, parseStateUpdate, parseElementUpdate, DEFAULT_ITX_OBF, type ItxObfNames, type ParsedInteractive, type ParsedStatedElement } from "./itx-parser";
 import type { DofusDataStore } from "./data-store";
 import { MAP_INFO_PROTO, type ResolvedMapInfoProto } from "./protocol";
 import { resolveProto } from "./protocol-resolver";
 
 function resolveItxObfNames(labels: LabelStore): ItxObfNames {
     const r = resolveProto(labels, MAP_INFO_PROTO) as ResolvedMapInfoProto;
+    // Spread DEFAULT_ITX_OBF first so any fields not in MAP_INFO_PROTO (notably
+    // the entities-array path used by PlayerStore) get their hardcoded
+    // fallback values without forcing every caller to remember them.
     return {
+        ...DEFAULT_ITX_OBF,
         className:                  r.classes.Message,
         stateUpdateClassName:       r.classes.StateUpdate,
         elementUpdateClassName:     r.classes.ElementUpdate,

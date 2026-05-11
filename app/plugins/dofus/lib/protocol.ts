@@ -266,3 +266,29 @@ export interface ResolvedChangeMapProto {
     fields:  Record<keyof typeof CHANGE_MAP_PROTO["fields"],  string>;
     methods: Record<keyof typeof CHANGE_MAP_PROTO["methods"], string>;
 }
+
+// =============================================================================
+// Player state — runtime classes the PlayerStore reads at init to bootstrap
+// the player snapshot (mapId, target cell, characterId). Updates after init
+// will be WS-message-driven (next phase); no triggers live here anymore.
+// =============================================================================
+
+export const PLAYER_STATE_PROTO = {
+    classes: {
+        MovementController: { friendly: "MovementController", fallback: "dve" },
+        MapRenderer:        { friendly: "MapRenderer",        fallback: "MapRenderer" },
+        LocalCharacter:     { friendly: "LocalCharacter",     fallback: "gic" },
+    } as Record<string, ProtoClassSpec>,
+    fields: {
+        MovementController_targetCellId: { classKey: "MovementController", friendly: "targetCellId", fallback: "dezz" },
+        MapRenderer_currentMapId:        { classKey: "MapRenderer",        friendly: "currentMapId", fallback: "czav" },
+        LocalCharacter_characterId:      { classKey: "LocalCharacter",     friendly: "characterId",  fallback: "<dsck>k__BackingField" },
+    } as Record<string, ProtoMemberSpec>,
+    methods: {} as Record<string, ProtoMemberSpec>,
+} as const;
+
+export interface ResolvedPlayerStateProto {
+    classes: Record<keyof typeof PLAYER_STATE_PROTO["classes"], string>;
+    fields:  Record<keyof typeof PLAYER_STATE_PROTO["fields"],  string>;
+    methods: Record<keyof typeof PLAYER_STATE_PROTO["methods"], string>;
+}

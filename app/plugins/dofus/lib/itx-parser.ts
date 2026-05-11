@@ -40,6 +40,13 @@ export interface ItxObfNames {
     statedElement_onCurrentMap: string;   // eoup: true=really on this map, false=ghost from neighbour
     statedElement_elementId: string;      // eour
     statedElement_cell: string;           // eout
+    // Entities array (eftd) — server broadcasts every entity on the map after
+    // a map change. The local player's entry carries its arrival cellId,
+    // which `dve.dezz` doesn't pick up (it only updates on click).
+    entitiesArray: string;                // eftd
+    entity_entityId: string;              // epww (long)
+    entity_position: string;              // epxa (nested kjp)
+    position_cellId: string;              // eqqq (int)
 }
 
 export const DEFAULT_ITX_OBF: ItxObfNames = {
@@ -61,6 +68,10 @@ export const DEFAULT_ITX_OBF: ItxObfNames = {
     statedElement_onCurrentMap: "eoup",
     statedElement_elementId: "eour",
     statedElement_cell: "eout",
+    entitiesArray: "eftd",
+    entity_entityId: "epww",
+    entity_position: "epxa",
+    position_cellId: "eqqq",
 };
 
 export interface ParsedSkill {
@@ -86,11 +97,20 @@ export interface ParsedStatedElement {
     onCurrentMap: boolean;
 }
 
+/** One entity present on the map at the moment the itx was broadcast.
+ *  `entityId` is the server-side stable id (matches `LocalCharacter.characterId`
+ *  for the local player). Kept as string to dodge JS-side int53 surprises. */
+export interface ParsedEntity {
+    entityId: string;
+    cellId: number;
+}
+
 export interface ParsedItx {
     mapId: number;
     capturedAt: number;
     interactives: ParsedInteractive[];
     statedElements: ParsedStatedElement[];
+    entities: ParsedEntity[];
 }
 
 /** Returns null if the frame isn't a valid itx (wrong class or missing fields). */
@@ -131,7 +151,24 @@ export function parseItx(frame: NetworkFrame, obf: ItxObfNames = DEFAULT_ITX_OBF
         }
     }
 
-    return { mapId, capturedAt: frame.timestamp, interactives, statedElements };
+    const entities: ParsedEntity[] = [];
+    const entArr = findField(frame.fields, obf.entitiesArray);
+    if (entArr?.children) {
+        for (const khg of entArr.children) {
+            if (khg.name === "…" || !khg.children) continue;
+            const idField = findField(khg.children, obf.entity_entityId);
+            // entityId is Int64 → preview may be the stringified number;
+            // intFromField copes with both number-typed and string-typed fields.
+            const entityId = idField?.preview;
+            if (!entityId) continue;
+            const pos = findField(khg.children, obf.entity_position);
+            const cellId = pos?.children ? intFromField(findField(pos.children, obf.position_cellId)) : null;
+            if (cellId === null) continue;
+            entities.push({ entityId, cellId });
+        }
+    }
+
+    return { mapId, capturedAt: frame.timestamp, interactives, statedElements, entities };
 }
 
 /** Parse a single kne FrameField (the nested representation, not its parent
