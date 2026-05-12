@@ -13,6 +13,8 @@ import { isGhostInteractive } from "../lib/ghost-filter";
 import { LabelStore } from "../../../backend/core/labels";
 import { PlayerStore } from "../lib/player-store";
 import { MapStateStore } from "../lib/map-state-store";
+import { WORLD_PATHFINDING_PROTO } from "../lib/protocol";
+import { resolveProto } from "../lib/protocol-resolver";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -96,8 +98,16 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         detachPlayerListener = playerStore.onChange((state) => {
             deps.session.emit("dofus-player-state-changed", state);
         });
-        detachMapStateListener = mapStateStore.onChange((state) => {
+        // Pipe entities through to PlayerStore ONLY on a "snapshot" emit —
+        // which happens on itx parse (full map refresh). On "patch" emits
+        // (ieu/iet/itv/irx/jvn) we do NOT re-derive currentCellId from
+        // entities[] because PlayerStore tracks the local player's position
+        // authoritatively via its own itv/itr handlers, and the patch may
+        // have updated our own entity entry to the move destination — which
+        // would clobber the freshly-computed currentCellId.
+        detachMapStateListener = mapStateStore.onChange((state, kind) => {
             deps.session.emit("dofus-map-state-changed", state);
+            if (playerStore && kind === "snapshot") playerStore.handleMapEntities(state.entities);
         });
 
         // Bootstrap from the runtime: PlayerStore reads dve/gic via the agent,
@@ -166,6 +176,95 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         if (!playerStore) { res.status(503).json({ error: "not attached" }); return; }
         await playerStore.refresh();
         res.json(playerStore.getState());
+    });
+
+    /** Resolved WorldPathfinding proto, used by both cached + compute. */
+    function worldPathfindingProto(profile: NonNullable<ReturnType<typeof deps.session.profile>>): unknown {
+        return resolveProto(profile.labels, WORLD_PATHFINDING_PROTO);
+    }
+
+    /** Drain the agent's world-pathfinding diagnostic log. */
+    app.get("/api/dofus/world-pathfinding/diag", async (_req, res) => {
+        const profile = deps.session.profile();
+        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+        try {
+            const result = await deps.session.fridaClient.call("getWorldPathfindingDiag", []);
+            res.json(result);
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
+    /** Install the deliverResult capture hook (and the bapc diag hook).
+     *  Idempotent. Called by the state page on mount so any in-game
+     *  auto-travel published before the user's first active invoke still
+     *  ends up in the diag log. */
+    app.post("/api/dofus/world-pathfinding/init", async (_req, res) => {
+        const profile = deps.session.profile();
+        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+        try {
+            const result = await deps.session.fridaClient.call("initWorldPathfindingHooks", [worldPathfindingProto(profile)]);
+            res.json(result);
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
+    /** Read the last cached world path off the WorldPathfinder instance.
+     *  Pure field reads — no method invocation, no side effects on travel. */
+    app.get("/api/dofus/world-pathfinding/cached", async (_req, res) => {
+        const profile = deps.session.profile();
+        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+        try {
+            const result = await deps.session.fridaClient.call("readCachedWorldPath", [worldPathfindingProto(profile)]);
+            res.json(result);
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
+    /** Active path computation. Invokes `WorldPathfinder.computePath` directly
+     *  (the pure A* one level below the auto-travel wrapper) with cb=NULL so
+     *  the path lands in `WorldPathfindingWorker.resultEdges` WITHOUT triggering
+     *  movement. `srcMapId` / `currentCellId` are sourced from the backend's
+     *  live stores; clients can override either via the request body when
+     *  computing from a hypothetical start. */
+    app.post("/api/dofus/world-pathfinding/compute", async (req, res) => {
+        const profile = deps.session.profile();
+        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+        const destMapId = String(req.body?.destMapId ?? "");
+        if (!/^\d+$/.test(destMapId)) { res.status(400).json({ error: "destMapId (numeric string) required" }); return; }
+
+        // Defaults — caller may override via body.srcMapId / body.currentCellId.
+        const srcMapIdBody = req.body?.srcMapId;
+        const cellIdBody   = req.body?.currentCellId;
+        const srcFromStore = mapStateStore?.getState().mapId;
+        const cellFromStore = playerStore?.getState().currentCellId;
+
+        const srcMapId = srcMapIdBody != null && /^\d+$/.test(String(srcMapIdBody))
+            ? String(srcMapIdBody)
+            : (srcFromStore != null ? String(srcFromStore) : "");
+        if (!srcMapId) {
+            res.status(400).json({ error: "srcMapId unknown — pass it in the body, or wait for the map store to bootstrap" });
+            return;
+        }
+        const currentCellId = cellIdBody != null && /^\d+$/.test(String(cellIdBody))
+            ? String(cellIdBody)
+            : (cellFromStore != null ? String(cellFromStore) : "0");
+
+        const timeoutMs = Number(req.body?.timeoutMs) || 5000;
+        try {
+            const result = await deps.session.fridaClient.call("computeWorldPath", [{
+                proto: worldPathfindingProto(profile),
+                destMapId,
+                srcMapId,
+                currentCellId,
+                timeoutMs,
+            }]);
+            res.json(result);
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
     });
 
     /** Snapshot of the current map (mapId + entity list with name/level/cell).
@@ -266,18 +365,17 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             for (const i of runtime.interactives) runtimeByElementId.set(i.elementId, i);
         }
 
-        // Hydrate runtime skills with names/items from the static DB so the
-        // frontend doesn't have to do it.
-        const hydrateSkill = (s: { skillId: number; skillInstanceUid: number; active: boolean }) => {
-            const e = mapInteractives.skillEntry(s.skillId);
-            const skillName = e ? (e.gatheredItem ? `${e.name} (${e.gatheredItem.name})` : e.name) : `Skill #${s.skillId}`;
+        // Hydrate skillIds → { skillId, skillName, gatheredItem? } via static DB.
+        const hydrateSkill = (skillId: number) => {
+            const e = mapInteractives.skillEntry(skillId);
+            const skillName = e ? (e.gatheredItem ? `${e.name} (${e.gatheredItem.name})` : e.name) : `Skill #${skillId}`;
             const gatheredItem = e?.gatheredItem ? { itemId: e.gatheredItem.id, name: e.gatheredItem.name } : undefined;
-            return { ...s, skillName, ...(gatheredItem ? { gatheredItem } : {}) };
+            return { skillId, skillName, ...(gatheredItem ? { gatheredItem } : {}) };
         };
 
-        // Drop ghost interactives — sprites visible from this map but
-        // anchored on a neighbour. Detected purely from static data
-        // (transition cells + position-vs-cellId projection check).
+        // Drop ghost interactives — sprites visible from this map but not
+        // actually interactable here. See ghost-filter.ts for the two rules
+        // (transition cell + sprite-position-projects-outside-grid).
         const realStaticIe: typeof detail.interactives = [];
         const ghostElementIds = new Set<number>();
         for (const triple of detail.interactives) {
@@ -294,7 +392,6 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             cell: number; elementId: number; gfxId: number;
             typeId: number | null; typeName: string | null;
             skills: ReturnType<typeof hydrateSkill>[];
-            harvestState?: { state: number; onCurrentMap: boolean };
             source: "live" | "gfx-registry" | "unknown";
         };
         const interactives: Out[] = [];
@@ -305,8 +402,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
                 interactives.push({
                     cell, elementId, gfxId,
                     typeId: live.typeId, typeName: mapInteractives.typeName(live.typeId),
-                    skills: live.skills.map(hydrateSkill),
-                    ...(live.harvestState ? { harvestState: live.harvestState } : {}),
+                    skills: live.skillIds.map(hydrateSkill),
                     source: "live",
                 });
                 continue;
@@ -322,7 +418,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
                 source: reg ? "gfx-registry" : "unknown",
             });
         }
-        // Live entries not in static `ie` → mode-marchand player shops etc.
+        // Live entries not in static `ie` → zaaps, mode-marchand player shops, etc.
         // Skip elementIds we just filtered out as ghosts — the server still
         // echoes them in itx (cross-map shared eids) but they're unreachable
         // from this map's viewpoint.
@@ -332,8 +428,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             interactives.push({
                 cell: i.cell ?? -1, elementId: i.elementId, gfxId: i.gfxId ?? 0,
                 typeId: i.typeId, typeName: mapInteractives.typeName(i.typeId),
-                skills: i.skills.map(hydrateSkill),
-                ...(i.harvestState ? { harvestState: i.harvestState } : {}),
+                skills: i.skillIds.map(hydrateSkill),
                 source: "live",
             });
         }
@@ -355,11 +450,14 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         const detail = await store.loadMapDetail(mapId);
         if (!detail) { res.status(404).json({ error: `map not found: ${mapId}` }); return; }
         // Strip ghost interactives so the rendering canvas matches what's
-        // actually interactable in-game.
+        // actually interactable in-game. See ghost-filter.ts.
         const filtered = {
             ...detail,
             interactives: detail.interactives.filter(
-                (t) => !isGhostInteractive(t as readonly number[], detail.cells as ReadonlyArray<readonly [number, number, number, number, number]>),
+                (t) => !isGhostInteractive(
+                    t as readonly number[],
+                    detail.cells as ReadonlyArray<readonly [number, number, number, number, number]>,
+                ),
             ),
         };
         res.json(filtered);
@@ -516,17 +614,18 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
 
     // ---- Interactive use (harvest, talk to NPC, use zaap, ...) ----
     //
-    // Resolves the skillInstanceUid from the live MapInteractivesStore based
-    // on the requested elementId — caller never needs to deal with the
-    // server-allocated UIDs. Defaults to the first active skill if `skillId`
+    // Resolves the skillInstanceUid from the live MapStateStore (mirror of
+    // current itx in RAM) — caller never needs to deal with the ephemeral
+    // server-allocated UIDs. Defaults to the first enabled skill if `skillId`
     // is omitted.
     app.post("/api/dofus/interactive/use", async (req, res) => {
         const profile = deps.session.profile();
         if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+        if (!mapStateStore) { res.status(503).json({ error: "map state not initialised" }); return; }
         const elementId = Number(req.body?.elementId);
         if (!Number.isFinite(elementId)) { res.status(400).json({ error: "elementId required" }); return; }
         const skillId = req.body?.skillId !== undefined ? Number(req.body.skillId) : undefined;
-        const actions = new InteractiveActions(profile.labels, deps.session.fridaClient, mapInteractives);
+        const actions = new InteractiveActions(profile.labels, deps.session.fridaClient, mapInteractives, mapStateStore);
         try { res.json(await actions.useInteractive(elementId, skillId)); }
         catch (err) { res.status(500).json({ error: err instanceof Error ? err.message : String(err) }); }
     });
@@ -559,6 +658,39 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             if (err && !res.headersSent) {
                 res.status(404).end();
             }
+        });
+    });
+
+    /** Serve a monster icon PNG. Same shape as the item icon serve. */
+    const MONSTERS_ICONS_DIR = path.resolve(_MODULE_DIR, "../../../../dofus-app/data/icons/monsters");
+    app.get("/api/dofus/monsters/icon/:iconId.png", (req, res) => {
+        const id = req.params.iconId;
+        if (!/^\d+$/.test(id)) {
+            res.status(400).json({ error: "iconId must be numeric" });
+            return;
+        }
+        const full = path.join(MONSTERS_ICONS_DIR, `${id}.png`);
+        res.sendFile(full, (err) => {
+            if (err && !res.headersSent) res.status(404).end();
+        });
+    });
+
+    /** Serve a pre-built catalog file (items / monsters / jobs / skills /
+     *  itemtypes / collectables / areas / subareas / worldmaps / interactives
+     *  / skillnames). The frontend caches the JSON and filters client-side. */
+    const CATALOG_DIR = path.resolve(_MODULE_DIR, "../../../../dofus-app/data/catalog");
+    const CATALOG_WHITELIST = new Set([
+        "items", "monsters", "jobs", "skills", "itemtypes", "collectables",
+        "areas", "subareas", "worldmaps", "interactives", "skillnames",
+    ]);
+    app.get("/api/dofus/catalog/:name", (req, res) => {
+        const name = req.params.name;
+        if (!CATALOG_WHITELIST.has(name)) {
+            res.status(404).json({ error: `unknown catalog: ${name}` });
+            return;
+        }
+        res.sendFile(path.join(CATALOG_DIR, `${name}.json`), (err) => {
+            if (err && !res.headersSent) res.status(404).end();
         });
     });
 

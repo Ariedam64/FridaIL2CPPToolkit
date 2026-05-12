@@ -3,10 +3,15 @@
 //
 // Subscribes to the network monitor's FrameStore, parses every itx/iet/ieu and
 // keeps:
-//   - Per-map RUNTIME state (which elements are currently usable + their
-//     ephemeral skillInstanceUids + harvestState). Persisted to
-//     `.toolkit-data/maps-runtime.json` for cross-session retention of
-//     skillInstanceUids that survive a backend restart.
+//   - Per-map IDENTIFICATION data persisted to `.toolkit-data/maps-runtime.json`
+//     — slim shape: { elementId, typeId, gfxId, cell, skillIds }. NO live
+//     state on disk (no harvestState / no skillInstanceUid / no active flag).
+//     The persisted DB is a name-resolution catalog for offline display.
+//   - In-RAM live state additionally carries skillInstanceUids and active
+//     flags + harvestState on the RuntimeSkill/RuntimeInteractive — these
+//     are refreshed from each itx/iet/ieu during a session and used by the
+//     "use interactive" action. They're dropped on flush — the next session
+//     starts with placeholders that get refilled on the first itx.
 //   - The CANONICAL static DB (`app/plugins/dofus/data/static-db.json`). Each
 //     time we learn a new (typeId → gfxId) or (typeId → skillId) link via
 //     joining itx.eftt with the per-map static `ie`, we auto-enrich the DB.
@@ -53,37 +58,19 @@ function resolveItxObfNames(labels: LabelStore): ItxObfNames {
     };
 }
 
-/** Harvest state for a stated element (from itx.eftq / kdb).
- *  - state=0 → available / fully respawned
- *  - state≥1 → just harvested or on cooldown
- *  - onCurrentMap=true → really on this map
- *  - onCurrentMap=false → ghost (visible from a neighbour map) */
-export interface HarvestState {
-    state: number;
-    onCurrentMap: boolean;
-}
-
-/** Slim runtime skill — friendly name/gatheredItem are looked up via static DB
- *  at API hydration time, never duplicated here. */
-export interface RuntimeSkill {
-    skillId: number;
-    skillInstanceUid: number;
-    /** Came from the active list (true) or disabled list (false) of the kne payload. */
-    active: boolean;
-}
-
-/** Slim runtime view of an interactive on a map. */
+/** Slim runtime view of an interactive on a map — identification only.
+ *  Live state (skillInstanceUid, active flag, harvestState) is NOT tracked
+ *  here; for action invocation, callers go through MapStateStore which
+ *  mirrors the current itx in RAM. */
 export interface RuntimeInteractive {
     elementId: number;
     /** Resolved from static `ie` on the same mapId. null = element not in
-     *  the static dump (server-side dynamic spawn — mode-marchand player
-     *  shops, occasional new harvestables, ...). */
+     *  the static dump (server-side dynamic spawn — zaaps placed runtime,
+     *  player shops, etc.). */
     cell: number | null;
     gfxId: number | null;
     typeId: number;
-    skills: RuntimeSkill[];
-    harvestState?: HarvestState;
-    lastSeenAt: number;
+    skillIds: number[];
 }
 
 interface MapEntry {
@@ -92,10 +79,25 @@ interface MapEntry {
     lastSeenAt: number;
 }
 
+/** Slim per-interactive shape on disk — identification only, no state. */
+interface PersistedInteractive {
+    elementId: number;
+    typeId: number;
+    gfxId: number | null;
+    cell: number | null;
+    skillIds: number[];
+}
+
+interface PersistedMap {
+    mapId: number;
+    lastSeenAt: number;
+    interactives: PersistedInteractive[];
+}
+
 interface PersistedShape {
-    schemaVersion: 2;
+    schemaVersion: 3;
     updatedAt: string;
-    maps: Record<string, MapEntry>;
+    maps: Record<string, PersistedMap>;
 }
 
 // --- Static DB ---
@@ -213,10 +215,11 @@ export class MapInteractivesStore {
         return null;
     }
 
-    /** Snapshot of the static DB suitable for UI display. Returns the list of
-     *  typeIds with at least one learnt gfxId (= "resolved"), plus the totals
-     *  the UI uses for its progress counter. Each entry is hydrated with skill
-     *  names + gathered item info from the static DB. */
+    /** Snapshot of the static DB suitable for UI display. Returns EVERY type
+     *  catalogued in the datacenter dump — name + skills are always known so
+     *  the UI can resolve any typeId it sees in itx. `gfxIds` is empty for
+     *  types we haven't yet seen runtime, `resolvedTypes` still counts only
+     *  those with ≥1 learnt gfxId (= the progress metric). */
     getStaticDbSummary(): {
         totalTypes: number;
         resolvedTypes: number;
@@ -235,9 +238,11 @@ export class MapInteractivesStore {
         let totalGfxLearned = 0;
         const resolved: ReturnType<MapInteractivesStore["getStaticDbSummary"]>["resolved"] = [];
         for (const [tidStr, e] of Object.entries(interactives)) {
-            if (!e.gfxIds || e.gfxIds.length === 0) continue;
-            resolvedTypes++;
-            totalGfxLearned += e.gfxIds.length;
+            const gfxIds = e.gfxIds ?? [];
+            if (gfxIds.length > 0) {
+                resolvedTypes++;
+                totalGfxLearned += gfxIds.length;
+            }
             const skills = (e.skillIds ?? []).map((sid) => {
                 const sk = this.staticDb.skills[String(sid)];
                 return {
@@ -249,7 +254,7 @@ export class MapInteractivesStore {
             resolved.push({
                 typeId: Number(tidStr),
                 name: e.name,
-                gfxIds: [...e.gfxIds],
+                gfxIds: [...gfxIds],
                 mapCount: e.mapCount ?? 0,
                 skills,
             });
@@ -274,7 +279,7 @@ export class MapInteractivesStore {
         for (const [mapId, m] of this.maps) {
             recents.push({ mapId, lastSeenAt: m.lastSeenAt, interactivesCount: m.interactives.length });
             for (const i of m.interactives) {
-                for (const s of i.skills) skillsSeen.add(s.skillId);
+                for (const sid of i.skillIds) skillsSeen.add(sid);
             }
         }
         for (const e of Object.values(this.staticDb.interactives)) {
@@ -335,12 +340,14 @@ export class MapInteractivesStore {
             }
         } catch { /* missing static is fine */ }
 
-        // Reset ghost set for this snapshot.
+        // Reset ghost set for this snapshot. Stated elements with
+        // onCurrentMap=false signal "this elementId belongs to a neighbour
+        // map" — we drop them from the live list. The eftq cell is also
+        // captured as a fallback source of cellId for elements absent from
+        // the static `ie` (runtime-only spawns like zaaps).
         this.ghostElementIds.clear();
-        const harvestByElementId = new Map<number, HarvestState>();
         const cellFromStatedByElementId = new Map<number, number>();
         for (const se of parsed.statedElements) {
-            harvestByElementId.set(se.elementId, { state: se.state, onCurrentMap: se.onCurrentMap });
             cellFromStatedByElementId.set(se.elementId, se.cell);
             if (!se.onCurrentMap) this.ghostElementIds.add(se.elementId);
         }
@@ -349,19 +356,17 @@ export class MapInteractivesStore {
         // visual continuity (the sprite is rendered at the map edge so the
         // neighbour map "leaks" in) but they're not actionable from here.
         const liveInteractives = parsed.interactives
-            .filter((i) => {
-                const se = harvestByElementId.get(i.elementId);
-                return !se || se.onCurrentMap;
-            })
+            .filter((i) => !this.ghostElementIds.has(i.elementId))
             .map((i) => {
-                // Cell/gfx resolution priority: static `ie` (has both) → statedElement `cell` (eftq) → null.
-                // Runtime-only elements like zaaps never appear in the bundle, but
-                // they DO have a kdb in eftq carrying the cell.
+                // Cell/gfx resolution priority: static `ie` (has both) →
+                // statedElement `cell` (eftq) → null. Runtime-only elements
+                // like zaaps never appear in the bundle, but they DO have a
+                // kdb in eftq carrying the cell.
                 const staticHit = staticIeByElementId.get(i.elementId);
                 const cellGfx: { cell: number | null; gfxId: number | null } = staticHit
                     ? { cell: staticHit.cell, gfxId: staticHit.gfxId }
                     : { cell: cellFromStatedByElementId.get(i.elementId) ?? null, gfxId: null };
-                return this.buildRuntimeInteractive(i, cellGfx, parsed.capturedAt, harvestByElementId.get(i.elementId));
+                return this.buildRuntimeInteractive(i, cellGfx);
             });
 
         const entry: MapEntry = {
@@ -379,27 +384,25 @@ export class MapInteractivesStore {
         this.scheduleFlush();
     }
 
-    /** Apply a `ieu` (StatedElementUpdate) — refreshes the harvestState of an
-     *  existing interactive on the current map. Also tracks ghost elementIds
-     *  for the iet path: a `ieu` can arrive before the corresponding `iet`,
-     *  and we want the iet to skip if we've already learned the element is a ghost. */
+    /** Apply a `ieu` (StatedElementUpdate). Used for ghost-tracking only —
+     *  the slim store doesn't carry harvestState. A ieu with onCurrentMap=false
+     *  is the server saying "this elementId belongs to a neighbour map", so
+     *  we drop it from our live list. */
     private applyStateUpdate(se: ParsedStatedElement, ts: number): void {
         if (this.currentMapId === null) return;
         if (!se.onCurrentMap) this.ghostElementIds.add(se.elementId);
         else this.ghostElementIds.delete(se.elementId);
         const map = this.maps.get(this.currentMapId);
         if (!map) return;
-        const target = map.interactives.find((i) => i.elementId === se.elementId);
-        if (!target) return;
-        target.harvestState = { state: se.state, onCurrentMap: se.onCurrentMap };
-        target.lastSeenAt = ts;
-        map.lastSeenAt = ts;
         if (!se.onCurrentMap) {
-            // We just learned this element is a ghost — drop it from the live list.
+            const before = map.interactives.length;
             map.interactives = map.interactives.filter((i) => i.elementId !== se.elementId);
+            if (map.interactives.length !== before) {
+                map.lastSeenAt = ts;
+                this.dirty = true;
+                this.scheduleFlush();
+            }
         }
-        this.dirty = true;
-        this.scheduleFlush();
     }
 
     /** Apply a `iet` (ElementUpdate) — adds or replaces a single interactive
@@ -411,10 +414,8 @@ export class MapInteractivesStore {
         if (!map) return;
         const idx = map.interactives.findIndex((x) => x.elementId === i.elementId);
         let cellGfx = { cell: null as number | null, gfxId: null as number | null };
-        let existingHarvest: HarvestState | undefined;
         if (idx >= 0) {
             cellGfx = { cell: map.interactives[idx].cell, gfxId: map.interactives[idx].gfxId };
-            existingHarvest = map.interactives[idx].harvestState;
         } else {
             try {
                 const detail = await this.deps.dataStore.loadMapDetail(this.currentMapId);
@@ -422,7 +423,7 @@ export class MapInteractivesStore {
                 if (triple) cellGfx = { cell: triple[0], gfxId: triple[2] };
             } catch { /* fine */ }
         }
-        const fresh = this.buildRuntimeInteractive(i, cellGfx, ts, existingHarvest);
+        const fresh = this.buildRuntimeInteractive(i, cellGfx);
         if (idx >= 0) map.interactives[idx] = fresh;
         else map.interactives.push(fresh);
         map.lastSeenAt = ts;
@@ -433,27 +434,18 @@ export class MapInteractivesStore {
         this.scheduleFlush();
     }
 
-    /** Build a slim RuntimeInteractive — no embedded names; those are looked
-     *  up at API hydration time. */
+    /** Build a slim RuntimeInteractive — no embedded names, no state. Names
+     *  are looked up at API hydration time, state lives in MapStateStore. */
     private buildRuntimeInteractive(
         i: ParsedInteractive,
         cellGfx: { cell: number | null; gfxId: number | null },
-        capturedAt: number,
-        existingHarvest?: HarvestState,
     ): RuntimeInteractive {
-        const skills: RuntimeSkill[] = i.skills.map((s) => ({
-            skillId: s.skillId,
-            skillInstanceUid: s.skillInstanceUid,
-            active: s.active,
-        }));
         return {
             elementId: i.elementId,
             cell: cellGfx.cell,
             gfxId: cellGfx.gfxId,
             typeId: i.typeId,
-            skills,
-            ...(existingHarvest ? { harvestState: existingHarvest } : {}),
-            lastSeenAt: capturedAt,
+            skillIds: i.skills.map((s) => s.skillId),
         };
     }
 
@@ -471,7 +463,7 @@ export class MapInteractivesStore {
             this.staticDb.interactives[key] = {
                 name: `Interactive #${i.typeId}`,
                 gfxIds: i.gfxId !== null ? [i.gfxId] : [],
-                skillIds: i.skills.map((s) => s.skillId),
+                skillIds: [...i.skillIds],
                 mapCount: 1,
             };
             this.staticDbDirty = true;
@@ -487,10 +479,10 @@ export class MapInteractivesStore {
                 changed = true;
             }
         }
-        for (const s of i.skills) {
+        for (const sid of i.skillIds) {
             entry.skillIds = entry.skillIds ?? [];
-            if (!entry.skillIds.includes(s.skillId)) {
-                entry.skillIds.push(s.skillId);
+            if (!entry.skillIds.includes(sid)) {
+                entry.skillIds.push(sid);
                 entry.skillIds.sort((a, b) => a - b);
                 changed = true;
             }
@@ -532,10 +524,25 @@ export class MapInteractivesStore {
     private async flush(): Promise<void> {
         if (!this.dirty) return;
         this.dirty = false;
+        // In-memory shape is already slim — direct mapping to the v3 persisted
+        // shape. No live state fields anywhere.
         const data: PersistedShape = {
-            schemaVersion: 2,
+            schemaVersion: 3,
             updatedAt: new Date().toISOString(),
-            maps: Object.fromEntries([...this.maps].map(([k, v]) => [String(k), v])),
+            maps: Object.fromEntries([...this.maps].map(([k, v]) => {
+                const slim: PersistedMap = {
+                    mapId: v.mapId,
+                    lastSeenAt: v.lastSeenAt,
+                    interactives: v.interactives.map((i) => ({
+                        elementId: i.elementId,
+                        typeId: i.typeId,
+                        gfxId: i.gfxId,
+                        cell: i.cell,
+                        skillIds: [...i.skillIds],
+                    })),
+                };
+                return [String(k), slim];
+            })),
         };
         const tmp = this.deps.filePath + ".tmp";
         await fs.promises.mkdir(path.dirname(this.deps.filePath), { recursive: true });
@@ -571,15 +578,24 @@ export class MapInteractivesStore {
         if (!fs.existsSync(this.deps.filePath)) return false;
         try {
             const raw = fs.readFileSync(this.deps.filePath, "utf-8");
-            const data = JSON.parse(raw) as PersistedShape;
-            if (data.schemaVersion !== 2) {
-                // Legacy schema (v1 with gfxRegistry+catalogs embedded). Ignore
-                // — the user wiped it intentionally and the new flow learns
-                // from scratch via static-db.
+            const data = JSON.parse(raw) as { schemaVersion?: number; maps?: Record<string, unknown> };
+            if (data.schemaVersion !== 3) {
+                // v1, v2 or unknown — ignored. v3 is the only supported shape
+                // post-slim. Older files re-bootstrap from scratch as a new
+                // session sees itx.
                 return false;
             }
-            for (const [k, v] of Object.entries(data.maps ?? {})) {
-                this.maps.set(parseInt(k, 10), v);
+            for (const [k, mapRaw] of Object.entries(data.maps ?? {})) {
+                const m = mapRaw as PersistedMap;
+                const mapId = parseInt(k, 10);
+                const interactives: RuntimeInteractive[] = (m.interactives ?? []).map((i) => ({
+                    elementId: i.elementId,
+                    cell: i.cell ?? null,
+                    gfxId: i.gfxId ?? null,
+                    typeId: i.typeId,
+                    skillIds: [...(i.skillIds ?? [])],
+                }));
+                this.maps.set(mapId, { mapId, interactives, lastSeenAt: m.lastSeenAt });
             }
             return true;
         } catch (e) {

@@ -29,6 +29,8 @@ const mod: PluginPageModule = {
             void import("./tc").then(({ mountTradeCenterTest }) => mountTradeCenterTest(subHost, ctx));
         } else if (sub === "state") {
             void import("./state").then(({ mountState }) => mountState(subHost, ctx));
+        } else if (sub === "items") {
+            void import("./items").then(({ mountItems }) => mountItems(subHost, ctx));
         } else {
             subHost.innerHTML = `
                 <p>Dofus plugin — <strong>${sub}</strong> sub-page (placeholder).</p>

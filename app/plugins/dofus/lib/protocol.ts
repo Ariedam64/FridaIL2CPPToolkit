@@ -140,7 +140,7 @@ export const MAP_INFO_PROTO = {
         Skill_skillId:                 { classKey: "Skill",         friendly: "skillId",          fallback: "erpy" },
         Skill_skillInstanceUid:        { classKey: "Skill",         friendly: "skillInstanceUid", fallback: "erqd" },
         StatedElement_state:           { classKey: "StatedElement", friendly: "state",            fallback: "eoun" },
-        StatedElement_onCurrentMap:    { classKey: "StatedElement", friendly: "onCurrentMap",     fallback: "eoup" },
+        StatedElement_onCurrentMap:    { classKey: "StatedElement", friendly: "isVisible",     fallback: "eoup" },
         StatedElement_elementId:       { classKey: "StatedElement", friendly: "elementId",        fallback: "eour" },
         StatedElement_cell:            { classKey: "StatedElement", friendly: "cell",             fallback: "eout" },
         StateUpdate_payload:           { classKey: "StateUpdate",   friendly: "statedElement",    fallback: "econ" },
@@ -322,13 +322,29 @@ export const MAP_STATE_PROTO = {
         EntityPosition:         { friendly: "EntityPosition",          fallback: "kjp" },
         EntityLook:             { friendly: "EntityLook",              fallback: "khe" },
         CharacterAttributes:    { friendly: "CharacterAttributes",     fallback: "kgl" },
+        // kgl.epsa is polymorphic — CharacterCard is the player-variant
+        // (kgb). The other variants live under their own classes below.
         CharacterCard:          { friendly: "CharacterCard",           fallback: "kgb" },
         CharacterProgression:   { friendly: "CharacterProgression",    fallback: "kfy" },
         LevelInfo:              { friendly: "LevelInfo",               fallback: "kli" },
+        // Monster group variant of kgl.epsa.
+        MonsterGroupCard:       { friendly: "MonsterGroupCard",        fallback: "kgg" },
+        MonsterGroupContent:    { friendly: "MonsterGroupContent",     fallback: "kcj" },
+        MonsterEntry:           { friendly: "MonsterEntry",            fallback: "kjs" },
+        // NPC variant of kgl.epsa.
+        NpcCard:                { friendly: "NpcCard",                 fallback: "kgj" },
         // For the interactables join (eftq + eftt) into MapState.interactables.
         InteractiveElement:     { friendly: "InteractiveElement",      fallback: "kne" },
         InteractiveElementSkill:{ friendly: "InteractiveElementSkill", fallback: "knc" },
         StatedElement:          { friendly: "StatedElement",           fallback: "kdb" },
+        // Incremental updates after the initial itx — patch the in-memory
+        // interactable instead of waiting for the next itx broadcast.
+        StatedElementUpdate:    { friendly: "StatedElementUpdate",     fallback: "ieu" },
+        InteractiveElementUpdated: { friendly: "InteractiveElementUpdated", fallback: "iet" },
+        // Entity-list patches between itx broadcasts.
+        NewPlayerOnMap:         { friendly: "newPlayerOnMap",          fallback: "irx" },
+        PlayerLeaveMap:         { friendly: "playerLeaveMap",          fallback: "jvn" },
+        MapEntityMovement:      { friendly: "mapEntityMovement",       fallback: "itv" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         MapRenderer_currentMapId:        { classKey: "MapRenderer",            friendly: "currentMapId", fallback: "czav" },
@@ -342,10 +358,22 @@ export const MAP_STATE_PROTO = {
         EntityPosition_cellId:           { classKey: "EntityPosition",         friendly: "cellId",       fallback: "eqqq" },
         EntityLook_characterAttributes:  { classKey: "EntityLook",             friendly: "characterAttributes", fallback: "epwr" },
         CharacterAttributes_characterCard: { classKey: "CharacterAttributes",  friendly: "characterCard", fallback: "epsa" },
+        // Enum discriminator for the variant under .characterCard:
+        // 7 = player (kgb), 3 = monsterGroup (kgg), 5 = npc (kgj).
+        CharacterAttributes_kind:        { classKey: "CharacterAttributes",    friendly: "kind",         fallback: "epsb" },
         CharacterCard_name:              { classKey: "CharacterCard",          friendly: "name",         fallback: "eppb" },
         CharacterCard_progression:       { classKey: "CharacterCard",          friendly: "progression",  fallback: "eppe" },
         CharacterProgression_levelInfo:  { classKey: "CharacterProgression",   friendly: "levelInfo",    fallback: "epor" },
         LevelInfo_level:                 { classKey: "LevelInfo",              friendly: "level",        fallback: "ereh" },
+        // Monster group fields (kgg → kcj → kjs).
+        MonsterGroupCard_content:        { classKey: "MonsterGroupCard",       friendly: "content",      fallback: "epqm" },
+        MonsterGroupContent_leader:      { classKey: "MonsterGroupContent",    friendly: "leader",       fallback: "eood" },
+        MonsterGroupContent_members:     { classKey: "MonsterGroupContent",    friendly: "members",      fallback: "eoob" },
+        MonsterEntry_monsterId:          { classKey: "MonsterEntry",           friendly: "monsterId",    fallback: "eqrp" },
+        MonsterEntry_level:              { classKey: "MonsterEntry",           friendly: "level",        fallback: "eqrt" },
+        MonsterEntry_grade:              { classKey: "MonsterEntry",           friendly: "grade",        fallback: "eqrn" },
+        // NPC card field.
+        NpcCard_npcId:                   { classKey: "NpcCard",                friendly: "npcId",        fallback: "epro" },
         // Interactables join fields — itx.eftt (interactives) ↔ itx.eftq
         // (statedElements) by elementId. enabled/disabled skills carry the
         // skillId + skillInstanceUid the bot needs to invoke an action.
@@ -358,9 +386,17 @@ export const MAP_STATE_PROTO = {
         InteractiveElementSkill_skillId:         { classKey: "InteractiveElementSkill", friendly: "skillId",          fallback: "erpy" },
         InteractiveElementSkill_skillInstanceUid:{ classKey: "InteractiveElementSkill", friendly: "skillInstanceUid", fallback: "erqd" },
         StatedElement_state:        { classKey: "StatedElement", friendly: "state",        fallback: "eoun" },
-        StatedElement_onCurrentMap: { classKey: "StatedElement", friendly: "onCurrentMap", fallback: "eoup" },
+        StatedElement_onCurrentMap: { classKey: "StatedElement", friendly: "isVisible", fallback: "eoup" },
         StatedElement_elementId:    { classKey: "StatedElement", friendly: "elementId",    fallback: "eour" },
         StatedElement_cell:         { classKey: "StatedElement", friendly: "cell",         fallback: "eout" },
+        // ieu / iet wrap a single payload of the underlying type (kdb / kne).
+        StatedElementUpdate_payload:    { classKey: "StatedElementUpdate",    friendly: "statedElement", fallback: "econ" },
+        InteractiveElementUpdated_payload: { classKey: "InteractiveElementUpdated", friendly: "interactive",  fallback: "ecoj" },
+        // Entity-list patch fields.
+        NewPlayerOnMap_entities:        { classKey: "NewPlayerOnMap",    friendly: "entities", fallback: "efig" },
+        PlayerLeaveMap_entityId:        { classKey: "PlayerLeaveMap",    friendly: "entityId", fallback: "elbt" },
+        MapEntityMovement_entityId:     { classKey: "MapEntityMovement", friendly: "entityId", fallback: "efss" },
+        MapEntityMovement_cellPath:     { classKey: "MapEntityMovement", friendly: "cellPath", fallback: "efsq" },
     } as Record<string, ProtoMemberSpec>,
     methods: {
         Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },
@@ -371,4 +407,120 @@ export interface ResolvedMapStateProto {
     classes: Record<keyof typeof MAP_STATE_PROTO["classes"], string>;
     fields:  Record<keyof typeof MAP_STATE_PROTO["fields"],  string>;
     methods: Record<keyof typeof MAP_STATE_PROTO["methods"], string>;
+}
+
+// =============================================================================
+// Houses / enclos on the map (itx.eftn) — one entry per house plot visible
+// from the current map. Each entry carries the house's owner card chain:
+//   itx.eftn[i]                                 = MapHouseEntry (kav)
+//   MapHouseEntry.ownership                     = HouseOwnership (kar)
+//   HouseOwnership.accessRights[j]              = HouseAccessRight (kjo)
+//   HouseAccessRight.owner                      = PlayerCard (kde)
+//   PlayerCard.name                             = "Le-conquerantxxx"  (string)
+//   PlayerCard.playerId                         = "8685"              (string-coded id)
+// The intermediate classes are surfaced here so the labels engine captures
+// each step's structural fingerprint — even though we don't read the nested
+// payloads from code yet, future obf rotations will follow the renames.
+// =============================================================================
+
+export const HOUSE_PROTO = {
+    classes: {
+        MapInfo:          { friendly: "mapInfo",          fallback: "itx" },
+        MapHouseEntry:    { friendly: "MapHouseEntry",    fallback: "kav" },
+        HouseOwnership:   { friendly: "HouseOwnership",   fallback: "kar" },
+        HouseAccessRight: { friendly: "HouseAccessRight", fallback: "kjo" },
+        PlayerCard:       { friendly: "PlayerCard",       fallback: "kde" },
+    } as Record<string, ProtoClassSpec>,
+    fields: {
+        MapInfo_houses:                       { classKey: "MapInfo",          friendly: "houses",            fallback: "eftn" },
+        // kav.eobr = unique houseId (high-cardinality int, e.g. 461378 /
+        // 461383). kav.eobp is in [0, 559] but is NOT the door cellId
+        // (verified in-game) — semantics still unknown, kept unlabeled.
+        MapHouseEntry_houseId:                { classKey: "MapHouseEntry",    friendly: "houseId",           fallback: "eobr" },
+        MapHouseEntry_ownership:              { classKey: "MapHouseEntry",    friendly: "ownership",         fallback: "eobw" },
+        HouseOwnership_rights:                { classKey: "HouseOwnership",   friendly: "accessRights",      fallback: "eoar" },
+        // kar.eoau = list of interactive elementIds linked to this house
+        // (typically just the door). The single elementId here also appears
+        // in itx.eftt with interactiveTypeId 300 = Maison. Joining lets us
+        // recover cellId for any eftt entry of typeId 300 without the static
+        // dump: lookup `elementId in eftn[k].eoau` → cell = eftn[k].eobp.
+        HouseOwnership_elementIds:            { classKey: "HouseOwnership",   friendly: "elementIds",        fallback: "eoau" },
+        HouseAccessRight_owner:               { classKey: "HouseAccessRight", friendly: "owner",             fallback: "eqpq" },
+        // kjo.eqpt = sale price in kamas (long; observed 39_999_999 /
+        // 38_000_000 / 0 — typical Dofus house pricing).
+        HouseAccessRight_price:               { classKey: "HouseAccessRight", friendly: "price",             fallback: "eqpt" },
+        PlayerCard_name:                      { classKey: "PlayerCard",       friendly: "name",              fallback: "eovl" },
+        PlayerCard_playerId:                  { classKey: "PlayerCard",       friendly: "playerId",          fallback: "eovn" },
+    } as Record<string, ProtoMemberSpec>,
+    methods: {} as Record<string, ProtoMemberSpec>,
+} as const;
+
+export interface ResolvedHouseProto {
+    classes: Record<keyof typeof HOUSE_PROTO["classes"], string>;
+    fields:  Record<keyof typeof HOUSE_PROTO["fields"],  string>;
+    methods: Record<keyof typeof HOUSE_PROTO["methods"], string>;
+}
+
+// =============================================================================
+// World pathfinding (auto-travel) — the in-game "click a map on the worldmap
+// and the character walks there autonomously" feature.
+//
+//   AutoTravelManager (elj)   → high-level service; entry point bapc()
+//      .pathfinder (dkdu) → WorldPathfinder (ell)
+//   WorldPathfinder (ell)     → wraps one A* worker; owns last result
+//      .worker (dked)     → WorldPathfindingWorker (fpc)
+//      .startVertex (dkea), .destMapId (dkeb), .state (dkec)
+//   WorldPathfindingWorker (fpc) → A* algorithm itself
+//      .resultEdges (dpln) → List<Edge> = THE PATH
+//      .findPath (bguk)    → start the A*: (Vertex from, Vertex to, cb, bool)
+//      .deliverResult (nwf)→ internal "publish path" — ideal hook target
+//
+// Edge / Vertex / Transition / PathFindingData have clear-name types from
+// Core.PathFinding.WorldPathfinding so don't need labels.
+// =============================================================================
+
+export const WORLD_PATHFINDING_PROTO = {
+    classes: {
+        AutoTravelManager:        { friendly: "AutoTravelManager",         fallback: "elj" },
+        WorldPathfinder:          { friendly: "WorldPathfinder",           fallback: "ell" },
+        WorldPathfindingWorker:   { friendly: "WorldPathfindingWorker",    fallback: "fpc" },
+    } as Record<string, ProtoClassSpec>,
+    fields: {
+        // AutoTravelManager.dkds : ere (the pathfinder runtime context — passed
+        // as the 4th argument to WorldPathfinder.computePath)
+        AutoTravelManager_pathfinderContext: { classKey: "AutoTravelManager",      friendly: "pathfinderContext",  fallback: "dkds" },
+        // WorldPathfinder.dked : fpc (the live A* worker)
+        WorldPathfinder_worker:              { classKey: "WorldPathfinder",        friendly: "worker",      fallback: "dked" },
+        // WorldPathfinder.dkea : Vertex (start)
+        WorldPathfinder_startVertex:         { classKey: "WorldPathfinder",        friendly: "startVertex", fallback: "dkea" },
+        // WorldPathfinder.dkeb : long (destination mapId)
+        WorldPathfinder_destMapId:           { classKey: "WorldPathfinder",        friendly: "destMapId",   fallback: "dkeb" },
+        // WorldPathfinder.dkec : int (state/phase)
+        WorldPathfinder_state:               { classKey: "WorldPathfinder",        friendly: "state",       fallback: "dkec" },
+        // WorldPathfindingWorker.dpln : List<Edge> (the result path)
+        WorldPathfindingWorker_resultEdges:  { classKey: "WorldPathfindingWorker", friendly: "resultEdges", fallback: "dpln" },
+    } as Record<string, ProtoMemberSpec>,
+    methods: {
+        /** AutoTravelManager.bapc(long destMapId, Action<List<Edge>,bool> cb, bool flag) → void.
+         *  Public entry: computes path AND kicks off movement via its own lambda
+         *  (which calls computePath internally then triggers walking). Hooked
+         *  observe-only for diag — we don't invoke it. */
+        AutoTravelManager_startAutoTravel:    { classKey: "AutoTravelManager",      friendly: "startAutoTravel", fallback: "bapc" },
+        /** WorldPathfinder.bapj(long destMapId, long srcMapId, long currentCellId,
+         *  ere, Action<List<Edge>,bool> cb, bool flag) → void.
+         *  PURE pathfinder — the method `bapc` calls internally. Publishes the
+         *  result to fpc.resultEdges before invoking cb. Invoking with cb=NULL
+         *  gives us the path without triggering movement. */
+        WorldPathfinder_computePath:          { classKey: "WorldPathfinder",        friendly: "computePath",     fallback: "bapj" },
+        /** WorldPathfindingWorker.nwf(List<Edge>, bool) → void.
+         *  Internal "publish result" — fires once per completed computation.
+         *  Hooked to detect "fresh" path captures during active invokes. */
+        WorldPathfindingWorker_deliverResult: { classKey: "WorldPathfindingWorker", friendly: "deliverResult",   fallback: "nwf" },
+    } as Record<string, ProtoMemberSpec>,
+} as const;
+
+export interface ResolvedWorldPathfindingProto {
+    classes: Record<keyof typeof WORLD_PATHFINDING_PROTO["classes"], string>;
+    fields:  Record<keyof typeof WORLD_PATHFINDING_PROTO["fields"],  string>;
+    methods: Record<keyof typeof WORLD_PATHFINDING_PROTO["methods"], string>;
 }

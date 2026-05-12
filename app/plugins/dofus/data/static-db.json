@@ -33,7 +33,11 @@
       "name": "Table de confection"
     },
     "12": {
-      "name": "Atelier"
+      "name": "Atelier",
+      "skillIds": [
+        47
+      ],
+      "mapCount": 1
     },
     "13": {
       "name": "Établi"
@@ -52,7 +56,11 @@
       "name": "Fer"
     },
     "22": {
-      "name": "Four"
+      "name": "Four",
+      "skillIds": [
+        27
+      ],
+      "mapCount": 1
     },
     "24": {
       "name": "Argent"
@@ -87,7 +95,14 @@
       "mapCount": 1
     },
     "30": {
-      "name": "Orme"
+      "name": "Orme",
+      "gfxIds": [
+        659
+      ],
+      "skillIds": [
+        35
+      ],
+      "mapCount": 1
     },
     "31": {
       "name": "Érable",
@@ -169,7 +184,14 @@
       "name": "Meule"
     },
     "42": {
-      "name": "Lin"
+      "name": "Lin",
+      "gfxIds": [
+        662
+      ],
+      "skillIds": [
+        50
+      ],
+      "mapCount": 1
     },
     "43": {
       "name": "Orge",
@@ -401,7 +423,14 @@
       "name": "Fileuse"
     },
     "84": {
-      "name": "Puits"
+      "name": "Puits",
+      "gfxIds": [
+        4938
+      ],
+      "skillIds": [
+        102
+      ],
+      "mapCount": 1
     },
     "85": {
       "name": "Coffre"
@@ -472,7 +501,8 @@
     "105": {
       "name": "Poubelle",
       "gfxIds": [
-        29506
+        29506,
+        63081
       ],
       "skillIds": [
         153
@@ -519,7 +549,11 @@
       "name": "Table Magique"
     },
     "119": {
-      "name": "Liste des artisans"
+      "name": "Liste des artisans",
+      "skillIds": [
+        170
+      ],
+      "mapCount": 1
     },
     "120": {
       "name": "Enclos"
@@ -1147,18 +1181,29 @@
       "name": "Hôtel de vente des équipements"
     },
     "315": {
-      "name": "Hôtel de vente des consommables"
+      "name": "Hôtel de vente des consommables",
+      "gfxIds": [
+        63456
+      ],
+      "skillIds": [
+        355
+      ],
+      "mapCount": 1
     },
     "316": {
       "name": "Panneau directionnel",
       "gfxIds": [
         62977,
+        62986,
         62987,
         62988,
+        62989,
+        63046,
         63286,
         63288,
         63292,
         63294,
+        63302,
         63649
       ],
       "skillIds": [

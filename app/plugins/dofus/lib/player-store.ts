@@ -10,9 +10,15 @@
 //
 // WS-driven mutations:
 //   - MapEntityMovement (itv, incoming) → on our entityId only:
+//        currentCellId := cellPath[0]  (re-sync on mid-move redirect),
 //        targetCellId := last(cellPath), cellPath := parsed, isMoving := true
 //   - MoveStop          (itr, outgoing) → currentCellId := last(cellPath),
 //        cellPath := [], isMoving := false
+//
+// Map-driven mutations (routed in from MapStateStore after each itx parse):
+//   - handleMapEntities() picks our entry in `entities[]` (entityId === our
+//     characterId) and pulls position.cellId — authoritative on map change,
+//     since dve.dezz doesn't update on warp/teleport.
 //
 // Init mapping:
 //   targetCellId  ← MovementController.targetCellId
@@ -169,12 +175,32 @@ export class PlayerStore {
         if (cellPath.length === 0) return;
         const targetCellId = cellPath[cellPath.length - 1];
 
+        // cellPath[0] is always where we are at the moment this itv is sent:
+        // matches the current cell for a fresh move, and matches the actual
+        // mid-move position when the server emits a redirect itv. Pulling it
+        // here keeps currentCellId fresh without waiting for the next itr.
         this.state = {
             ...this.state,
+            currentCellId: cellPath[0],
             cellPath,
             targetCellId,
             isMoving: true,
         };
+        this.emit();
+    }
+
+    /** Called by the route layer after MapStateStore parses an itx (which
+     *  carries every entity on the new map). Find our entry by entityId ===
+     *  characterId and pull `position.cellId` — the only authoritative source
+     *  for our cell after a map change, since `dve.dezz` only updates on
+     *  click. No-op if our characterId is unset or we're not in the list. */
+    handleMapEntities(entities: ReadonlyArray<{ entityId: string; cellId: number | null }>): void {
+        const myId = this.state.characterId;
+        if (!myId) return;
+        const me = entities.find((e) => e.entityId === myId);
+        if (!me || me.cellId === null) return;
+        if (this.state.currentCellId === me.cellId) return;
+        this.state = { ...this.state, currentCellId: me.cellId };
         this.emit();
     }
 

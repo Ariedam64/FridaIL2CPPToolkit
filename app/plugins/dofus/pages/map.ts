@@ -351,15 +351,14 @@ async function reRender(canvas: HTMLCanvasElement): Promise<void> {
 }
 
 interface RuntimeSkill {
-    skillId: number; skillName: string; skillInstanceUid: number; active: boolean;
+    skillId: number;
+    skillName: string;
     gatheredItem?: { itemId: number; name: string };
 }
-interface HarvestState { state: number; onCurrentMap: boolean }
 interface RuntimeInteractiveDto {
     cell: number; elementId: number; gfxId: number;
     typeId: number | null; typeName: string | null;
     skills: RuntimeSkill[];
-    harvestState?: HarvestState;
     source: "live" | "gfx-registry" | "unknown";
 }
 interface RuntimeMapDto { mapId: number; interactives: RuntimeInteractiveDto[]; lastSeenAt: number | null }
@@ -384,26 +383,15 @@ async function loadInteractives(panel: HTMLDivElement, mapId: number): Promise<v
     const rows = data.interactives.map((i) => {
         const dot = SOURCE_DOT[i.source];
         const name = i.typeName ?? `Unknown (gfx ${i.gfxId})`;
-        // "Currently usable" = at least one skill is in enabledSkills (active).
-        // The kdb.eoup flag is unreliable for this — observed false even on
-        // freshly respawned harvestables. State code (kdb.eoun) is shown as
-        // a tooltip for diagnostics.
-        const anyActiveSkill = i.skills.some((s) => s.active);
-        const harvestBadge = i.harvestState
-            ? `<span title="state=${i.harvestState.state} eoup=${i.harvestState.onCurrentMap}" style="color:${anyActiveSkill ? "#4ade80" : "#888"};font-size:10px">${anyActiveSkill ? "✓" : "⏳"}</span>`
-            : "";
         const skillTags = i.skills.map((s) => {
-            const c = s.active ? "#9bd" : "#666";
-            const tail = s.active ? "" : " (disabled)";
             const item = s.gatheredItem ? ` → <span style="color:#facc15">${escapeHtml(s.gatheredItem.name)}</span>` : "";
-            return `<span style="color:${c}">${escapeHtml(s.skillName)}${tail}</span>${item}`;
+            return `<span style="color:#9bd">${escapeHtml(s.skillName)}</span>${item}`;
         }).join(", ");
         return `
             <div style="display:flex;gap:6px;align-items:center;font-size:11px;padding:2px 0;border-top:1px solid #1a1a1a">
                 <span title="${i.source}" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dot};flex:0 0 auto"></span>
                 <span style="color:#666;font-variant-numeric:tabular-nums;flex:0 0 36px">[${i.cell}]</span>
                 <span style="color:#eee;flex:0 1 auto">${escapeHtml(name)}</span>
-                ${harvestBadge}
                 ${skillTags ? `<span style="color:#666;font-size:10px;flex:1 1 auto;text-align:right">${skillTags}</span>` : ""}
             </div>
         `;
@@ -509,17 +497,16 @@ function renderColoredCellGrid(canvas: HTMLCanvasElement, detail: MapDetail, run
     ctx.strokeStyle = "rgba(0,0,0,0.4)";
 
     // Status of each interactive cell: "available" / "cooldown" / "static"
-    // Built from static `ie` (always present) plus runtime data when we've
-    // seen the map live.
-    const interactiveStatus = new Map<number, "available" | "cooldown" | "static">();
+    // Static `ie` is the only source post-slim. Runtime data carries
+    // identification but no state — we just mark every interactive cell.
+    const interactiveStatus = new Set<number>();
     for (const [cellIdx] of detail.interactives) {
-        if (cellIdx >= 0 && cellIdx < COLS * ROWS) interactiveStatus.set(cellIdx, "static");
+        if (cellIdx >= 0 && cellIdx < COLS * ROWS) interactiveStatus.add(cellIdx);
     }
     if (runtime) {
         for (const i of runtime.interactives) {
             if (i.cell < 0 || i.cell >= COLS * ROWS) continue;
-            const available = i.skills.some((s) => s.active);
-            interactiveStatus.set(i.cell, available ? "available" : "cooldown");
+            interactiveStatus.add(i.cell);
         }
     }
 
@@ -535,11 +522,8 @@ function renderColoredCellGrid(canvas: HTMLCanvasElement, detail: MapDetail, run
             const walkable = !!(flags & 1) && !(flags & 8);
             const { cx, cy } = cellCenter(idx);
 
-            const intStatus = interactiveStatus.get(idx);
             let fill: string;
-            if (intStatus === "available") fill = "#3b82f6";
-            else if (intStatus === "cooldown") fill = "#1e3a8a";
-            else if (intStatus === "static") fill = "#60a5fa";
+            if (interactiveStatus.has(idx)) fill = "#60a5fa";
             else if (!walkable) fill = "#5a1a1a";
             else if (mcd) fill = "#fde047";
             else if (flags & 16) fill = "#d9b02c";

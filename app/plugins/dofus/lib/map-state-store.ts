@@ -23,13 +23,58 @@ import type { RpcClient } from "../../../backend/core/types";
 import type { NetworkFrame } from "../../../backend/core/network/types";
 import { MAP_STATE_PROTO, type ResolvedMapStateProto } from "./protocol";
 import { resolveProto } from "./protocol-resolver";
-import { parseItx, DEFAULT_ITX_OBF, type ItxObfNames } from "./itx-parser";
+import type { FrameField } from "../../../backend/core/network/types";
+import { parseItx, parseStateUpdate, parseNewPlayerOnMap, parsePlayerLeaveMap, parseEntityMovement, DEFAULT_ITX_OBF, type ItxObfNames } from "./itx-parser";
+import { findField, intFromField } from "./frame-await";
+
+/** Parse a RepeatedField<knc> child list into MapInteractableSkill[]. Skips
+ *  rows where either id is missing (defensive — clipped previews). */
+function readSkillsFromList(arr: FrameField, skillIdObf: string, skillInstanceUidObf: string): MapInteractableSkill[] {
+    if (!arr.children) return [];
+    const out: MapInteractableSkill[] = [];
+    for (const knc of arr.children) {
+        if (knc.name === "…" || !knc.children) continue;
+        const skillId = intFromField(findField(knc.children, skillIdObf));
+        const skillInstanceUid = intFromField(findField(knc.children, skillInstanceUidObf));
+        if (skillId === null || skillInstanceUid === null) continue;
+        out.push({ skillId, skillInstanceUid });
+    }
+    return out;
+}
+
+/** Order-sensitive equality on two skill lists. ID order is wire-stable so
+ *  this is enough — we don't need a set comparison. */
+function sameSkillList(a: MapInteractableSkill[], b: MapInteractableSkill[]): boolean {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i].skillId !== b[i].skillId || a[i].skillInstanceUid !== b[i].skillInstanceUid) return false;
+    }
+    return true;
+}
+
+/** Variant tag for entities visible on the current map.
+ *  - player        → real human player (incl. ourselves); has name + level.
+ *  - monsterGroup  → roving aggressive mob group; has a list of monsters.
+ *  - npc           → static dialog/quest NPC; has an npcId for catalog lookup.
+ *  - unknown       → discriminator (kgl.epsb) didn't match a known value. */
+export type MapEntityKind = "player" | "monsterGroup" | "npc" | "unknown";
+
+export interface MapEntityMonster {
+    monsterId: number;
+    level: number;
+    grade: number;
+}
 
 export interface MapEntitySnapshot {
     entityId: string;
     cellId: number | null;
+    kind: MapEntityKind;
     name: string | null;
     level: number | null;
+    /** Populated when kind === "monsterGroup" — leader + members in one list. */
+    monsters?: MapEntityMonster[];
+    /** Populated when kind === "npc" — NPC catalog id (resolution offline TBD). */
+    npcId?: number;
 }
 
 export interface MapInteractableSkill {
@@ -75,7 +120,14 @@ export interface MapState {
     interactables: MapInteractable[];
 }
 
-type Listener = (state: MapState) => void;
+/** `kind` discriminates a wholesale snapshot replacement (itx) from a partial
+ *  patch (ieu/iet/itv/irx/jvn). Snapshot consumers (PlayerStore re-syncing
+ *  currentCellId from the new entity list) only fire on "snapshot" — patches
+ *  carry an updated entities array but the local player's authoritative
+ *  position is tracked by PlayerStore via itv/itr, never re-derived here. */
+export type MapStateChangeKind = "snapshot" | "patch";
+
+type Listener = (state: MapState, kind: MapStateChangeKind) => void;
 
 const NULL_STATE: MapState = { mapId: null, entities: [], interactables: [] };
 
@@ -139,9 +191,12 @@ export class MapStateStore {
         } catch { /* agent not reachable yet — keep null */ }
 
         // Pre-fill mapId so consumers can read it before the itx arrives.
+        // Counts as "patch" — we haven't received the new entity list yet,
+        // so the local player's cell shouldn't be re-derived from a stale
+        // entities[] (it's whatever the last itx had, or empty on first boot).
         if (mapId !== null && this.state.mapId !== mapId) {
             this.state = { ...this.state, mapId };
-            this.emit();
+            this.emit("patch");
         }
         if (mapId === null) return;
 
@@ -188,10 +243,18 @@ export class MapStateStore {
             entity_look:                        f.MapEntity_look,
             look_characterAttributes:           f.EntityLook_characterAttributes,
             characterAttributes_characterCard:  f.CharacterAttributes_characterCard,
+            characterAttributes_kind:           f.CharacterAttributes_kind,
             characterCard_name:                 f.CharacterCard_name,
             characterCard_progression:          f.CharacterCard_progression,
             progression_levelInfo:              f.CharacterProgression_levelInfo,
             levelInfo_level:                    f.LevelInfo_level,
+            monsterGroupCard_content:           f.MonsterGroupCard_content,
+            monsterGroupContent_leader:         f.MonsterGroupContent_leader,
+            monsterGroupContent_members:        f.MonsterGroupContent_members,
+            monsterEntry_monsterId:             f.MonsterEntry_monsterId,
+            monsterEntry_level:                 f.MonsterEntry_level,
+            monsterEntry_grade:                 f.MonsterEntry_grade,
+            npcCard_npcId:                      f.NpcCard_npcId,
             // Interactables join.
             interactivesArray:                  f.MapInfo_interactives,
             statedElementsArray:                f.MapInfo_statedElements,
@@ -205,16 +268,37 @@ export class MapStateStore {
             statedElement_onCurrentMap:         f.StatedElement_onCurrentMap,
             statedElement_elementId:            f.StatedElement_elementId,
             statedElement_cell:                 f.StatedElement_cell,
+            // Entity-list patch frames.
+            newPlayerOnMapClassName:            c.NewPlayerOnMap,
+            playerLeaveMapClassName:            c.PlayerLeaveMap,
+            entityMovementClassName:            c.MapEntityMovement,
+            newPlayerOnMap_entities:            f.NewPlayerOnMap_entities,
+            playerLeaveMap_entityId:            f.PlayerLeaveMap_entityId,
+            entityMovement_entityId:            f.MapEntityMovement_entityId,
+            entityMovement_cellPath:            f.MapEntityMovement_cellPath,
         };
     }
 
     private handleFrame(frame: NetworkFrame): void {
-        if (frame.typeKey.className !== this.resolvedProto.classes.MapInfo) return;
+        const cn = frame.typeKey.className;
+        const cls = this.resolvedProto.classes;
+        if (cn === cls.StatedElementUpdate)        { this.handleStatedElementUpdate(frame); return; }
+        if (cn === cls.InteractiveElementUpdated)  { this.handleInteractiveElementUpdate(frame); return; }
+        if (cn === cls.NewPlayerOnMap)             { this.handleNewPlayerOnMap(frame); return; }
+        if (cn === cls.PlayerLeaveMap)             { this.handlePlayerLeaveMap(frame); return; }
+        if (cn === cls.MapEntityMovement)          { this.handleEntityMovement(frame); return; }
+        if (cn !== cls.MapInfo) return;
         const parsed = parseItx(frame, this.currentItxObfNames());
         if (!parsed) return;
 
         const entities: MapEntitySnapshot[] = parsed.entities.map((e) => ({
-            entityId: e.entityId, cellId: e.cellId, name: e.name, level: e.level,
+            entityId: e.entityId,
+            cellId: e.cellId,
+            kind: e.kind,
+            name: e.name,
+            level: e.level,
+            ...(e.monsters ? { monsters: e.monsters } : {}),
+            ...(e.npcId !== undefined ? { npcId: e.npcId } : {}),
         }));
 
         // Interactables = (statedElements where onCurrentMap=true) ⨝ interactives
@@ -254,7 +338,133 @@ export class MapStateStore {
         const next: MapState = { mapId: parsed.mapId, entities, interactables };
         if (!this.diff(this.state, next)) return;
         this.state = next;
-        this.emit();
+        this.emit("snapshot");
+    }
+
+    /** ieu (StatedElementUpdate) — server pushes a single kdb payload to
+     *  refresh state / cell of one interactable. NOTE: `onCurrentMap` flips
+     *  to false during the post-harvest cooldown but the element doesn't
+     *  actually leave the map — we keep it in the list with isReady=false
+     *  so the bot still sees "there's a resource at cell X, currently in
+     *  cooldown". The flag is only meaningful as a "ghost from a neighbour
+     *  map" signal in the initial itx broadcast. */
+    private handleStatedElementUpdate(frame: NetworkFrame): void {
+        const se = parseStateUpdate(frame, this.currentItxObfNames());
+        if (!se) return;
+        const idx = this.state.interactables.findIndex((it) => it.elementId === se.elementId);
+        if (idx < 0) return;  // unknown element — wait for the next itx to seed it
+
+        const prev = this.state.interactables[idx];
+        const isReady = se.state === 0;
+        if (prev.state === se.state && prev.cellId === se.cell && prev.isReady === isReady) return;
+        const patched: MapInteractable = { ...prev, state: se.state, cellId: se.cell, isReady };
+        const next = this.state.interactables.slice();
+        next[idx] = patched;
+        this.state = { ...this.state, interactables: next };
+        this.emit("patch");
+    }
+
+    /** iet (InteractiveElementUpdated) — server pushes a single kne payload
+     *  with the skills currently enabled/disabled on this element. The
+     *  update is partial: fields the server didn't touch (typeId, sometimes
+     *  disabledSkills) are absent from the wire and we preserve the old
+     *  value. Skill lists are replaced wholesale by what the frame carries. */
+    private handleInteractiveElementUpdate(frame: NetworkFrame): void {
+        const f = this.resolvedProto.fields;
+        const payload = findField(frame.fields, f.InteractiveElementUpdated_payload);
+        if (!payload?.children) return;
+
+        const elementId = intFromField(findField(payload.children, f.InteractiveElement_elementId));
+        if (elementId === null) return;
+        const idx = this.state.interactables.findIndex((it) => it.elementId === elementId);
+        if (idx < 0) return;  // unknown — wait for the next itx
+
+        const prev = this.state.interactables[idx];
+        const enabledField  = findField(payload.children, f.InteractiveElement_enabledSkills);
+        const disabledField = findField(payload.children, f.InteractiveElement_disabledSkills);
+        const enabledSkills  = enabledField
+            ? readSkillsFromList(enabledField, f.InteractiveElementSkill_skillId, f.InteractiveElementSkill_skillInstanceUid)
+            : prev.enabledSkills;
+        const disabledSkills = disabledField
+            ? readSkillsFromList(disabledField, f.InteractiveElementSkill_skillId, f.InteractiveElementSkill_skillInstanceUid)
+            : prev.disabledSkills;
+
+        const canInteract = enabledSkills.length > 0;
+        const sameEnabled  = sameSkillList(prev.enabledSkills,  enabledSkills);
+        const sameDisabled = sameSkillList(prev.disabledSkills, disabledSkills);
+        if (sameEnabled && sameDisabled && prev.canInteract === canInteract) return;
+
+        const patched: MapInteractable = { ...prev, enabledSkills, disabledSkills, canInteract };
+        const next = this.state.interactables.slice();
+        next[idx] = patched;
+        this.state = { ...this.state, interactables: next };
+        this.emit("patch");
+    }
+
+    /** irx (newPlayerOnMap) — adds the new entities to the live list.
+     *  Duplicate entityIds (e.g. a re-broadcast after a quick zone wobble)
+     *  replace the existing entry. */
+    private handleNewPlayerOnMap(frame: NetworkFrame): void {
+        const parsed = parseNewPlayerOnMap(frame, this.currentItxObfNames());
+        if (!parsed || parsed.length === 0) return;
+        const next = this.state.entities.slice();
+        let changed = false;
+        for (const e of parsed) {
+            const entry: MapEntitySnapshot = {
+                entityId: e.entityId,
+                cellId: e.cellId,
+                kind: e.kind,
+                name: e.name,
+                level: e.level,
+                ...(e.monsters ? { monsters: e.monsters } : {}),
+                ...(e.npcId !== undefined ? { npcId: e.npcId } : {}),
+            };
+            const idx = next.findIndex((x) => x.entityId === e.entityId);
+            if (idx >= 0) {
+                const prev = next[idx];
+                if (prev.cellId !== entry.cellId || prev.name !== entry.name || prev.level !== entry.level || prev.kind !== entry.kind) {
+                    next[idx] = entry;
+                    changed = true;
+                }
+            } else {
+                next.push(entry);
+                changed = true;
+            }
+        }
+        if (!changed) return;
+        this.state = { ...this.state, entities: next };
+        this.emit("patch");
+    }
+
+    /** jvn (playerLeaveMap) — drops the entity from the live list. */
+    private handlePlayerLeaveMap(frame: NetworkFrame): void {
+        const parsed = parsePlayerLeaveMap(frame, this.currentItxObfNames());
+        if (!parsed) return;
+        const idx = this.state.entities.findIndex((e) => e.entityId === parsed.entityId);
+        if (idx < 0) return;
+        const next = this.state.entities.slice();
+        next.splice(idx, 1);
+        this.state = { ...this.state, entities: next };
+        this.emit("patch");
+    }
+
+    /** itv (mapEntityMovement) — updates the moving entity's cellId to the
+     *  last cell of the path (the destination). For the local player our
+     *  PlayerStore has its own itv handler running in parallel for
+     *  currentCellId; this one is for everyone else's positional tracking
+     *  on the minimap. Self-entries getting overwritten here is harmless
+     *  because routes/index.ts gates handleMapEntities to kind="snapshot". */
+    private handleEntityMovement(frame: NetworkFrame): void {
+        const parsed = parseEntityMovement(frame, this.currentItxObfNames());
+        if (!parsed) return;
+        const idx = this.state.entities.findIndex((e) => e.entityId === parsed.entityId);
+        if (idx < 0) return;  // entity not known yet — wait for irx or next itx
+        const dest = parsed.cellPath[parsed.cellPath.length - 1];
+        if (this.state.entities[idx].cellId === dest) return;
+        const next = this.state.entities.slice();
+        next[idx] = { ...next[idx], cellId: dest };
+        this.state = { ...this.state, entities: next };
+        this.emit("patch");
     }
 
     private diff(a: MapState, b: MapState): boolean {
@@ -282,10 +492,10 @@ export class MapStateStore {
         return false;
     }
 
-    private emit(): void {
+    private emit(kind: MapStateChangeKind): void {
         const snap = this.getState();
         for (const l of this.listeners) {
-            try { l(snap); } catch (e) { console.warn("[map-state] listener threw:", e); }
+            try { l(snap, kind); } catch (e) { console.warn("[map-state] listener threw:", e); }
         }
     }
 }
