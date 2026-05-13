@@ -57,7 +57,11 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     let mapInteractives: MapInteractivesStore;
     function makeMapInteractivesStore(): MapInteractivesStore {
         const profile = deps.session.profile();
-        const labels = profile?.labels ?? new LabelStore(path.join(TOOLKIT_DATA, ".dofus-stub-labels.json"));
+        // Stub LabelStore: path points at a non-existent file in the plugin's
+        // data folder so LabelStore loads empty + every resolve returns null.
+        // We don't actually need the file to exist — it's a "no labels" sentinel.
+        const stubLabelsPath = path.resolve(_MODULE_DIR, "../data/.stub-labels.json");
+        const labels = profile?.labels ?? new LabelStore(stubLabelsPath);
         return new MapInteractivesStore({
             filePath: path.join(TOOLKIT_DATA, "maps-runtime.json"),
             staticDbPath: path.resolve(_MODULE_DIR, "../data/static-db.json"),

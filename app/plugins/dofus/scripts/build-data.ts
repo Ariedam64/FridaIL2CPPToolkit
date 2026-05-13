@@ -2,12 +2,12 @@
 // Build Dofus plugin static index files from canonical-coords + datacenter dump.
 // Run: npm run dofus:build-data (from app/) OR npx tsx <this file> (from anywhere).
 //
-// Inputs:
-//   Primary:  <repo-root>/dofus-app/data/canonical-coords-wm*.json
+// Inputs (all live inside the plugin under data/_build-inputs/):
+//   Primary:  canonical-coords/canonical-coords-wm*.json
 //             Format: { "x,y": mapId, ... }  — one file per worldMap id
-//   Enrich:   <repo-root>/.toolkit-data/datacenter/MapsInformationDataRoot.json
+//   Enrich:   datacenter/MapsInformationDataRoot.json
 //             Sparse (13 entries), but has real subAreaId/nameId/name
-//   Support:  AreasDataRoot.json, SubAreasDataRoot.json, WorldMapsDataRoot.json
+//   Support:  datacenter/{AreasDataRoot, SubAreasDataRoot, WorldMapsDataRoot}.json
 //
 // Outputs (written to app/plugins/dofus/data/):
 //   - maps-information.json  — ~17k entries
@@ -19,10 +19,11 @@ import { fileURLToPath } from "node:url";
 import { extractWorldDims } from "../lib/world-dims";
 
 const _DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(_DIR, "../../../..");
-const DC_DIR = path.join(REPO_ROOT, ".toolkit-data", "datacenter");
-const COORDS_DIR = path.join(REPO_ROOT, "dofus-app", "data");
-const OUT_DIR = path.resolve(_DIR, "../data");
+const PLUGIN_ROOT = path.resolve(_DIR, "..");
+const BUILD_INPUTS = path.join(PLUGIN_ROOT, "data", "_build-inputs");
+const DC_DIR = path.join(BUILD_INPUTS, "datacenter");
+const COORDS_DIR = path.join(BUILD_INPUTS, "canonical-coords");
+const OUT_DIR = path.join(PLUGIN_ROOT, "data");
 
 // Raw wrapped format from the datacenter dump
 interface DcWrapper<T> {

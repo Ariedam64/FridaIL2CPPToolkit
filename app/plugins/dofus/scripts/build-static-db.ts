@@ -22,8 +22,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const _DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(_DIR, "../../../..");
-const DC_DIR = path.join(REPO_ROOT, ".toolkit-data", "datacenter");
+const DC_DIR = path.resolve(_DIR, "../data/_build-inputs/datacenter");
 const OUT_FILE = path.resolve(_DIR, "../data/static-db.json");
 
 const TOOLKIT_API = process.env.TOOLKIT_API ?? "http://localhost:3001";
@@ -42,16 +41,12 @@ interface ItemFields { id: number; nameId: number; typeId?: number }
 interface JobFields { id: number; nameId: number }
 
 function readDc<T>(name: string): Array<{ id: number; fields: T }> {
-    // Most datacenter dumps live in .toolkit-data/datacenter/ — those are
-    // build-time intermediates produced by the agent's datacenter dumper.
-    // JobsDataRoot is special: it doubles as runtime plugin data (used by
-    // CraftRankingStore), so its canonical location is inside the plugin.
-    let file: string;
-    if (name === "JobsDataRoot") {
-        file = path.resolve(_DIR, "../data/jobs-data-root.json");
-    } else {
-        file = path.join(DC_DIR, `${name}.json`);
-    }
+    // JobsDataRoot doubles as runtime plugin data (loaded by CraftRankingStore
+    // at server start), so its canonical home is data/jobs-data-root.json.
+    // The other DataRoots are build-time intermediates under _build-inputs/.
+    const file = name === "JobsDataRoot"
+        ? path.resolve(_DIR, "../data/jobs-data-root.json")
+        : path.join(DC_DIR, `${name}.json`);
     if (!fs.existsSync(file)) {
         throw new Error(`missing datacenter dump: ${file}\nRun the agent's datacenter dumper first.`);
     }
