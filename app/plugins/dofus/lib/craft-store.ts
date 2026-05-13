@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface CraftIngredient {
     id: number;
@@ -137,7 +138,9 @@ export class CraftRankingStore {
     }
 }
 
-/** Default location of the static jobs dump (used by tests + production). */
+/** Default location of the static jobs dump (used by tests + production).
+ *  Lives inside the plugin's `data/` folder so the plugin is self-contained. */
 export function defaultJobsFilePath(): string {
-    return path.resolve(process.cwd(), "..", ".toolkit-data", "datacenter", "JobsDataRoot.json");
+    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+    return path.resolve(moduleDir, "..", "data", "jobs-data-root.json");
 }

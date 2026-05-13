@@ -42,7 +42,16 @@ interface ItemFields { id: number; nameId: number; typeId?: number }
 interface JobFields { id: number; nameId: number }
 
 function readDc<T>(name: string): Array<{ id: number; fields: T }> {
-    const file = path.join(DC_DIR, `${name}.json`);
+    // Most datacenter dumps live in .toolkit-data/datacenter/ — those are
+    // build-time intermediates produced by the agent's datacenter dumper.
+    // JobsDataRoot is special: it doubles as runtime plugin data (used by
+    // CraftRankingStore), so its canonical location is inside the plugin.
+    let file: string;
+    if (name === "JobsDataRoot") {
+        file = path.resolve(_DIR, "../data/jobs-data-root.json");
+    } else {
+        file = path.join(DC_DIR, `${name}.json`);
+    }
     if (!fs.existsSync(file)) {
         throw new Error(`missing datacenter dump: ${file}\nRun the agent's datacenter dumper first.`);
     }

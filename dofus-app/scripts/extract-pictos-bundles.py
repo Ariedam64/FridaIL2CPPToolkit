@@ -1,5 +1,6 @@
 """Extract Texture2D sprites from Picto/* bundles into
-dofus-app/data/icons/<category>/<id>.png.
+app/plugins/dofus/data/icons/<category>/<id>.png — the runtime location the
+Dofus plugin serves them from.
 
 Each Texture2D's m_Name is the data id (item id, monster gfxId, spell id…),
 matching the container path `Assets/BuiltAssets/<category>/1x/<id>.png`.
@@ -18,8 +19,9 @@ import UnityPy, UnityPy.config
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.0f1"
 
 APP = Path(__file__).resolve().parent.parent
+REPO = APP.parent
 PICTO_ROOT = Path(r"F:\Jeux\Dofus-dofus3\Dofus_Data\StreamingAssets\Content\Picto")
-OUT_ROOT = APP / "data" / "icons"
+OUT_ROOT = REPO / "app" / "plugins" / "dofus" / "data" / "icons"
 
 # category → (subdir name, bundle filename, optional regex to strip non-numeric prefix)
 CATEGORIES = {

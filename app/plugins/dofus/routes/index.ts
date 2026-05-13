@@ -31,19 +31,20 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     const dataDir = opts.dataDir ?? path.resolve(_MODULE_DIR, "../data");
     const store = new DofusDataStore(dataDir);
 
-    // Item icons + jobs static dump live outside the plugin (in the legacy
-    // dofus-app/ tree and .toolkit-data/), so we resolve relative to repo root.
+    // All static data files live inside the plugin's `data/` folder so the
+    // plugin is self-contained and redistributable. Callers may still override
+    // any path via opts for tests.
     const iconsDir = opts.iconsDir
-        ?? path.resolve(_MODULE_DIR, "../../../../dofus-app/data/icons/items");
+        ?? path.resolve(_MODULE_DIR, "../data/icons/items");
     const jobsFilePath = opts.jobsFilePath
-        ?? path.resolve(_MODULE_DIR, "../../../../.toolkit-data/datacenter/JobsDataRoot.json");
+        ?? path.resolve(_MODULE_DIR, "../data/jobs-data-root.json");
     const craftStore = new CraftRankingStore(jobsFilePath);
 
     // Runtime DB of map interactives — listens to the network monitor's
     // FrameStore, parses every itx, indexes per-mapId interactives + a
-    // gfxId → typeId registry. Persists to .toolkit-data/maps-runtime.json.
+    // gfxId → typeId registry. Persists to .toolkit-data/maps-runtime.json
+    // (runtime mutable state, separate from the read-only plugin data).
     const TOOLKIT_DATA = path.resolve(_MODULE_DIR, "../../../../.toolkit-data");
-    const DOFUS_APP_DATA = path.resolve(_MODULE_DIR, "../../../../dofus-app/data");
     // The store needs a LabelStore so it can re-resolve obfuscated itx/kne/knc
     // names on the fly. We can't take it at mount time (no profile yet), so
     // we plumb it through a getter that's evaluated lazily — and rebuild the
@@ -662,7 +663,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     });
 
     /** Serve a monster icon PNG. Same shape as the item icon serve. */
-    const MONSTERS_ICONS_DIR = path.resolve(_MODULE_DIR, "../../../../dofus-app/data/icons/monsters");
+    const MONSTERS_ICONS_DIR = path.resolve(_MODULE_DIR, "../data/icons/monsters");
     app.get("/api/dofus/monsters/icon/:iconId.png", (req, res) => {
         const id = req.params.iconId;
         if (!/^\d+$/.test(id)) {
@@ -678,7 +679,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     /** Serve a pre-built catalog file (items / monsters / jobs / skills /
      *  itemtypes / collectables / areas / subareas / worldmaps / interactives
      *  / skillnames). The frontend caches the JSON and filters client-side. */
-    const CATALOG_DIR = path.resolve(_MODULE_DIR, "../../../../dofus-app/data/catalog");
+    const CATALOG_DIR = path.resolve(_MODULE_DIR, "../data/catalog");
     const CATALOG_WHITELIST = new Set([
         "items", "monsters", "jobs", "skills", "itemtypes", "collectables",
         "areas", "subareas", "worldmaps", "interactives", "skillnames",

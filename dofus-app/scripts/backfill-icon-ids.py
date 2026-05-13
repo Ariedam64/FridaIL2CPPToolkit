@@ -13,8 +13,9 @@ import UnityPy, UnityPy.config
 UnityPy.config.FALLBACK_UNITY_VERSION = "2022.3.0f1"
 
 APP = Path(__file__).resolve().parent.parent
+REPO = APP.parent
 DATA_ROOT_DIR = Path(r"F:\Jeux\Dofus-dofus3\Dofus_Data\StreamingAssets\Content\Data")
-CATALOG_DIR = APP / "data" / "catalog"
+CATALOG_DIR = REPO / "app" / "plugins" / "dofus" / "data" / "catalog"
 
 # (catalog_slug, dataroot_bundle_filename, dataroot_m_Name, source_field)
 # `source_field` is the field on each entry that holds the picto texture id.
