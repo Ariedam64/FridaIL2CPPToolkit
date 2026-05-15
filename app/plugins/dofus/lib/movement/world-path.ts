@@ -167,3 +167,36 @@ export function pathToEdges(graph: ExtractedWorldGraph, pathUids: string[]): Pat
     }
     return out;
 }
+
+export type ComputeWorldPathResult =
+    | { ok: true; edges: PathEdgeOut[]; iterations: number; elapsedMs: number }
+    | { ok: false; reason: string };
+
+/** Compute the world path from `srcMapId` to `destMapId`. Optionally accepts
+ *  an explicit graph for tests; in production it reads the disk-cached graph
+ *  via `loadGraph()`. Returns ok with an empty edge list when src===dest.
+ *  Failure reasons: "graph not loaded", "srcMapId N not in graph",
+ *  "destMapId N not in graph", "no path to N". */
+export function computeWorldPath(
+    srcMapId: number,
+    destMapId: number,
+    explicitGraph?: ExtractedWorldGraph,
+): ComputeWorldPathResult {
+    const graph = explicitGraph ?? loadGraph();
+    if (!graph) return { ok: false, reason: "graph not loaded" };
+
+    const srcV  = pickVertexForMap(graph, String(srcMapId));
+    const destV = pickVertexForMap(graph, String(destMapId));
+    if (!srcV)  return { ok: false, reason: `srcMapId ${srcMapId} not in graph` };
+    if (!destV) return { ok: false, reason: `destMapId ${destMapId} not in graph` };
+
+    if (srcV.uid === destV.uid) return { ok: true, edges: [], iterations: 0, elapsedMs: 0 };
+
+    const t0 = Date.now();
+    const search = aStar(graph, srcV.uid, destV.uid);
+    const elapsedMs = Date.now() - t0;
+    if (!search || search.pathUids.length === 0) {
+        return { ok: false, reason: search?.exhausted ? `A* exhausted iteration cap` : `no path to ${destMapId}` };
+    }
+    return { ok: true, edges: pathToEdges(graph, search.pathUids), iterations: search.iterations, elapsedMs };
+}
