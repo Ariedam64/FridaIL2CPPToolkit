@@ -1,12 +1,13 @@
-// Travel orchestrator: chains movement + change-map along the world-path
-// graph to drive the character from its current map to a target mapId.
-// v1 only handles walk-off-edge transitions (direction !== null). Single
-// instance per session.
+// Travel orchestrator: chains intra-map moves along the world-path graph
+// to drive the character from its current map to a target mapId. v1 only
+// handles walk-off-edge transitions (type 1/2); for those the client emits
+// `ito` naturally when the player crosses the border cell, so we don't
+// send a change-map of our own (that would duplicate the ito and desync
+// the server). We just wait for the natural map change to land.
+// Single instance per session.
 
 import type { MovementActions } from "./movement";
-import type { ChangeMapActions } from "./change-map";
-import type { ComputeWorldPathResult, PathEdgeOut } from "./world-path";
-import type { Transition } from "./world-path";
+import type { ComputeWorldPathResult, PathEdgeOut, Transition } from "./world-path";
 
 export type TravelState = "idle" | "running" | "done" | "failed" | "cancelled";
 
@@ -23,12 +24,9 @@ export interface TravelStatus {
 
 export interface TravelDeps {
     getCurrentCell:   () => number | null;
-    isMoving:         () => boolean;
-    onPlayerChange:   (cb: () => void) => () => void;
     getCurrentMapId:  () => number | null;
     onMapChange:      (cb: () => void) => () => void;
     movement:         Pick<MovementActions, "moveTo">;
-    changeMap:        Pick<ChangeMapActions, "changeMap">;
     computeWorldPath: (srcMapId: number, destMapId: number) => ComputeWorldPathResult;
 }
 
@@ -128,13 +126,13 @@ export class TravelOrchestrator {
                 const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
 
-                await this.waitForArrival(t.cellId);
-                this.throwIfCancelled();
-
+                // Walk-off-edge transitions are self-triggering: when the player
+                // crosses the border cell, the client emits `ito` naturally as
+                // part of its walking pipeline. Sending our own changeMap here
+                // would produce a duplicate ito → server desync, UI glitch
+                // (snap-back, asset bundle thrash). Just wait for the natural
+                // map transition to complete.
                 const nextMapId = Number(plan.edges[i].to.mapId);
-                const cm = await this.deps.changeMap.changeMap(nextMapId);
-                if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
-
                 await this.waitForMap(nextMapId);
                 this.status.currentTransitionCell = null;
             }
@@ -165,16 +163,9 @@ export class TravelOrchestrator {
         if (this.cancelled) throw new Error("cancelled");
     }
 
-    private waitForArrival(cellId: number, timeoutMs = 15_000): Promise<void> {
-        return this.awaitCondition(
-            () => this.deps.getCurrentCell() === cellId && !this.deps.isMoving(),
-            this.deps.onPlayerChange,
-            timeoutMs,
-            `arrival timeout at cell ${cellId}`,
-        );
-    }
-
-    private waitForMap(mapId: number, timeoutMs = 5_000): Promise<void> {
+    private waitForMap(mapId: number, timeoutMs = 20_000): Promise<void> {
+        // 20s absorbs the full walk + asset bundle load. A real walk across
+        // a map plus the loading coroutine typically completes in 2-8s.
         return this.awaitCondition(
             () => this.deps.getCurrentMapId() === mapId,
             this.deps.onMapChange,
