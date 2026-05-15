@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { TravelOrchestrator, type TravelDeps } from "../../../../plugins/dofus/lib/movement/autopilot";
+import { TravelOrchestrator, pickWalkable, type TravelDeps } from "../../../../plugins/dofus/lib/movement/autopilot";
 import type { PathEdgeOut } from "../../../../plugins/dofus/lib/movement/world-path";
 
 class FakePlayer {
@@ -68,5 +68,29 @@ describe("TravelOrchestrator — skeleton", () => {
         expect(s.lastError).toBeNull();
         expect(s.startedAt).toBeNull();
         expect(s.finishedAt).toBeNull();
+    });
+});
+
+describe("pickWalkable", () => {
+    it("returns the first transition with direction !== null", () => {
+        const t = pickWalkable([
+            { cellId: 1, direction: null, skillId: 0, transitionMapId: "x", type: 5, criterion: null, id: "a" },
+            { cellId: 2, direction: 3, skillId: 0, transitionMapId: "x", type: 0, criterion: null, id: "b" },
+            { cellId: 3, direction: 5, skillId: 0, transitionMapId: "x", type: 0, criterion: null, id: "c" },
+        ]);
+        expect(t).not.toBeNull();
+        expect(t!.cellId).toBe(2);
+    });
+
+    it("returns null when every transition has direction null (zaaps/portals only)", () => {
+        const t = pickWalkable([
+            { cellId: 1, direction: null, skillId: 0, transitionMapId: "x", type: 5, criterion: null, id: "a" },
+            { cellId: 2, direction: null, skillId: 0, transitionMapId: "x", type: 5, criterion: null, id: "b" },
+        ]);
+        expect(t).toBeNull();
+    });
+
+    it("returns null for an empty transition list", () => {
+        expect(pickWalkable([])).toBeNull();
     });
 });

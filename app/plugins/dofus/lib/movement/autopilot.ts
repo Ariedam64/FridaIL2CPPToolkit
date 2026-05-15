@@ -6,6 +6,7 @@
 import type { MovementActions } from "./movement";
 import type { ChangeMapActions } from "./change-map";
 import type { ComputeWorldPathResult, PathEdgeOut } from "./world-path";
+import type { Transition } from "./world-path";
 
 export type TravelState = "idle" | "running" | "done" | "failed" | "cancelled";
 
@@ -36,6 +37,17 @@ export interface StartResult {
     totalEdges?: number;
     alreadyOnMap?: boolean;
     reason?: string;
+}
+
+/** Returns the first transition that triggers a natural map change by
+ *  walking off a border cell (direction !== null). Returns null for edges
+ *  that only contain zaaps / portals / scrollOfRecall (direction === null
+ *  on those — v1 doesn't drive them). */
+export function pickWalkable(transitions: readonly Transition[]): Transition | null {
+    for (const t of transitions) {
+        if (t.direction !== null) return t;
+    }
+    return null;
 }
 
 export class TravelOrchestrator {
