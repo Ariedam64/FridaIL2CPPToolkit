@@ -166,9 +166,12 @@ export class TravelOrchestrator {
                     await this.waitForArrival(t.cellId, STUCK_TIMEOUT_MS);
                 } catch (e) {
                     if (this.cancelled) throw e;
+                    console.warn(`[autopilot] edge ${i}: walk stalled past ${STUCK_TIMEOUT_MS}ms → forging MoveStop (currentCell=${this.deps.getCurrentCell()}, target=${t.cellId}, isMoving=${this.deps.isMoving()})`);
                     const stop = await this.deps.movement.stopMoving();
                     if (!stop.ok) throw new Error(`stopMoving: ${stop.reason ?? "send failed"}`);
+                    console.warn(`[autopilot] edge ${i}: MoveStop sent, waiting up to ${STOP_ACK_TIMEOUT_MS}ms for server ack…`);
                     await this.waitForArrival(t.cellId, STOP_ACK_TIMEOUT_MS);
+                    console.warn(`[autopilot] edge ${i}: recovered after MoveStop, proceeding to changeMap`);
                 }
                 this.throwIfCancelled();
 
