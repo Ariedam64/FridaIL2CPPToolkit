@@ -188,29 +188,34 @@ export class TravelOrchestrator {
             if (cond()) return resolve();
             if (this.cancelled) return reject(new Error("cancelled"));
 
+            // Pre-declare with safe defaults so `cleanup` can run even if
+            // `subscribe()` synchronously fires its callback before the
+            // assignments below complete.
             let settled = false;
+            let unsub: () => void = () => {};
+            let timer: ReturnType<typeof setTimeout> | null = null;
             const cleanup = (): void => {
                 settled = true;
                 unsub();
-                clearTimeout(timer);
+                if (timer !== null) clearTimeout(timer);
                 const i = this.cancellers.indexOf(cancelFn);
                 if (i >= 0) this.cancellers.splice(i, 1);
             };
-            const unsub = subscribe(() => {
-                if (settled) return;
-                if (cond()) { cleanup(); resolve(); }
-            });
-            const timer = setTimeout(() => {
-                if (settled) return;
-                cleanup();
-                reject(new Error(timeoutReason));
-            }, timeoutMs);
             const cancelFn = (): void => {
                 if (settled) return;
                 cleanup();
                 reject(new Error("cancelled"));
             };
             this.cancellers.push(cancelFn);
+            unsub = subscribe(() => {
+                if (settled) return;
+                if (cond()) { cleanup(); resolve(); }
+            });
+            timer = setTimeout(() => {
+                if (settled) return;
+                cleanup();
+                reject(new Error(timeoutReason));
+            }, timeoutMs);
         });
     }
 
