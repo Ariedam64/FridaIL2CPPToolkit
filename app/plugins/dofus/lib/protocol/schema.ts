@@ -196,8 +196,13 @@ export interface ResolvedInteractiveProto {
 
 export const MOVEMENT_PROTO = {
     classes: {
-        MoveRequest: { friendly: "MapMoveRequest",            fallback: "isa" },
-        Dispatcher:  { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
+        MoveRequest:    { friendly: "MapMoveRequest",            fallback: "isa" },
+        // Client ack of a server-initiated MoveStop (itr). Required between
+        // a move ending and any follow-up packet — without it the server
+        // treats the next outgoing as out-of-order. Observed empty payload
+        // (efkb=null).
+        ConfirmMoveEnd: { friendly: "confirmMoveEnd",            fallback: "ish" },
+        Dispatcher:     { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         // First field (efim) stays at default null in observations.
@@ -205,6 +210,8 @@ export const MOVEMENT_PROTO = {
         MoveRequest_cellPath: { classKey: "MoveRequest", friendly: "cellPath", fallback: "efir" },
         MoveRequest_flag1:    { classKey: "MoveRequest", friendly: "flag1",    fallback: "efit" },
         MoveRequest_mapId:    { classKey: "MoveRequest", friendly: "mapId",    fallback: "efiv" },
+        // ConfirmMoveEnd has a single observed field `efkb: null`. Nothing
+        // to set — the default ctor produces a usable payload.
     } as Record<string, ProtoMemberSpec>,
     methods: {
         Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },
@@ -215,6 +222,37 @@ export interface ResolvedMovementProto {
     classes: Record<keyof typeof MOVEMENT_PROTO["classes"], string>;
     fields:  Record<keyof typeof MOVEMENT_PROTO["fields"],  string>;
     methods: Record<keyof typeof MOVEMENT_PROTO["methods"], string>;
+}
+
+// =============================================================================
+// BasicPing (jsa) — keepalive heartbeat the client emits every 5s while there
+// is in-flight WS activity. When we bypass the client (forge moves/changemaps
+// via Frida), the client's activity counter doesn't tick so we must emit our
+// own jsa during automated travel. See app/plugins/dofus/lib/basic-ping.md
+// for the activity-gated 5s timing observed empirically.
+// =============================================================================
+
+export const BASIC_PING_PROTO = {
+    classes: {
+        BasicPing:  { friendly: "BasicPing",                  fallback: "jsa" },
+        Dispatcher: { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
+    } as Record<string, ProtoClassSpec>,
+    fields: {
+        // elyq, elys observed null; we leave them default. elyu is a bool
+        // observed false (likely isAfk) — ctor default is false, fine. elyw
+        // is a bool observed true (likely windowFocused) — we MUST set it,
+        // since proto bool default is false.
+        BasicPing_flag2: { classKey: "BasicPing", friendly: "flag2", fallback: "elyw" },
+    } as Record<string, ProtoMemberSpec>,
+    methods: {
+        Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },
+    } as Record<string, ProtoMemberSpec>,
+} as const;
+
+export interface ResolvedBasicPingProto {
+    classes: Record<keyof typeof BASIC_PING_PROTO["classes"], string>;
+    fields:  Record<keyof typeof BASIC_PING_PROTO["fields"],  string>;
+    methods: Record<keyof typeof BASIC_PING_PROTO["methods"], string>;
 }
 
 // =============================================================================
@@ -288,8 +326,11 @@ export const PLAYER_STATE_PROTO = {
         // one frame per move, even our own (filter by entityId === characterId).
         // Carries the cellPath we're about to follow → targetCellId + isMoving.
         MapEntityMovement:      { friendly: "mapEntityMovement",       fallback: "itv" },
-        // WS-update trigger: client sends `itr` when our move ends.
-        // Empty payload — used purely as a signal to clear cellPath / isMoving.
+        // WS-update trigger: SERVER pushes `itr` when our move ends (it is
+        // INcoming, not outgoing as previously documented). The client's
+        // natural response is to emit `ish` (confirmMoveEnd) back; see
+        // MOVEMENT_PROTO.ConfirmMoveEnd. Empty payload — used as a signal
+        // to clear cellPath / isMoving.
         MoveStop:               { friendly: "MoveStop",                fallback: "itr" },
     } as Record<string, ProtoClassSpec>,
     fields: {

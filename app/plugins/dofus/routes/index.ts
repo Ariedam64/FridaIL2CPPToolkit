@@ -16,6 +16,7 @@ import { MapStateStore } from "../lib/stores/map-state";
 import { WORLD_PATHFINDING_PROTO } from "../lib/protocol/schema";
 import { resolveProto } from "../lib/protocol/resolver";
 import { TravelOrchestrator } from "../lib/movement/autopilot";
+import { BasicPingActions } from "../lib/movement/basic-ping";
 import { computeWorldPath } from "../lib/movement/world-path";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -110,6 +111,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             deps.session.fridaClient,
             () => deps.session.frameStore(),
         );
+        const basicPingForAutopilot = new BasicPingActions(profile.labels, deps.session.fridaClient);
         autopilot = new TravelOrchestrator({
             getCurrentCell:   () => playerStore!.getState().currentCellId,
             isMoving:         () => playerStore!.getState().isMoving,
@@ -118,6 +120,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             onMapChange:      (cb) => mapStateStore!.onChange(() => cb()),
             movement:         movementForAutopilot,
             changeMap:        changeMapForAutopilot,
+            sendBasicPing:    () => basicPingForAutopilot.sendPing(),
             computeWorldPath: (src, dest) => computeWorldPath(src, dest),
         });
 

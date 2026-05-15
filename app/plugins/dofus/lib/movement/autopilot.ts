@@ -27,10 +27,18 @@ export interface TravelDeps {
     onPlayerChange:   (cb: () => void) => () => void;
     getCurrentMapId:  () => number | null;
     onMapChange:      (cb: () => void) => () => void;
-    movement:         Pick<MovementActions, "moveTo">;
+    movement:         Pick<MovementActions, "moveTo" | "confirmMoveEnd">;
     changeMap:        Pick<ChangeMapActions, "changeMap">;
+    /** Best-effort BasicPing keepalive; called every BASIC_PING_INTERVAL_MS
+     *  while a travel is running. Errors swallowed by the orchestrator. */
+    sendBasicPing:    () => Promise<{ ok: boolean; reason?: string }>;
     computeWorldPath: (srcMapId: number, destMapId: number) => ComputeWorldPathResult;
 }
+
+/** Interval at which the orchestrator emits a BasicPing while a travel is
+ *  running. Matches the official client's empirical 5s tick (see
+ *  app/plugins/dofus/lib/basic-ping.md). */
+const BASIC_PING_INTERVAL_MS = 5_000;
 
 export interface StartResult {
     ok: boolean;
@@ -113,6 +121,16 @@ export class TravelOrchestrator {
             return { ok: true, totalEdges: 0, alreadyOnMap: true };
         }
 
+        // Heartbeat: emit BasicPing every 5s for the duration of the travel.
+        // When Frida forges sends, the client's natural activity counter
+        // doesn't tick, so the server stops seeing keepalive activity — that
+        // desync manifests as visible glitches at every map change. We
+        // recreate the client's 5s jsa cadence ourselves. Best-effort; errors
+        // swallowed (the rest of the loop still owns success/failure).
+        const heartbeat = setInterval(() => {
+            this.deps.sendBasicPing().catch(() => { /* keepalive is best-effort */ });
+        }, BASIC_PING_INTERVAL_MS);
+
         try {
             for (let i = 0; i < plan.edges.length; i++) {
                 this.status.currentEdgeIdx = i;
@@ -131,6 +149,13 @@ export class TravelOrchestrator {
                 await this.waitForArrival(t.cellId);
                 this.throwIfCancelled();
 
+                // Ack the server's MoveStop before sending ito. Without this
+                // the server treats the next outgoing as out-of-order and
+                // the map change goes through in a degraded state.
+                const ack = await this.deps.movement.confirmMoveEnd();
+                if (!ack.ok) throw new Error(`confirmMoveEnd: ${ack.reason ?? "send failed"}`);
+                this.throwIfCancelled();
+
                 const nextMapId = Number(plan.edges[i].to.mapId);
                 const cm = await this.deps.changeMap.changeMap(nextMapId);
                 if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
@@ -142,6 +167,8 @@ export class TravelOrchestrator {
         } catch (err) {
             const reason = err instanceof Error ? err.message : String(err);
             return this.finish(this.cancelled ? "cancelled" : "failed", reason);
+        } finally {
+            clearInterval(heartbeat);
         }
     }
 

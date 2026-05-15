@@ -26,6 +26,7 @@ function makeDeps(opts: {
     map?: FakeMap;
     movement?: Partial<TravelDeps["movement"]>;
     changeMap?: Partial<TravelDeps["changeMap"]>;
+    sendBasicPing?: TravelDeps["sendBasicPing"];
     computeWorldPath?: TravelDeps["computeWorldPath"];
 } = {}): TravelDeps {
     const player = opts.player ?? new FakePlayer();
@@ -42,8 +43,13 @@ function makeDeps(opts: {
             map.listeners.push(cb);
             return () => { map.listeners = map.listeners.filter(l => l !== cb); };
         },
-        movement:  { moveTo: vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })), ...opts.movement } as any,
+        movement:  {
+            moveTo:         vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })),
+            confirmMoveEnd: vi.fn(async () => ({ ok: true })),
+            ...opts.movement,
+        } as any,
         changeMap: { changeMap: vi.fn(async () => ({ ok: true, mapId: 1, mode: "clean" as const })), ...opts.changeMap } as any,
+        sendBasicPing:    opts.sendBasicPing    ?? vi.fn(async () => ({ ok: true })),
         computeWorldPath: opts.computeWorldPath ?? (() => ({ ok: true, edges: [], iterations: 0, elapsedMs: 0 })),
     };
 }
@@ -176,10 +182,13 @@ describe("TravelOrchestrator.start — edge loop", () => {
         for (let i = 0; i < 50; i++) await Promise.resolve();
     }
 
-    it("walks + changes map across a 2-edge path", async () => {
+    it("walks + acks + changes map across a 2-edge path", async () => {
         const player = new FakePlayer(); player.set(100, false);
         const map = new FakeMap(); map.set(1);
-        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const movement = {
+            moveTo:         vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
+            confirmMoveEnd: vi.fn(async () => ({ ok: true })),
+        };
         const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
         const deps = makeDeps({
             player, map, movement: movement as any, changeMap: changeMap as any,
@@ -211,9 +220,47 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(r.ok).toBe(true);
         expect(r.totalEdges).toBe(2);
         expect(movement.moveTo).toHaveBeenCalledTimes(2);
+        // confirmMoveEnd ack must fire once per edge — between waitForArrival
+        // and changeMap. Skipping it produces the in-game desync.
+        expect(movement.confirmMoveEnd).toHaveBeenCalledTimes(2);
         expect(changeMap.changeMap).toHaveBeenCalledTimes(2);
         expect(orch.getStatus().state).toBe("done");
         expect(orch.getStatus().currentEdgeIdx).toBe(1);
+    });
+
+    it("fires a BasicPing heartbeat every 5s while travel runs", async () => {
+        vi.useFakeTimers();
+        try {
+            const player = new FakePlayer(); player.set(100, false);
+            const map = new FakeMap(); map.set(1);
+            const movement = {
+                moveTo:         vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
+                confirmMoveEnd: vi.fn(async () => ({ ok: true })),
+            };
+            const sendBasicPing = vi.fn(async () => ({ ok: true }));
+            const deps = makeDeps({
+                player, map, movement: movement as any, sendBasicPing,
+                computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+            });
+            const orch = new TravelOrchestrator(deps);
+
+            const startP = orch.start(2);
+            // Advance 12s while no map change fires — heartbeat should
+            // have run twice (at 5s and 10s).
+            await vi.advanceTimersByTimeAsync(12_000);
+            expect(sendBasicPing).toHaveBeenCalledTimes(2);
+
+            // Cancel to let the travel settle without timing out.
+            orch.cancel();
+            await startP;
+
+            // After cancel, no more heartbeats fire.
+            const calledOnCancel = sendBasicPing.mock.calls.length;
+            await vi.advanceTimersByTimeAsync(10_000);
+            expect(sendBasicPing).toHaveBeenCalledTimes(calledOnCancel);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("fails when an edge has no walkable transition", async () => {

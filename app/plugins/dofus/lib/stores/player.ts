@@ -12,7 +12,7 @@
 //   - MapEntityMovement (itv, incoming) → on our entityId only:
 //        currentCellId := cellPath[0]  (re-sync on mid-move redirect),
 //        targetCellId := last(cellPath), cellPath := parsed, isMoving := true
-//   - MoveStop          (itr, outgoing) → currentCellId := last(cellPath),
+//   - MoveStop          (itr, INcoming — server-pushed) → currentCellId := last(cellPath),
 //        cellPath := [], isMoving := false
 //
 // Map-driven mutations (routed in from MapStateStore after each itx parse):
