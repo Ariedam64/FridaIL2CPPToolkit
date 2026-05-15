@@ -33,24 +33,12 @@ export interface TravelDeps {
      *  while a travel is running. Errors swallowed by the orchestrator. */
     sendBasicPing:    () => Promise<{ ok: boolean; reason?: string }>;
     computeWorldPath: (srcMapId: number, destMapId: number) => ComputeWorldPathResult;
-    /** Override for the post-map-change settle delay. Tests pass 0; prod
-     *  omits it and inherits DEFAULT_MAP_SETTLE_MS. */
-    mapSettleMs?:     number;
 }
 
 /** Interval at which the orchestrator emits a BasicPing while a travel is
  *  running. Matches the official client's empirical 5s tick (see
  *  app/plugins/dofus/lib/basic-ping.md). */
 const BASIC_PING_INTERVAL_MS = 5_000;
-
-/** After `itx` lands and waitForMap resolves, the server-side map change is
- *  done — but the client still needs time to load the Unity scene's
- *  colliders / walk geometry. Sending the next `isa` during that window
- *  produces silent "player doesn't move" failures: the server echoes our
- *  move via `itv`, but the client's local walker isn't ready yet. 800ms is
- *  comfortably above what successful manual map changes spend between
- *  `kta` and the next move. */
-const DEFAULT_MAP_SETTLE_MS = 800;
 
 export interface StartResult {
     ok: boolean;
@@ -166,14 +154,6 @@ export class TravelOrchestrator {
                 if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
 
                 await this.waitForMap(nextMapId);
-
-                // Settle: even though waitForMap resolved on the server-side
-                // itx parse, the client's Unity scene needs more time to fully
-                // hydrate walk colliders for the new map. Sending the next
-                // isa too soon yields silent "player doesn't move" failures.
-                const settleMs = this.deps.mapSettleMs ?? DEFAULT_MAP_SETTLE_MS;
-                if (settleMs > 0) await new Promise<void>(r => setTimeout(r, settleMs));
-
                 this.status.currentTransitionCell = null;
             }
             return this.finish("done");
