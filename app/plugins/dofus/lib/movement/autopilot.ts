@@ -190,15 +190,7 @@ export class TravelOrchestrator {
                     console.warn(`[autopilot] edge ${i}: recovered via forged itr, resuming`);
                 }
                 this.throwIfCancelled();
-                console.log(`[autopilot] edge ${i}: arrived (cell=${this.deps.getCurrentCell()}), settling ${this.deps.postArrivalSettleMs ?? POST_ARRIVAL_SETTLE_MS}ms before ito…`);
-
-                // Give the client a beat to finish its own post-arrival
-                // bookkeeping before we fire `ito`. Without this, ~immediate
-                // ito after `ish` lands races the client's own end-of-move
-                // coroutines and the session can crash at map change.
-                const settleMs = this.deps.postArrivalSettleMs ?? POST_ARRIVAL_SETTLE_MS;
-                if (settleMs > 0) await new Promise<void>(r => setTimeout(r, settleMs));
-                this.throwIfCancelled();
+                console.log(`[autopilot] edge ${i}: arrived (cell=${this.deps.getCurrentCell()})`);
 
                 const nextMapId = Number(plan.edges[i].to.mapId);
                 console.log(`[autopilot] edge ${i}: sending ito → ${nextMapId}`);
