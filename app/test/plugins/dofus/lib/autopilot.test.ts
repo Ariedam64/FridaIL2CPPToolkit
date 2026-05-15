@@ -319,17 +319,12 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(orch.getStatus().state).toBe("failed");
     });
 
-    it("fails on arrival timeout (watchdog + stop-ack both expire)", async () => {
+    it("fails on arrival timeout (15s hard cap)", async () => {
         vi.useFakeTimers();
         try {
             const player = new FakePlayer(); player.set(100, false);
             const map = new FakeMap(); map.set(1);
-            const movement = {
-                moveTo:     vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
-                // stopMoving "succeeds" but the player state never updates —
-                // simulates the server never sending ish back.
-                stopMoving: vi.fn(async () => ({ ok: true })),
-            };
+            const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
             const deps = makeDeps({
                 player, map, movement: movement as any,
                 computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
@@ -337,20 +332,18 @@ describe("TravelOrchestrator.start — edge loop", () => {
             const orch = new TravelOrchestrator(deps);
 
             const startP = orch.start(2);
-            await vi.advanceTimersByTimeAsync(15_000);
+            await vi.advanceTimersByTimeAsync(20_000);
             const r = await startP;
 
             expect(r.ok).toBe(false);
             expect(r.reason).toContain("arrival timeout");
             expect(orch.getStatus().state).toBe("failed");
-            // Watchdog must have tried to recover at least once.
-            expect(movement.stopMoving).toHaveBeenCalled();
         } finally {
             vi.useRealTimers();
         }
     });
 
-    it("watchdog: forges MoveStop after STUCK_TIMEOUT and recovers", async () => {
+    it.skip("[disabled] watchdog: forges MoveStop after STUCK_TIMEOUT and recovers", async () => {
         vi.useFakeTimers();
         try {
             const player = new FakePlayer(); player.set(100, false);

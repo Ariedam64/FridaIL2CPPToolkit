@@ -155,24 +155,13 @@ export class TravelOrchestrator {
                 const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
 
-                // Wait for natural arrival (server-acked via ish → isMoving=false).
-                // If the client's local walker stalls (Unity scene not ready
-                // on a fresh map, etc.), the natural itr never fires and the
-                // server never sends ish — we'd hang. After STUCK_TIMEOUT_MS,
-                // force-emit `itr` ourselves; the server responds with `ish`
-                // and PlayerStore flips isMoving=false → second waitForArrival
-                // resolves immediately.
-                try {
-                    await this.waitForArrival(t.cellId, STUCK_TIMEOUT_MS);
-                } catch (e) {
-                    if (this.cancelled) throw e;
-                    console.warn(`[autopilot] edge ${i}: walk stalled past ${STUCK_TIMEOUT_MS}ms → forging MoveStop (currentCell=${this.deps.getCurrentCell()}, target=${t.cellId}, isMoving=${this.deps.isMoving()})`);
-                    const stop = await this.deps.movement.stopMoving();
-                    if (!stop.ok) throw new Error(`stopMoving: ${stop.reason ?? "send failed"}`);
-                    console.warn(`[autopilot] edge ${i}: MoveStop sent, waiting up to ${STOP_ACK_TIMEOUT_MS}ms for server ack…`);
-                    await this.waitForArrival(t.cellId, STOP_ACK_TIMEOUT_MS);
-                    console.warn(`[autopilot] edge ${i}: recovered after MoveStop, proceeding to changeMap`);
-                }
+                // Wait for natural arrival (server-acked via `ish` →
+                // PlayerStore.isMoving = false). The MoveStop watchdog that
+                // used to fire at 3s was too aggressive on slow maps: a
+                // legit walk taking 3.5s would get our forged `itr` mid-walk
+                // → server desync → crash on the subsequent change-map. The
+                // hard 15s timeout still bails if we're really stuck.
+                await this.waitForArrival(t.cellId);
                 this.throwIfCancelled();
 
                 const nextMapId = Number(plan.edges[i].to.mapId);
