@@ -1,5 +1,5 @@
-import { renderWorldCanvas, type WorldMap, type WorldCanvasResult } from "../lib/world-canvas";
-import type { WorldMapDims, MappedTile } from "../lib/world-dims";
+import { renderWorldCanvas, type WorldMap, type WorldCanvasResult } from "../lib/ui/world-canvas";
+import type { WorldMapDims, MappedTile } from "../lib/movement/world-dims";
 import type { PluginPageContext } from "../../../frontend/core/plugin-types";
 import { subscribe } from "../../../frontend/core/ws";
 

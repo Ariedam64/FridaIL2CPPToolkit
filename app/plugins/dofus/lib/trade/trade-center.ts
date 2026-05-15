@@ -9,16 +9,16 @@
 // installing per-class MergeFrom hooks: those don't fire reliably on this
 // build, while the network monitor's hook is universally exercised.
 
-import type { LabelStore } from "../../../backend/core/labels";
-import type { RpcClient } from "../../../backend/core/types";
-import type { FrameStore } from "../../../backend/core/network/frame-store";
-import type { NetworkFrame } from "../../../backend/core/network/types";
-import { TRADE_CENTER_PROTO, type ResolvedTradeCenterProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { RpcClient } from "../../../../backend/core/types";
+import type { FrameStore } from "../../../../backend/core/network/frame-store";
+import type { NetworkFrame } from "../../../../backend/core/network/types";
+import { TRADE_CENTER_PROTO, type ResolvedTradeCenterProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
 import {
     waitForFrame, latestFrameId,
     findField, intFromField, boolFromField, arrayLength, intArrayFromField,
-} from "./frame-await";
+} from "../frame-await";
 
 export interface TradeCenterOffer {
     auctionId: number;

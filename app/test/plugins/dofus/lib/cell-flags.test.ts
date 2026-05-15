@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { decodeCellFlags, cellColor } from "../../../../plugins/dofus/lib/cell-flags";
+import { decodeCellFlags, cellColor } from "../../../../plugins/dofus/lib/movement/cell-flags";
 
 describe("decodeCellFlags", () => {
     it("flags=0 → all false", () => {

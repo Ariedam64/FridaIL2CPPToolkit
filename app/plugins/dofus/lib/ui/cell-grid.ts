@@ -1,4 +1,4 @@
-import { cellColor } from "./cell-flags";
+import { cellColor } from "../movement/cell-flags";
 
 export interface CellGridOpts {
     cells: Array<[number, number, number, number, number]>;

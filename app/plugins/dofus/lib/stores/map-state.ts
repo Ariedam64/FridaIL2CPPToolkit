@@ -17,15 +17,15 @@
 //                    chain. NPCs/monsters lack the deeper character data so
 //                    `name` / `level` come back null for them.
 
-import type { Session } from "../../../backend/session";
-import type { LabelStore } from "../../../backend/core/labels";
-import type { RpcClient } from "../../../backend/core/types";
-import type { NetworkFrame } from "../../../backend/core/network/types";
-import { MAP_STATE_PROTO, type ResolvedMapStateProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
-import type { FrameField } from "../../../backend/core/network/types";
-import { parseItx, parseStateUpdate, parseNewPlayerOnMap, parsePlayerLeaveMap, parseEntityMovement, DEFAULT_ITX_OBF, type ItxObfNames } from "./itx-parser";
-import { findField, intFromField } from "./frame-await";
+import type { Session } from "../../../../backend/session";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { RpcClient } from "../../../../backend/core/types";
+import type { NetworkFrame } from "../../../../backend/core/network/types";
+import { MAP_STATE_PROTO, type ResolvedMapStateProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
+import type { FrameField } from "../../../../backend/core/network/types";
+import { parseItx, parseStateUpdate, parseNewPlayerOnMap, parsePlayerLeaveMap, parseEntityMovement, DEFAULT_ITX_OBF, type ItxObfNames } from "../protocol/itx-parser";
+import { findField, intFromField } from "../frame-await";
 
 /** Parse a RepeatedField<knc> child list into MapInteractableSkill[]. Skips
  *  rows where either id is missing (defensive — clipped previews). */

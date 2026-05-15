@@ -3,12 +3,12 @@
 // RPC. The caller passes (fromCell, toCell) — we don't track player
 // position yet, so the start cell has to be supplied externally for now.
 
-import type { LabelStore } from "../../../backend/core/labels";
-import type { RpcClient } from "../../../backend/core/types";
-import type { DofusDataStore } from "./data-store";
-import type { MapInteractivesStore } from "./map-interactives-store";
-import { MOVEMENT_PROTO, type ResolvedMovementProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { RpcClient } from "../../../../backend/core/types";
+import type { DofusDataStore } from "../stores/data";
+import type { MapInteractivesStore } from "../stores/map-interactives";
+import { MOVEMENT_PROTO, type ResolvedMovementProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
 import { computeCellPath, decodeKeyMovement } from "./pathfinder";
 
 export interface MoveResult {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Window } from "happy-dom";
-import { renderWorldCanvas, type WorldMap } from "../../../../plugins/dofus/lib/world-canvas";
+import { renderWorldCanvas, type WorldMap } from "../../../../plugins/dofus/lib/ui/world-canvas";
 
 // Mock the global Image class so loadTileImage resolves on next tick.
 class MockImage {

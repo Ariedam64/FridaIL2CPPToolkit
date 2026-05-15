@@ -27,13 +27,13 @@
 //   characterId   ← LocalCharacter.characterId
 //   cellPath      ← []
 
-import type { Session } from "../../../backend/session";
-import type { LabelStore } from "../../../backend/core/labels";
-import type { RpcClient } from "../../../backend/core/types";
-import type { NetworkFrame, FrameField } from "../../../backend/core/network/types";
-import { PLAYER_STATE_PROTO, type ResolvedPlayerStateProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
-import { findField, intFromField } from "./frame-await";
+import type { Session } from "../../../../backend/session";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { RpcClient } from "../../../../backend/core/types";
+import type { NetworkFrame, FrameField } from "../../../../backend/core/network/types";
+import { PLAYER_STATE_PROTO, type ResolvedPlayerStateProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
+import { findField, intFromField } from "../frame-await";
 
 /** Read every Int child of a RepeatedField<int>-shaped frame field. Returns
  *  an empty array when the field is missing/empty, and silently skips any

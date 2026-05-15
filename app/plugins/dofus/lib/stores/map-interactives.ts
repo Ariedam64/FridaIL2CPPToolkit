@@ -22,13 +22,13 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { FrameStore } from "../../../backend/core/network/frame-store";
-import type { NetworkFrame } from "../../../backend/core/network/types";
-import type { LabelStore } from "../../../backend/core/labels";
-import { parseItx, parseStateUpdate, parseElementUpdate, DEFAULT_ITX_OBF, type ItxObfNames, type ParsedInteractive, type ParsedStatedElement } from "./itx-parser";
-import type { DofusDataStore } from "./data-store";
-import { MAP_INFO_PROTO, type ResolvedMapInfoProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
+import type { FrameStore } from "../../../../backend/core/network/frame-store";
+import type { NetworkFrame } from "../../../../backend/core/network/types";
+import type { LabelStore } from "../../../../backend/core/labels";
+import { parseItx, parseStateUpdate, parseElementUpdate, DEFAULT_ITX_OBF, type ItxObfNames, type ParsedInteractive, type ParsedStatedElement } from "../protocol/itx-parser";
+import type { DofusDataStore } from "./data";
+import { MAP_INFO_PROTO, type ResolvedMapInfoProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
 
 function resolveItxObfNames(labels: LabelStore): ItxObfNames {
     const r = resolveProto(labels, MAP_INFO_PROTO) as ResolvedMapInfoProto;

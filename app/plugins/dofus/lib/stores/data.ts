@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { WorldMapDims, MappedTile } from "./world-dims";
+import type { WorldMapDims, MappedTile } from "../movement/world-dims";
 
 /**
  * Hardcoded known world names — used as a fallback when areas.json has

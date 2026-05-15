@@ -8,12 +8,12 @@
 // is now slim (identification only — no UIDs, no active flag). UIDs are
 // ephemeral per-itx and live exclusively in MapStateStore.
 
-import type { LabelStore } from "../../../backend/core/labels";
-import type { RpcClient } from "../../../backend/core/types";
-import type { MapInteractivesStore } from "./map-interactives-store";
-import type { MapStateStore } from "./map-state-store";
-import { INTERACTIVE_PROTO, type ResolvedInteractiveProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { RpcClient } from "../../../../backend/core/types";
+import type { MapInteractivesStore } from "../stores/map-interactives";
+import type { MapStateStore } from "../stores/map-state";
+import { INTERACTIVE_PROTO, type ResolvedInteractiveProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
 
 export interface UseInteractiveResult {
     ok: boolean;

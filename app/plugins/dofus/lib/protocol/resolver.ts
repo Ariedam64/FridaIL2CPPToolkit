@@ -1,8 +1,8 @@
 // Resolve a protocol spec (classes/fields/methods) against the LabelStore.
 // Falls back to the spec's `fallback` field when no label exists yet.
 
-import type { LabelStore } from "../../../backend/core/labels";
-import type { ProtoClassSpec, ProtoMemberSpec } from "./protocol";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { ProtoClassSpec, ProtoMemberSpec } from "./schema";
 
 interface AnyProtoSpec {
     classes: Record<string, ProtoClassSpec>;

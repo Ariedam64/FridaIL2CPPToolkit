@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { DofusDataStore } from "../../../../plugins/dofus/lib/data-store";
+import { DofusDataStore } from "../../../../plugins/dofus/lib/stores/data";
 
 describe("DofusDataStore", () => {
     let dir: string;

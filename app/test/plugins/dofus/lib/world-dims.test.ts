@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractWorldDims } from "../../../../plugins/dofus/lib/world-dims";
+import { extractWorldDims } from "../../../../plugins/dofus/lib/movement/world-dims";
 
 describe("extractWorldDims", () => {
     it("returns the dims object when all 6 fields are present (canonical naming)", () => {

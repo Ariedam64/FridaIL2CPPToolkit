@@ -16,7 +16,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { extractWorldDims } from "../lib/world-dims";
+import { extractWorldDims } from "../lib/movement/world-dims";
 
 const _DIR = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.resolve(_DIR, "..");

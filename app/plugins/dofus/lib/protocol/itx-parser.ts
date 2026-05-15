@@ -7,8 +7,8 @@
 // small option object so the caller can override after a rename. Defaults
 // match the build observed during the live capture session.
 
-import type { NetworkFrame, FrameField } from "../../../backend/core/network/types";
-import { findField, intFromField, boolFromField } from "./frame-await";
+import type { NetworkFrame, FrameField } from "../../../../backend/core/network/types";
+import { findField, intFromField, boolFromField } from "../frame-await";
 
 export interface ItxObfNames {
     /** Top-level class name of the itx frame ("itx" by default). */

@@ -1,4 +1,4 @@
-import type { WorldMapDims, MappedTile } from "./world-dims";
+import type { WorldMapDims, MappedTile } from "../movement/world-dims";
 
 export interface WorldMap {
     mapId: number;

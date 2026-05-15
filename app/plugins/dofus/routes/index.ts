@@ -2,19 +2,19 @@ import { fileURLToPath } from "node:url";
 import * as path from "node:path";
 import type { Express } from "express";
 import type { PluginBackendDeps } from "../../../backend/plugins/registry";
-import { DofusDataStore } from "../lib/data-store";
-import { CraftRankingStore } from "../lib/craft-store";
-import { TradeCenterActions } from "../lib/trade-center-actions";
-import { InteractiveActions } from "../lib/interactive-actions";
-import { MovementActions } from "../lib/movement-actions";
-import { ChangeMapActions } from "../lib/change-map-actions";
-import { MapInteractivesStore } from "../lib/map-interactives-store";
-import { isGhostInteractive } from "../lib/ghost-filter";
+import { DofusDataStore } from "../lib/stores/data";
+import { CraftRankingStore } from "../lib/stores/craft";
+import { TradeCenterActions } from "../lib/trade/trade-center";
+import { InteractiveActions } from "../lib/interactives/interactive";
+import { MovementActions } from "../lib/movement/movement";
+import { ChangeMapActions } from "../lib/movement/change-map";
+import { MapInteractivesStore } from "../lib/stores/map-interactives";
+import { isGhostInteractive } from "../lib/stores/ghost-filter";
 import { LabelStore } from "../../../backend/core/labels";
-import { PlayerStore } from "../lib/player-store";
-import { MapStateStore } from "../lib/map-state-store";
-import { WORLD_PATHFINDING_PROTO } from "../lib/protocol";
-import { resolveProto } from "../lib/protocol-resolver";
+import { PlayerStore } from "../lib/stores/player";
+import { MapStateStore } from "../lib/stores/map-state";
+import { WORLD_PATHFINDING_PROTO } from "../lib/protocol/schema";
+import { resolveProto } from "../lib/protocol/resolver";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -251,7 +251,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         }
 
         try {
-            const { loadGraph, pickVertexForMap, aStar, pathToEdges } = await import("../lib/world-path-js.js");
+            const { loadGraph, pickVertexForMap, aStar, pathToEdges } = await import("../lib/movement/world-path.js");
             let graph = loadGraph();
             if (!graph) {
                 // Auto-extract on first compute. Requires ell.dkdy loaded (done
@@ -260,7 +260,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
                     proto: worldPathfindingProto(profile),
                 }]) as any;
                 if (!result?.ok) { res.status(500).json({ error: `graph extraction failed: ${result?.reason ?? "unknown"}` }); return; }
-                const { saveGraph } = await import("../lib/world-path-js.js");
+                const { saveGraph } = await import("../lib/movement/world-path.js");
                 saveGraph({
                     vertices: result.vertices,
                     outgoing: result.outgoing,
@@ -307,7 +307,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
                 proto: worldPathfindingProto(profile),
             }]) as any;
             if (result?.ok) {
-                const { saveGraph } = await import("../lib/world-path-js.js");
+                const { saveGraph } = await import("../lib/movement/world-path.js");
                 saveGraph({
                     vertices: result.vertices,
                     outgoing: result.outgoing,

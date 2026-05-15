@@ -10,12 +10,12 @@
 //     but the client's scene setup is skipped (no character visible,
 //     can't move from UI). Intended for headless automation only.
 
-import type { LabelStore } from "../../../backend/core/labels";
-import type { FrameStore } from "../../../backend/core/network/frame-store";
-import type { RpcClient } from "../../../backend/core/types";
-import { CHANGE_MAP_PROTO, type ResolvedChangeMapProto } from "./protocol";
-import { resolveProto } from "./protocol-resolver";
-import { waitForFrame, latestFrameId } from "./frame-await";
+import type { LabelStore } from "../../../../backend/core/labels";
+import type { FrameStore } from "../../../../backend/core/network/frame-store";
+import type { RpcClient } from "../../../../backend/core/types";
+import { CHANGE_MAP_PROTO, type ResolvedChangeMapProto } from "../protocol/schema";
+import { resolveProto } from "../protocol/resolver";
+import { waitForFrame, latestFrameId } from "../frame-await";
 
 export interface ChangeMapOptions {
     /** Skip the client's loading coroutine for ~5x speedup. WARNING: leaves

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Window } from "happy-dom";
-import { renderCellGrid } from "../../../../plugins/dofus/lib/cell-grid";
+import { renderCellGrid } from "../../../../plugins/dofus/lib/ui/cell-grid";
 
 function makeCanvas(): HTMLCanvasElement {
     const window = new Window();
