@@ -71,7 +71,6 @@ export class TravelOrchestrator {
     }
 
     async start(destMapId: number): Promise<StartResult> {
-        // Pre-validation: never mutates status on failure.
         if (this.status.state === "running") {
             return { ok: false, reason: "travel already running" };
         }
@@ -84,7 +83,6 @@ export class TravelOrchestrator {
             return { ok: false, reason: "no current cell (player not yet localized)" };
         }
 
-        // Accepted — initialize status.
         this.status = {
             state: "running",
             destMapId,
@@ -105,15 +103,40 @@ export class TravelOrchestrator {
         this.status.totalEdges = plan.edges.length;
 
         if (plan.edges.length === 0) {
-            // Already on destination map.
             this.finish("done");
             return { ok: true, totalEdges: 0, alreadyOnMap: true };
         }
 
-        // Edge loop comes in Task 5. For now, just finish as if successful.
-        // (This intermediate state is replaced in Task 5.)
-        this.finish("done");
-        return { ok: true, totalEdges: plan.edges.length };
+        try {
+            for (let i = 0; i < plan.edges.length; i++) {
+                this.status.currentEdgeIdx = i;
+                this.throwIfCancelled();
+
+                const t = pickWalkable(plan.edges[i].transitions);
+                if (!t) throw new Error(`edge ${i}: no walkable transition (zaaps/portals only)`);
+                this.status.currentTransitionCell = t.cellId;
+
+                const fromCell = this.deps.getCurrentCell();
+                if (fromCell == null) throw new Error("current cell unknown mid-travel");
+                const mapNow = this.deps.getCurrentMapId() ?? undefined;
+                const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
+                if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
+
+                await this.waitForArrival(t.cellId);
+                this.throwIfCancelled();
+
+                const nextMapId = Number(plan.edges[i].to.mapId);
+                const cm = await this.deps.changeMap.changeMap(nextMapId);
+                if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
+
+                await this.waitForMap(nextMapId);
+                this.status.currentTransitionCell = null;
+            }
+            return this.finish("done");
+        } catch (err) {
+            const reason = err instanceof Error ? err.message : String(err);
+            return this.finish(this.cancelled ? "cancelled" : "failed", reason);
+        }
     }
 
     cancel(): { ok: boolean; wasRunning: boolean } {
@@ -130,6 +153,65 @@ export class TravelOrchestrator {
         this.status.finishedAt = Date.now();
         if (lastError) this.status.lastError = lastError;
         return { ok: state === "done", reason: lastError, totalEdges: this.status.totalEdges ?? undefined };
+    }
+
+    private throwIfCancelled(): void {
+        if (this.cancelled) throw new Error("cancelled");
+    }
+
+    private waitForArrival(cellId: number, timeoutMs = 15_000): Promise<void> {
+        return this.awaitCondition(
+            () => this.deps.getCurrentCell() === cellId && !this.deps.isMoving(),
+            this.deps.onPlayerChange,
+            timeoutMs,
+            `arrival timeout at cell ${cellId}`,
+        );
+    }
+
+    private waitForMap(mapId: number, timeoutMs = 5_000): Promise<void> {
+        return this.awaitCondition(
+            () => this.deps.getCurrentMapId() === mapId,
+            this.deps.onMapChange,
+            timeoutMs,
+            `map change timeout: expected ${mapId}, got ${this.deps.getCurrentMapId()}`,
+        );
+    }
+
+    private awaitCondition(
+        cond: () => boolean,
+        subscribe: (cb: () => void) => () => void,
+        timeoutMs: number,
+        timeoutReason: string,
+    ): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            // Immediate check: maybe the condition is already true.
+            if (cond()) return resolve();
+            if (this.cancelled) return reject(new Error("cancelled"));
+
+            let settled = false;
+            const cleanup = (): void => {
+                settled = true;
+                unsub();
+                clearTimeout(timer);
+                const i = this.cancellers.indexOf(cancelFn);
+                if (i >= 0) this.cancellers.splice(i, 1);
+            };
+            const unsub = subscribe(() => {
+                if (settled) return;
+                if (cond()) { cleanup(); resolve(); }
+            });
+            const timer = setTimeout(() => {
+                if (settled) return;
+                cleanup();
+                reject(new Error(timeoutReason));
+            }, timeoutMs);
+            const cancelFn = (): void => {
+                if (settled) return;
+                cleanup();
+                reject(new Error("cancelled"));
+            };
+            this.cancellers.push(cancelFn);
+        });
     }
 
     dispose(): void {

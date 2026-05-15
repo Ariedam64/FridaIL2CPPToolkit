@@ -143,7 +143,7 @@ describe("TravelOrchestrator.start — guards + planning", () => {
     });
 
     // re-enabled in Task 5 once the edge loop actually keeps state in 'running'
-    it.skip("rejects a second start while one is running", async () => {
+    it("rejects a second start while one is running", async () => {
         // Force the orchestrator to hang in waitForArrival by never firing onPlayerChange.
         const map = new FakeMap(); map.set(1);
         const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
@@ -162,5 +162,134 @@ describe("TravelOrchestrator.start — guards + planning", () => {
         // Cancel to allow `first` to settle without timing out the test runner.
         orch.cancel();
         await first;
+    });
+});
+
+describe("TravelOrchestrator.start — edge loop", () => {
+    async function flush(): Promise<void> {
+        for (let i = 0; i < 50; i++) await Promise.resolve();
+    }
+
+    it("walks + changes map across a 2-edge path", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
+        const deps = makeDeps({
+            player, map, movement: movement as any, changeMap: changeMap as any,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [
+                walkableEdge("2", 200),
+                walkableEdge("3", 300),
+            ]}),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const startP = orch.start(3);
+
+        // Edge 0: simulate arrival on map 1 at cell 200, then map switch to 2 with entry cell 50.
+        await flush();
+        player.set(200, false);  // arrived on transition cell
+        await flush();
+        map.set(2);
+        player.set(50, false);   // entry cell on map 2
+        await flush();
+
+        // Edge 1: arrive on map 2 at cell 300, then map switch to 3 with entry cell 70.
+        player.set(300, false);
+        await flush();
+        map.set(3);
+        player.set(70, false);
+        await flush();
+
+        const r = await startP;
+        expect(r.ok).toBe(true);
+        expect(r.totalEdges).toBe(2);
+        expect(movement.moveTo).toHaveBeenCalledTimes(2);
+        expect(changeMap.changeMap).toHaveBeenCalledTimes(2);
+        expect(orch.getStatus().state).toBe("done");
+        expect(orch.getStatus().currentEdgeIdx).toBe(1);
+    });
+
+    it("fails when an edge has no walkable transition", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const zaapOnly: PathEdgeOut = {
+            from: { mapId: "1", zoneId: 1, uid: "v1" },
+            to:   { mapId: "2", zoneId: 1, uid: "v2" },
+            transitions: [{ cellId: 1, direction: null, skillId: 99, transitionMapId: "2", type: 5, criterion: null, id: "z1" }],
+        };
+        const deps = makeDeps({
+            player, map,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [zaapOnly] }),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const r = await orch.start(2);
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("no walkable transition");
+        expect(orch.getStatus().state).toBe("failed");
+        expect(orch.getStatus().currentEdgeIdx).toBe(0);
+    });
+
+    it("fails when movement.moveTo returns ok:false", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: false, fromCell: 100, toCell: 200, reason: "agent send error" })) };
+        const deps = makeDeps({
+            player, map, movement: movement as any,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const r = await orch.start(2);
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("agent send error");
+        expect(orch.getStatus().state).toBe("failed");
+    });
+
+    it("fails when changeMap returns ok:false", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const changeMap = { changeMap: vi.fn(async () => ({ ok: false, mapId: 2, mode: "clean" as const, reason: "kta timeout" })) };
+        const deps = makeDeps({
+            player, map, movement: movement as any, changeMap: changeMap as any,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const startP = orch.start(2);
+        await flush();
+        player.set(200, false);  // arrival
+        await flush();
+
+        const r = await startP;
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("kta timeout");
+        expect(orch.getStatus().state).toBe("failed");
+    });
+
+    it("fails on arrival timeout (15s)", async () => {
+        vi.useFakeTimers();
+        try {
+            const player = new FakePlayer(); player.set(100, false);
+            const map = new FakeMap(); map.set(1);
+            const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+            const deps = makeDeps({
+                player, map, movement: movement as any,
+                computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+            });
+            const orch = new TravelOrchestrator(deps);
+
+            const startP = orch.start(2);
+            await vi.advanceTimersByTimeAsync(20_000);
+            const r = await startP;
+
+            expect(r.ok).toBe(false);
+            expect(r.reason).toContain("arrival timeout");
+            expect(orch.getStatus().state).toBe("failed");
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
