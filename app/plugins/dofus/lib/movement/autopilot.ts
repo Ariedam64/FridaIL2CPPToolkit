@@ -33,12 +33,23 @@ export interface TravelDeps {
      *  while a travel is running. Errors swallowed by the orchestrator. */
     sendBasicPing:    () => Promise<{ ok: boolean; reason?: string }>;
     computeWorldPath: (srcMapId: number, destMapId: number) => ComputeWorldPathResult;
+    /** Override for the post-arrival settle delay. Tests pass 0; prod
+     *  omits it and inherits POST_ARRIVAL_SETTLE_MS. */
+    postArrivalSettleMs?: number;
 }
 
 /** Interval at which the orchestrator emits a BasicPing while a travel is
  *  running. Matches the official client's empirical 5s tick (see
  *  app/plugins/dofus/lib/basic-ping.md). */
 const BASIC_PING_INTERVAL_MS = 5_000;
+
+/** Small breathing room between the server's `ish` (move ended, isMoving
+ *  flipped false) and our forged `ito`. The official client takes ~50ms
+ *  between receiving ish and emitting ito; firing ito immediately races
+ *  the client's own post-move processing and occasionally crashes the
+ *  session right at the map change. 150ms is comfortably above the
+ *  client's natural delay. */
+const POST_ARRIVAL_SETTLE_MS = 150;
 
 /** How long we wait for the natural arrival signal (`ish`, which flips
  *  isMoving=false) after a moveTo before forcing our own `itr`. Typical
@@ -162,6 +173,14 @@ export class TravelOrchestrator {
                 // → server desync → crash on the subsequent change-map. The
                 // hard 15s timeout still bails if we're really stuck.
                 await this.waitForArrival(t.cellId);
+                this.throwIfCancelled();
+
+                // Give the client a beat to finish its own post-arrival
+                // bookkeeping before we fire `ito`. Without this, ~immediate
+                // ito after `ish` lands races the client's own end-of-move
+                // coroutines and the session can crash at map change.
+                const settleMs = this.deps.postArrivalSettleMs ?? POST_ARRIVAL_SETTLE_MS;
+                if (settleMs > 0) await new Promise<void>(r => setTimeout(r, settleMs));
                 this.throwIfCancelled();
 
                 const nextMapId = Number(plan.edges[i].to.mapId);
