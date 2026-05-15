@@ -163,8 +163,10 @@ export class TravelOrchestrator {
                 const fromCell = this.deps.getCurrentCell();
                 if (fromCell == null) throw new Error("current cell unknown mid-travel");
                 const mapNow = this.deps.getCurrentMapId() ?? undefined;
+                console.log(`[autopilot] edge ${i}/${plan.edges.length - 1}: map=${mapNow} from=${fromCell} → cell=${t.cellId} (next map=${plan.edges[i].to.mapId})`);
                 const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
+                console.log(`[autopilot] edge ${i}: moveTo dispatched (cellPath ${move.keyMovements?.length ?? 0} keymovements), awaiting arrival…`);
 
                 // Wait for natural arrival (server-acked via `ish` →
                 // PlayerStore.isMoving = false). The MoveStop watchdog that
@@ -174,6 +176,7 @@ export class TravelOrchestrator {
                 // hard 15s timeout still bails if we're really stuck.
                 await this.waitForArrival(t.cellId);
                 this.throwIfCancelled();
+                console.log(`[autopilot] edge ${i}: arrived (cell=${this.deps.getCurrentCell()}), settling ${this.deps.postArrivalSettleMs ?? POST_ARRIVAL_SETTLE_MS}ms before ito…`);
 
                 // Give the client a beat to finish its own post-arrival
                 // bookkeeping before we fire `ito`. Without this, ~immediate
@@ -184,10 +187,12 @@ export class TravelOrchestrator {
                 this.throwIfCancelled();
 
                 const nextMapId = Number(plan.edges[i].to.mapId);
+                console.log(`[autopilot] edge ${i}: sending ito → ${nextMapId}`);
                 const cm = await this.deps.changeMap.changeMap(nextMapId);
                 if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
 
                 await this.waitForMap(nextMapId);
+                console.log(`[autopilot] edge ${i}: map confirmed=${this.deps.getCurrentMapId()}, cell after itx=${this.deps.getCurrentCell()}`);
                 this.status.currentTransitionCell = null;
             }
             return this.finish("done");
