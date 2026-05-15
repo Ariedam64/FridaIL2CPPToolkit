@@ -131,15 +131,14 @@ export class TravelOrchestrator {
             return { ok: true, totalEdges: 0, alreadyOnMap: true };
         }
 
-        // Heartbeat: emit BasicPing every 5s for the duration of the travel.
-        // When Frida forges sends, the client's natural activity counter
-        // doesn't tick, so the server stops seeing keepalive activity — that
-        // desync manifests as visible glitches at every map change. We
-        // recreate the client's 5s jsa cadence ourselves. Best-effort; errors
-        // swallowed (the rest of the loop still owns success/failure).
-        const heartbeat = setInterval(() => {
-            this.deps.sendBasicPing().catch(() => { /* keepalive is best-effort */ });
-        }, BASIC_PING_INTERVAL_MS);
+        // NOTE: heartbeat disabled — a wall-clock 5s setInterval could fire a
+        // BasicPing through Frida.perform DURING the new map's Unity scene
+        // load, contending with our own forged moves and producing visible
+        // lag / crashes. The official client emits jsa activity-gated, not
+        // on a hard 5s timer; mimicking just the cadence was wrong. If keep-
+        // alive starvation becomes a real issue on long travels, re-add as
+        // activity-gated (only when no frame has gone through in the past N
+        // seconds and we're between phases, not mid map-change).
 
         try {
             for (let i = 0; i < plan.edges.length; i++) {
@@ -184,8 +183,6 @@ export class TravelOrchestrator {
         } catch (err) {
             const reason = err instanceof Error ? err.message : String(err);
             return this.finish(this.cancelled ? "cancelled" : "failed", reason);
-        } finally {
-            clearInterval(heartbeat);
         }
     }
 

@@ -222,7 +222,7 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(orch.getStatus().currentEdgeIdx).toBe(1);
     });
 
-    it("fires a BasicPing heartbeat at the 5s tick", async () => {
+    it.skip("[disabled] fires a BasicPing heartbeat at the 5s tick", async () => {
         vi.useFakeTimers();
         try {
             const player = new FakePlayer(); player.set(100, false);
