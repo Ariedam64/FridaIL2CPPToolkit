@@ -51,14 +51,18 @@ const BASIC_PING_INTERVAL_MS = 5_000;
  *  client's natural delay. */
 const POST_ARRIVAL_SETTLE_MS = 150;
 
-/** How long we wait for the natural arrival signal (`ish`, which flips
- *  isMoving=false) after a moveTo before forcing our own `itr`. Typical
- *  walks complete in ~1.5-2.5s; 3s leaves slack but still catches stalls
- *  caused by the client's Unity scene not being ready on a fresh map. */
-const STUCK_TIMEOUT_MS = 3_000;
+/** How long we wait for the natural `ish` before forging our own `itr`.
+ *  Walk durations observed in the wire: 15 cells ≈ 2.3s, 19 cells ≈ 2.1s
+ *  (~110-155ms per cell). Max walk on a single map is ~28 cells = ~4.2s.
+ *  At 6s the server has CERTAINLY finished simulating the walk, so forging
+ *  `itr` is safe — it only fires when the client's local walker has
+ *  visually desynced (server done, client never emits itr). A previous
+ *  attempt at 3s was too aggressive and cut legitimate walks mid-flight,
+ *  producing a server desync that crashed the session. */
+const CLIENT_DESYNC_WATCHDOG_MS = 6_000;
 
-/** Backstop timeout after we force `itr` and wait for the server's `ish`.
- *  In practice ish lands within ~30ms of itr; 5s is generous. */
+/** Backstop after we force `itr`. ish typically lands within ~30ms; 5s is
+ *  comfortably generous. */
 const STOP_ACK_TIMEOUT_MS = 5_000;
 
 export interface StartResult {
@@ -169,12 +173,22 @@ export class TravelOrchestrator {
                 console.log(`[autopilot] edge ${i}: moveTo dispatched (cellPath ${move.keyMovements?.length ?? 0} keymovements), awaiting arrival…`);
 
                 // Wait for natural arrival (server-acked via `ish` →
-                // PlayerStore.isMoving = false). The MoveStop watchdog that
-                // used to fire at 3s was too aggressive on slow maps: a
-                // legit walk taking 3.5s would get our forged `itr` mid-walk
-                // → server desync → crash on the subsequent change-map. The
-                // hard 15s timeout still bails if we're really stuck.
-                await this.waitForArrival(t.cellId);
+                // PlayerStore.isMoving = false). If after CLIENT_DESYNC_WATCHDOG_MS
+                // we still haven't seen ish, the client has visually desynced
+                // (server already finished the walk but the client's local
+                // walker froze and never emitted itr). At 6s the server-side
+                // walk is CERTAINLY done — forging our own itr makes the
+                // server reply with ish and unblocks us.
+                try {
+                    await this.waitForArrival(t.cellId, CLIENT_DESYNC_WATCHDOG_MS);
+                } catch (e) {
+                    if (this.cancelled) throw e;
+                    console.warn(`[autopilot] edge ${i}: no ish after ${CLIENT_DESYNC_WATCHDOG_MS}ms → client desync, forging itr (cell=${this.deps.getCurrentCell()}, isMoving=${this.deps.isMoving()})`);
+                    const stop = await this.deps.movement.stopMoving();
+                    if (!stop.ok) throw new Error(`stopMoving: ${stop.reason ?? "send failed"}`);
+                    await this.waitForArrival(t.cellId, STOP_ACK_TIMEOUT_MS);
+                    console.warn(`[autopilot] edge ${i}: recovered via forged itr, resuming`);
+                }
                 this.throwIfCancelled();
                 console.log(`[autopilot] edge ${i}: arrived (cell=${this.deps.getCurrentCell()}), settling ${this.deps.postArrivalSettleMs ?? POST_ARRIVAL_SETTLE_MS}ms before ito…`);
 
