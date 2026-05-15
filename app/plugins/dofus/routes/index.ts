@@ -681,6 +681,63 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         catch (err) { res.status(500).json({ error: err instanceof Error ? err.message : String(err) }); }
     });
 
+    // ---- Autopilot (movement + change-map chain) ----
+    //
+    // Single instance per session (`autopilot` above). Endpoints are inert
+    // when no profile is attached. `start` returns synchronously once
+    // planning settles; the loop runs in the background. Caller polls
+    // `/status` to observe progression.
+    app.post("/api/dofus/travel/start", async (req, res) => {
+        if (!autopilot) { res.status(503).json({ error: "not attached" }); return; }
+        const destMapId = Number(req.body?.destMapId);
+        if (!Number.isFinite(destMapId)) {
+            res.status(400).json({ error: "destMapId required" });
+            return;
+        }
+        // Pre-check 'already running' so we can return a clean 409 (the
+        // orchestrator's own guard returns 200 ok:false, which the UI would
+        // misclassify as a planning failure).
+        if (autopilot.getStatus().state === "running") {
+            res.status(409).json({ error: "travel already running" });
+            return;
+        }
+        // Fire-and-forget the orchestrator: the start() promise resolves
+        // when the WHOLE travel ends, not when planning settles. The HTTP
+        // response should only reflect planning outcome — kick start() in
+        // the background, then peek getStatus() after one tick.
+        const startP = autopilot.start(destMapId);
+        // Yield once so synchronous-failure paths ("no path", "destMapId
+        // not in graph", "already on destination") have flushed into status.
+        await new Promise<void>(r => setImmediate(r));
+        const s = autopilot.getStatus();
+        if (s.state === "failed") {
+            // Planning failure (also "no current cell/mapId" guards).
+            // Surface synchronously, swallow startP (already settled).
+            void startP;
+            res.json({ ok: false, reason: s.lastError });
+            return;
+        }
+        if (s.state === "done") {
+            void startP;
+            res.json({ ok: true, totalEdges: 0, alreadyOnMap: true });
+            return;
+        }
+        // state === "running" — travel kicked off, loop runs in background.
+        // Don't await startP (would block until the whole journey ends).
+        void startP;
+        res.json({ ok: true, totalEdges: s.totalEdges });
+    });
+
+    app.post("/api/dofus/travel/cancel", (_req, res) => {
+        if (!autopilot) { res.status(503).json({ error: "not attached" }); return; }
+        res.json(autopilot.cancel());
+    });
+
+    app.get("/api/dofus/travel/status", (_req, res) => {
+        if (!autopilot) { res.status(503).json({ error: "not attached" }); return; }
+        res.json(autopilot.getStatus());
+    });
+
     // ---- Interactive use (harvest, talk to NPC, use zaap, ...) ----
     //
     // Resolves the skillInstanceUid from the live MapStateStore (mirror of
