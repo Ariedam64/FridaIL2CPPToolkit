@@ -37,11 +37,15 @@ export interface WorldPathfindingProto {
         WorldPathfinder_destMapId:           string;
         WorldPathfinder_state:               string;
         WorldPathfindingWorker_resultEdges:  string;
+        WorldPathfinder_pathFindingData:     string;
     };
     methods: {
         AutoTravelManager_startAutoTravel:    string;
         WorldPathfinder_computePath:          string;
         WorldPathfindingWorker_deliverResult: string;
+        WorldPathfinder_init:                 string;
+        WorldPathfindingWorker_registerData1: string;
+        WorldPathfindingWorker_registerData2: string;
     };
 }
 
@@ -240,7 +244,6 @@ export function getWorldPathfindingDiag(): Promise<{ hooksInstalled: boolean; ca
 
 export interface TriggerLoadRequest {
     proto: WorldPathfindingProto;
-    initMethodName?: string;
     timeoutMs?: number;
 }
 export interface TriggerLoadResult {
@@ -254,12 +257,11 @@ export interface TriggerLoadResult {
 }
 
 export async function triggerPathFindingDataLoad(req: TriggerLoadRequest): Promise<TriggerLoadResult> {
-    const initName = req.initMethodName ?? "bapg";
     const timeoutMs = req.timeoutMs ?? 8000;
-    // dkdy is the only static on WorldPathfinder — its name maps 1:1 from the
-    // field dump. Hardcoded here; if a future build renames it, add a
-    // WorldPathfinder_pathFindingData entry to WORLD_PATHFINDING_PROTO.
-    const dkdyName = "dkdy";
+    const dkdyName = req.proto.fields.WorldPathfinder_pathFindingData;
+    const initName = req.proto.methods.WorldPathfinder_init;
+    const setter1Name = req.proto.methods.WorldPathfindingWorker_registerData1;
+    const setter2Name = req.proto.methods.WorldPathfindingWorker_registerData2;
 
     const setup = await inVm(() => {
         const ell = getSingleton(req.proto.classes.WorldPathfinder);
@@ -338,7 +340,7 @@ export async function triggerPathFindingDataLoad(req: TriggerLoadRequest): Promi
         const data = (ell as any).class.field(dkdyName).value;
         if (!data || (data.isNull && data.isNull())) return;
         const fpcClass = (fpcSingleton as any).class;
-        for (const setterName of ["bgul", "gmj"]) {
+        for (const setterName of [setter1Name, setter2Name]) {
             try {
                 const m = (fpcClass as any).tryMethod(setterName);
                 if (m) m.invoke(data);
@@ -438,9 +440,9 @@ export function extractWorldGraph(req: { proto: WorldPathfindingProto }): Promis
         const startTs = Date.now();
         const ell = getSingleton(req.proto.classes.WorldPathfinder);
         if (!ell) return { ok: false, reason: `no live ${req.proto.classes.WorldPathfinder}` };
-        const dkdy = (ell as any).class.field("dkdy").value;
+        const dkdy = (ell as any).class.field(req.proto.fields.WorldPathfinder_pathFindingData).value;
         if (!dkdy || (dkdy.isNull && dkdy.isNull())) {
-            return { ok: false, reason: "dkdy null — call /init or /trigger-load first" };
+            return { ok: false, reason: `${req.proto.fields.WorldPathfinder_pathFindingData} is null — run /init first to populate it via ${req.proto.methods.WorldPathfinder_init}` };
         }
 
         const vertices: Record<string, ExtractedVertex> = {};

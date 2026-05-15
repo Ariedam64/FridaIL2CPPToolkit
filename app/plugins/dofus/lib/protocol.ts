@@ -499,6 +499,10 @@ export const WORLD_PATHFINDING_PROTO = {
         WorldPathfinder_state:               { classKey: "WorldPathfinder",        friendly: "state",       fallback: "dkec" },
         // WorldPathfindingWorker.dpln : List<Edge> (the result path)
         WorldPathfindingWorker_resultEdges:  { classKey: "WorldPathfindingWorker", friendly: "resultEdges", fallback: "dpln" },
+        // WorldPathfinder.dkdy : static PathFindingData (the world graph asset).
+        // Read by extractWorldGraph; populated lazily by `init` (bapg) the first
+        // time anything triggers the auto-travel pipeline.
+        WorldPathfinder_pathFindingData:     { classKey: "WorldPathfinder",        friendly: "pathFindingData", fallback: "dkdy" },
     } as Record<string, ProtoMemberSpec>,
     methods: {
         /** AutoTravelManager.bapc(long destMapId, Action<List<Edge>,bool> cb, bool flag) → void.
@@ -516,6 +520,17 @@ export const WORLD_PATHFINDING_PROTO = {
          *  Internal "publish result" — fires once per completed computation.
          *  Hooked to detect "fresh" path captures during active invokes. */
         WorldPathfindingWorker_deliverResult: { classKey: "WorldPathfindingWorker", friendly: "deliverResult",   fallback: "nwf" },
+        /** WorldPathfinder.bapg() → UniTask. Async Init that loads the
+         *  PathFindingData ScriptableObject via Addressables and stores it in
+         *  the static `dkdy`. Called by triggerPathFindingDataLoad. */
+        WorldPathfinder_init:                 { classKey: "WorldPathfinder",        friendly: "init",            fallback: "bapg" },
+        /** WorldPathfindingWorker.bgul(PathFindingData) → void.
+         *  Static setter — registers the loaded PathFindingData with fpc's
+         *  static `dplc`. One of two redundant setters; call both for safety. */
+        WorldPathfindingWorker_registerData1: { classKey: "WorldPathfindingWorker", friendly: "registerData1",   fallback: "bgul" },
+        /** WorldPathfindingWorker.gmj(PathFindingData) → void.
+         *  Sibling of bgul — same purpose, same target field. */
+        WorldPathfindingWorker_registerData2: { classKey: "WorldPathfindingWorker", friendly: "registerData2",   fallback: "gmj" },
     } as Record<string, ProtoMemberSpec>,
 } as const;
 
