@@ -3,7 +3,8 @@
 // rotation, and the resolver picks up the new obf name automatically).
 //
 // Scope: only "things about the player themselves" — targetCellId on the
-// MovementController + characterId on the LocalCharacter singleton. mapId
+// MovementController + characterId on the LocalSpellCast singleton (a
+// per-cast spell context whose Int64 caster id = the local player). mapId
 // lives on the parallel `readMapState` RPC consumed by `MapStateStore`.
 //
 // Instance lookups go through `getSingleton` (cached) instead of the bare

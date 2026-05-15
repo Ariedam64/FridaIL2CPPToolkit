@@ -276,7 +276,14 @@ export interface ResolvedChangeMapProto {
 export const PLAYER_STATE_PROTO = {
     classes: {
         MovementController:     { friendly: "MovementController",      fallback: "dve" },
-        LocalCharacter:         { friendly: "LocalCharacter",          fallback: "gic" },
+        // ghg is the local player's pending-spell-cast context (SpellData +
+        // SpellLevelData + cast-state booleans + List<MapPoint>). We only
+        // care about its Int64 `drqv` caster — which is the local
+        // characterId — but the singleton itself is a spell action, not a
+        // character class. The proto key stays `LocalCharacter` because the
+        // agent references it by that name; only the friendly + obf reflect
+        // what the class actually is.
+        LocalCharacter:         { friendly: "LocalSpellCast",          fallback: "ghg" },
         // WS-update trigger: server broadcasts every entity's movement —
         // one frame per move, even our own (filter by entityId === characterId).
         // Carries the cellPath we're about to follow → targetCellId + isMoving.
@@ -287,7 +294,7 @@ export const PLAYER_STATE_PROTO = {
     } as Record<string, ProtoClassSpec>,
     fields: {
         MovementController_targetCellId: { classKey: "MovementController", friendly: "targetCellId", fallback: "dezz" },
-        LocalCharacter_characterId:      { classKey: "LocalCharacter",     friendly: "characterId",  fallback: "<dsck>k__BackingField" },
+        LocalCharacter_characterId:      { classKey: "LocalCharacter",     friendly: "characterId",  fallback: "drqv" },
         MapEntityMovement_entityId:      { classKey: "MapEntityMovement",  friendly: "entityId",     fallback: "efss" },
         MapEntityMovement_cellPath:      { classKey: "MapEntityMovement",  friendly: "cellPath",     fallback: "efsq" },
     } as Record<string, ProtoMemberSpec>,

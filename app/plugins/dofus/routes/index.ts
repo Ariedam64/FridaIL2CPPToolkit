@@ -115,7 +115,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             if (playerStore && kind === "snapshot") playerStore.handleMapEntities(state.entities);
         });
 
-        // Bootstrap from the runtime: PlayerStore reads dve/gic via the agent,
+        // Bootstrap from the runtime: PlayerStore reads dve/ghg via the agent,
         // MapStateStore reads MapRenderer.currentMapId then forges an isp so
         // the server re-broadcasts an itx (entity list lands a moment later).
         void playerStore.refresh();

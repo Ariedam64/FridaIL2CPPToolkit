@@ -24,7 +24,8 @@
 //   targetCellId  ← MovementController.targetCellId
 //   currentCellId ← MovementController.targetCellId  (assumed stationary)
 //   isMoving      ← false
-//   characterId   ← LocalCharacter.characterId
+//   characterId   ← LocalSpellCast.characterId  (ghg.drqv — the spell-cast
+//                   context's Int64 caster id, which is the local player)
 //   cellPath      ← []
 
 import type { Session } from "../../../../backend/session";
