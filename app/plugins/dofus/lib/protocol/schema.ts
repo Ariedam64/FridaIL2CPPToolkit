@@ -197,6 +197,11 @@ export interface ResolvedInteractiveProto {
 export const MOVEMENT_PROTO = {
     classes: {
         MoveRequest: { friendly: "MapMoveRequest",            fallback: "isa" },
+        // Client-emitted at walk end — OUTgoing. We forge this as a watchdog
+        // when the client's local walker stalls on a freshly-loaded map: the
+        // server replies with `ish` and the orchestrator can proceed to
+        // change-map. Single observed field `efrp: null` — default ctor OK.
+        MoveStop:    { friendly: "MoveStop",                  fallback: "itr" },
         Dispatcher:  { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
     } as Record<string, ProtoClassSpec>,
     fields: {

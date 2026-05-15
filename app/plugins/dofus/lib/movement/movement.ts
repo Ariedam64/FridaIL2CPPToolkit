@@ -55,6 +55,13 @@ export class MovementActions {
         };
     }
 
+    /** Forge a MoveStop (itr) packet — used by the autopilot as a watchdog
+     *  when the client's local walker stalls. Server replies with `ish`,
+     *  which flips PlayerStore.isMoving=false and unblocks waitForArrival. */
+    async stopMoving(): Promise<SendResult> {
+        return this.rpc.call<SendResult>("sendMoveStop", [this.proto()]);
+    }
+
     /** Compute the path + send the isa frame. */
     async moveTo(fromCell: number, toCell: number, mapId?: number): Promise<MoveResult> {
         const ctx = await this.resolveMapAndCells(mapId);

@@ -27,7 +27,7 @@ export interface TravelDeps {
     onPlayerChange:   (cb: () => void) => () => void;
     getCurrentMapId:  () => number | null;
     onMapChange:      (cb: () => void) => () => void;
-    movement:         Pick<MovementActions, "moveTo">;
+    movement:         Pick<MovementActions, "moveTo" | "stopMoving">;
     changeMap:        Pick<ChangeMapActions, "changeMap">;
     /** Best-effort BasicPing keepalive; called every BASIC_PING_INTERVAL_MS
      *  while a travel is running. Errors swallowed by the orchestrator. */
@@ -39,6 +39,16 @@ export interface TravelDeps {
  *  running. Matches the official client's empirical 5s tick (see
  *  app/plugins/dofus/lib/basic-ping.md). */
 const BASIC_PING_INTERVAL_MS = 5_000;
+
+/** How long we wait for the natural arrival signal (`ish`, which flips
+ *  isMoving=false) after a moveTo before forcing our own `itr`. Typical
+ *  walks complete in ~1.5-2.5s; 3s leaves slack but still catches stalls
+ *  caused by the client's Unity scene not being ready on a fresh map. */
+const STUCK_TIMEOUT_MS = 3_000;
+
+/** Backstop timeout after we force `itr` and wait for the server's `ish`.
+ *  In practice ish lands within ~30ms of itr; 5s is generous. */
+const STOP_ACK_TIMEOUT_MS = 5_000;
 
 export interface StartResult {
     ok: boolean;
@@ -146,7 +156,21 @@ export class TravelOrchestrator {
                 const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
 
-                await this.waitForArrival(t.cellId);
+                // Wait for natural arrival (server-acked via ish → isMoving=false).
+                // If the client's local walker stalls (Unity scene not ready
+                // on a fresh map, etc.), the natural itr never fires and the
+                // server never sends ish — we'd hang. After STUCK_TIMEOUT_MS,
+                // force-emit `itr` ourselves; the server responds with `ish`
+                // and PlayerStore flips isMoving=false → second waitForArrival
+                // resolves immediately.
+                try {
+                    await this.waitForArrival(t.cellId, STUCK_TIMEOUT_MS);
+                } catch (e) {
+                    if (this.cancelled) throw e;
+                    const stop = await this.deps.movement.stopMoving();
+                    if (!stop.ok) throw new Error(`stopMoving: ${stop.reason ?? "send failed"}`);
+                    await this.waitForArrival(t.cellId, STOP_ACK_TIMEOUT_MS);
+                }
                 this.throwIfCancelled();
 
                 const nextMapId = Number(plan.edges[i].to.mapId);

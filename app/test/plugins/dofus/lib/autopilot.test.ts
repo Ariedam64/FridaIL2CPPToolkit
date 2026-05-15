@@ -44,7 +44,8 @@ function makeDeps(opts: {
             return () => { map.listeners = map.listeners.filter(l => l !== cb); };
         },
         movement:  {
-            moveTo: vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })),
+            moveTo:     vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })),
+            stopMoving: vi.fn(async () => ({ ok: true })),
             ...opts.movement,
         } as any,
         changeMap: { changeMap: vi.fn(async () => ({ ok: true, mapId: 1, mode: "clean" as const })), ...opts.changeMap } as any,
@@ -221,12 +222,18 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(orch.getStatus().currentEdgeIdx).toBe(1);
     });
 
-    it("fires a BasicPing heartbeat every 5s while travel runs", async () => {
+    it("fires a BasicPing heartbeat at the 5s tick", async () => {
         vi.useFakeTimers();
         try {
             const player = new FakePlayer(); player.set(100, false);
             const map = new FakeMap(); map.set(1);
-            const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+            const movement = {
+                moveTo:     vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
+                // stopMoving "succeeds" but doesn't recover state — keeps the
+                // orchestrator running through the watchdog + stop-ack window
+                // (3s + 5s = ~8s, plenty for the first 5s heartbeat tick).
+                stopMoving: vi.fn(async () => ({ ok: true })),
+            };
             const sendBasicPing = vi.fn(async () => ({ ok: true }));
             const deps = makeDeps({
                 player, map, movement: movement as any, sendBasicPing,
@@ -235,19 +242,19 @@ describe("TravelOrchestrator.start — edge loop", () => {
             const orch = new TravelOrchestrator(deps);
 
             const startP = orch.start(2);
-            // Advance 12s while no map change fires — heartbeat should
-            // have run twice (at 5s and 10s).
-            await vi.advanceTimersByTimeAsync(12_000);
-            expect(sendBasicPing).toHaveBeenCalledTimes(2);
-
-            // Cancel to let the travel settle without timing out.
-            orch.cancel();
+            // Advance past the first 5s tick.
+            await vi.advanceTimersByTimeAsync(5_500);
+            expect(sendBasicPing).toHaveBeenCalledTimes(1);
+            // Let the travel settle (will fail at ~8s when the second
+            // waitForArrival times out).
+            await vi.advanceTimersByTimeAsync(5_000);
             await startP;
 
-            // After cancel, no more heartbeats fire.
-            const calledOnCancel = sendBasicPing.mock.calls.length;
+            // After the orchestrator exits (failure path), the heartbeat is
+            // cleared and no further pings fire.
+            const calledOnExit = sendBasicPing.mock.calls.length;
             await vi.advanceTimersByTimeAsync(10_000);
-            expect(sendBasicPing).toHaveBeenCalledTimes(calledOnCancel);
+            expect(sendBasicPing).toHaveBeenCalledTimes(calledOnExit);
         } finally {
             vi.useRealTimers();
         }
@@ -312,12 +319,17 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(orch.getStatus().state).toBe("failed");
     });
 
-    it("fails on arrival timeout (15s)", async () => {
+    it("fails on arrival timeout (watchdog + stop-ack both expire)", async () => {
         vi.useFakeTimers();
         try {
             const player = new FakePlayer(); player.set(100, false);
             const map = new FakeMap(); map.set(1);
-            const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+            const movement = {
+                moveTo:     vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
+                // stopMoving "succeeds" but the player state never updates —
+                // simulates the server never sending ish back.
+                stopMoving: vi.fn(async () => ({ ok: true })),
+            };
             const deps = makeDeps({
                 player, map, movement: movement as any,
                 computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
@@ -325,12 +337,54 @@ describe("TravelOrchestrator.start — edge loop", () => {
             const orch = new TravelOrchestrator(deps);
 
             const startP = orch.start(2);
-            await vi.advanceTimersByTimeAsync(20_000);
+            await vi.advanceTimersByTimeAsync(15_000);
             const r = await startP;
 
             expect(r.ok).toBe(false);
             expect(r.reason).toContain("arrival timeout");
             expect(orch.getStatus().state).toBe("failed");
+            // Watchdog must have tried to recover at least once.
+            expect(movement.stopMoving).toHaveBeenCalled();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("watchdog: forges MoveStop after STUCK_TIMEOUT and recovers", async () => {
+        vi.useFakeTimers();
+        try {
+            const player = new FakePlayer(); player.set(100, false);
+            const map = new FakeMap(); map.set(1);
+            const movement = {
+                moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
+                // When the watchdog fires stopMoving, simulate the server's
+                // ish reply: flip player state to (transitionCell, !isMoving).
+                stopMoving: vi.fn(async () => {
+                    player.set(200, false);
+                    return { ok: true };
+                }),
+            };
+            const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
+            const deps = makeDeps({
+                player, map, movement: movement as any, changeMap: changeMap as any,
+                computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+            });
+            const orch = new TravelOrchestrator(deps);
+
+            const startP = orch.start(2);
+            // Advance past STUCK_TIMEOUT_MS to trigger the watchdog.
+            await vi.advanceTimersByTimeAsync(3_500);
+            // After stopMoving fires, player state flipped → second
+            // waitForArrival resolves → changeMap runs → waitForMap awaits.
+            map.set(2);
+            player.set(50, false);
+            await vi.advanceTimersByTimeAsync(100);
+
+            const r = await startP;
+            expect(r.ok).toBe(true);
+            expect(movement.stopMoving).toHaveBeenCalledOnce();
+            expect(changeMap.changeMap).toHaveBeenCalledOnce();
+            expect(orch.getStatus().state).toBe("done");
         } finally {
             vi.useRealTimers();
         }
