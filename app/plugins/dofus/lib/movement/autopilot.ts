@@ -39,13 +39,19 @@ export interface StartResult {
     reason?: string;
 }
 
-/** Returns the first transition that triggers a natural map change by
- *  walking off a border cell (direction !== null). Returns null for edges
- *  that only contain zaaps / portals / scrollOfRecall (direction === null
- *  on those — v1 doesn't drive them). */
+/** Returns the first walk-off-edge transition. The `type` field is the
+ *  discriminator (empirically derived from the cached world-graph):
+ *    type 1  — basic walk-off-edge (~67% of all transitions, skillId=-1,
+ *              direction=null);
+ *    type 2  — alternate walk-off-edge variant (~12%, same shape);
+ *    type 8  — skill-less teleport (boats, mounts?) — out of scope v1;
+ *    type 32 — zaaps / scrolls (skillId>0) — out of scope v1.
+ *  Returns null if no type-1/2 transition exists. The `direction` field
+ *  in this build is `null` or `255` (sentinel) and never a cardinal 0-7,
+ *  so it is NOT a usable discriminator on its own. */
 export function pickWalkable(transitions: readonly Transition[]): Transition | null {
     for (const t of transitions) {
-        if (t.direction !== null) return t;
+        if (t.type === 1 || t.type === 2) return t;
     }
     return null;
 }

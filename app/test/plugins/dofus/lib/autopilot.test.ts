@@ -49,10 +49,13 @@ function makeDeps(opts: {
 }
 
 function walkableEdge(toMapId: string, cellId: number): PathEdgeOut {
+    // Type 1 = basic walk-off-edge in the cached world-graph. direction
+    // is null and skillId is -1 on real walk transitions; we mirror that
+    // here so the fixture matches the in-the-wild shape.
     return {
         from: { mapId: "0", zoneId: 1, uid: "v0" },
         to:   { mapId: toMapId, zoneId: 1, uid: `v${toMapId}` },
-        transitions: [{ cellId, direction: 1, skillId: 0, transitionMapId: toMapId, type: 0, criterion: null, id: "t" }],
+        transitions: [{ cellId, direction: null, skillId: -1, transitionMapId: toMapId, type: 1, criterion: null, id: "t" }],
     };
 }
 
@@ -72,20 +75,23 @@ describe("TravelOrchestrator — skeleton", () => {
 });
 
 describe("pickWalkable", () => {
-    it("returns the first transition with direction !== null", () => {
+    it("returns the first transition of type 1 or 2 (walk-off-edge)", () => {
         const t = pickWalkable([
-            { cellId: 1, direction: null, skillId: 0, transitionMapId: "x", type: 5, criterion: null, id: "a" },
-            { cellId: 2, direction: 3, skillId: 0, transitionMapId: "x", type: 0, criterion: null, id: "b" },
-            { cellId: 3, direction: 5, skillId: 0, transitionMapId: "x", type: 0, criterion: null, id: "c" },
+            // zaap (type 32) — skipped
+            { cellId: 1, direction: 255, skillId: 184, transitionMapId: "x", type: 32, criterion: null, id: "a" },
+            // first walk match — should be returned
+            { cellId: 2, direction: null, skillId: -1, transitionMapId: "x", type: 1, criterion: null, id: "b" },
+            // later type-2 walk — not reached because we exit on first match
+            { cellId: 3, direction: null, skillId: -1, transitionMapId: "x", type: 2, criterion: null, id: "c" },
         ]);
         expect(t).not.toBeNull();
         expect(t!.cellId).toBe(2);
     });
 
-    it("returns null when every transition has direction null (zaaps/portals only)", () => {
+    it("returns null when every transition is a zaap / scroll / non-walk teleport", () => {
         const t = pickWalkable([
-            { cellId: 1, direction: null, skillId: 0, transitionMapId: "x", type: 5, criterion: null, id: "a" },
-            { cellId: 2, direction: null, skillId: 0, transitionMapId: "x", type: 5, criterion: null, id: "b" },
+            { cellId: 1, direction: 255, skillId: 184, transitionMapId: "x", type: 32, criterion: null, id: "a" }, // zaap
+            { cellId: 2, direction: 255, skillId: -1,  transitionMapId: "x", type: 8,  criterion: null, id: "b" }, // boat/teleport
         ]);
         expect(t).toBeNull();
     });
