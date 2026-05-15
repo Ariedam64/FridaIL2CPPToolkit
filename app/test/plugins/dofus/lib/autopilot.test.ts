@@ -50,6 +50,9 @@ function makeDeps(opts: {
         changeMap: { changeMap: vi.fn(async () => ({ ok: true, mapId: 1, mode: "clean" as const })), ...opts.changeMap } as any,
         sendBasicPing:    opts.sendBasicPing    ?? vi.fn(async () => ({ ok: true })),
         computeWorldPath: opts.computeWorldPath ?? (() => ({ ok: true, edges: [], iterations: 0, elapsedMs: 0 })),
+        // Tests run synchronously through the loop — skip the prod settle so
+        // a multi-edge happy path doesn't add 800ms per edge to the runtime.
+        mapSettleMs: 0,
     };
 }
 
