@@ -15,6 +15,8 @@ import { PlayerStore } from "../lib/stores/player";
 import { MapStateStore } from "../lib/stores/map-state";
 import { WORLD_PATHFINDING_PROTO } from "../lib/protocol/schema";
 import { resolveProto } from "../lib/protocol/resolver";
+import { TravelOrchestrator } from "../lib/movement/autopilot";
+import { computeWorldPath } from "../lib/movement/world-path";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -86,10 +88,12 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     // -------------------------------------------------------------------------
     let playerStore: PlayerStore | null = null;
     let mapStateStore: MapStateStore | null = null;
+    let autopilot: TravelOrchestrator | null = null;
     let detachPlayerListener: (() => void) | null = null;
     let detachMapStateListener: (() => void) | null = null;
 
     function rewireStores(): void {
+        if (autopilot) { autopilot.dispose(); autopilot = null; }
         if (detachPlayerListener)   { detachPlayerListener();   detachPlayerListener = null; }
         if (detachMapStateListener) { detachMapStateListener(); detachMapStateListener = null; }
         if (playerStore)   { playerStore.dispose();   playerStore = null; }
@@ -99,6 +103,23 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
 
         playerStore   = new PlayerStore(deps.session, profile.labels, deps.session.fridaClient);
         mapStateStore = new MapStateStore(deps.session, profile.labels, deps.session.fridaClient);
+
+        const movementForAutopilot = new MovementActions(profile.labels, deps.session.fridaClient, mapInteractives, store);
+        const changeMapForAutopilot = new ChangeMapActions(
+            profile.labels,
+            deps.session.fridaClient,
+            () => deps.session.frameStore(),
+        );
+        autopilot = new TravelOrchestrator({
+            getCurrentCell:   () => playerStore!.getState().currentCellId,
+            isMoving:         () => playerStore!.getState().isMoving,
+            onPlayerChange:   (cb) => playerStore!.onChange(() => cb()),
+            getCurrentMapId:  () => mapStateStore!.getState().mapId,
+            onMapChange:      (cb) => mapStateStore!.onChange(() => cb()),
+            movement:         movementForAutopilot,
+            changeMap:        changeMapForAutopilot,
+            computeWorldPath: (src, dest) => computeWorldPath(src, dest),
+        });
 
         detachPlayerListener = playerStore.onChange((state) => {
             deps.session.emit("dofus-player-state-changed", state);
@@ -133,6 +154,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         if (detachMapStateListener) { detachMapStateListener(); detachMapStateListener = null; }
         if (playerStore)   { playerStore.dispose();   playerStore = null; }
         if (mapStateStore) { mapStateStore.dispose(); mapStateStore = null; }
+        if (autopilot) { autopilot.dispose(); autopilot = null; }
         // Recreate map interactives with a stub LabelStore so disk reads keep working.
         rewireInteractives();
     });
@@ -251,16 +273,15 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         }
 
         try {
-            const { loadGraph, pickVertexForMap, aStar, pathToEdges } = await import("../lib/movement/world-path.js");
+            // First call after attach: auto-extract the graph from the live
+            // PathFindingData. Subsequent calls are pure JS over the cache.
+            const { loadGraph, saveGraph } = await import("../lib/movement/world-path.js");
             let graph = loadGraph();
             if (!graph) {
-                // Auto-extract on first compute. Requires ell.dkdy loaded (done
-                // by initWorldPathfindingHooks at attach time).
                 const result = await deps.session.fridaClient.call("extractWorldGraph", [{
                     proto: worldPathfindingProto(profile),
                 }]) as any;
                 if (!result?.ok) { res.status(500).json({ error: `graph extraction failed: ${result?.reason ?? "unknown"}` }); return; }
-                const { saveGraph } = await import("../lib/movement/world-path.js");
                 saveGraph({
                     vertices: result.vertices,
                     outgoing: result.outgoing,
@@ -271,24 +292,18 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             }
             if (!graph) { res.status(500).json({ error: "graph load failed after extract" }); return; }
 
-            const srcV = pickVertexForMap(graph, srcMapId);
-            const destV = pickVertexForMap(graph, destMapId);
-            if (!srcV) { res.status(404).json({ error: `srcMapId ${srcMapId} not in graph` }); return; }
-            if (!destV) { res.status(404).json({ error: `destMapId ${destMapId} not in graph` }); return; }
-
-            const t0 = Date.now();
-            const search = aStar(graph, srcV.uid, destV.uid);
-            const elapsedMs = Date.now() - t0;
-            if (!search || search.pathUids.length === 0) {
-                res.json({ ok: false, reason: search?.exhausted ? "A* exhausted iteration cap" : "no path found", elapsedMs, iterations: search?.iterations });
+            const out = computeWorldPath(Number(srcMapId), Number(destMapId), graph);
+            if (!out.ok) {
+                res.json({ ok: false, reason: out.reason });
                 return;
             }
-            const edges = pathToEdges(graph, search.pathUids).map((e) => ({
-                from: e.from,
-                to: e.to,
-                transitions: e.transitions,
-            }));
-            res.json({ ok: true, fresh: true, edges, iterations: search.iterations, elapsedMs });
+            res.json({
+                ok: true,
+                fresh: true,
+                edges: out.edges.map((e) => ({ from: e.from, to: e.to, transitions: e.transitions })),
+                iterations: out.iterations,
+                elapsedMs: out.elapsedMs,
+            });
         } catch (err) {
             res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
         }
