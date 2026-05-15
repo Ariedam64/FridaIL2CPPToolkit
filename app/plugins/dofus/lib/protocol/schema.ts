@@ -319,11 +319,13 @@ export const PLAYER_STATE_PROTO = {
         // one frame per move, even our own (filter by entityId === characterId).
         // Carries the cellPath we're about to follow → targetCellId + isMoving.
         MapEntityMovement:      { friendly: "mapEntityMovement",       fallback: "itv" },
-        // WS-update trigger: CLIENT emits `itr` when our move animation
-        // ends locally — OUTgoing. Server replies with `ish` (confirmMoveEnd,
-        // INcoming) ~30ms later. Empty payload — used as a signal to clear
-        // cellPath / isMoving in the local mirror.
-        MoveStop:               { friendly: "MoveStop",                fallback: "itr" },
+        // WS-update trigger: SERVER's ack of our `itr` — INcoming. We listen
+        // for `ish` (not the outgoing `itr`) to flip isMoving=false because
+        // anything sent in the ~30ms window between `itr` going out and
+        // `ish` coming in races against an in-flight ito (the server gets
+        // ito while still processing itr → the autopilot map change bugs).
+        // Listening to `ish` instead is the server-acked truth.
+        ConfirmMoveEnd:         { friendly: "confirmMoveEnd",          fallback: "ish" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         MovementController_targetCellId: { classKey: "MovementController", friendly: "targetCellId", fallback: "dezz" },

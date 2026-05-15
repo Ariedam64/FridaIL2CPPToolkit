@@ -12,7 +12,7 @@
 //   - MapEntityMovement (itv, incoming) → on our entityId only:
 //        currentCellId := cellPath[0]  (re-sync on mid-move redirect),
 //        targetCellId := last(cellPath), cellPath := parsed, isMoving := true
-//   - MoveStop          (itr, outgoing — client-emitted at walk end) → currentCellId := last(cellPath),
+//   - ConfirmMoveEnd    (ish, INcoming — server-acked move end) → currentCellId := last(cellPath),
 //        cellPath := [], isMoving := false
 //
 // Map-driven mutations (routed in from MapStateStore after each itx parse):
@@ -157,8 +157,8 @@ export class PlayerStore {
     private handleFrame(frame: NetworkFrame): void {
         const cn = frame.typeKey.className;
         const cls = this.resolvedProto.classes;
-        if (cn === cls.MapEntityMovement)  this.handleEntityMovement(frame);
-        else if (cn === cls.MoveStop)      this.handleMoveStop();
+        if (cn === cls.MapEntityMovement)        this.handleEntityMovement(frame);
+        else if (cn === cls.ConfirmMoveEnd)      this.handleConfirmMoveEnd();
     }
 
     /** itv (mapEntityMovement) — server broadcasts every entity's move.
@@ -205,10 +205,13 @@ export class PlayerStore {
         this.emit();
     }
 
-    /** itr (MoveStop) — client tells the server the move is over. The frame
-     *  has no payload; we just commit the in-flight cellPath's destination
-     *  to currentCellId and clear the path. */
-    private handleMoveStop(): void {
+    /** ish (confirmMoveEnd) — server's ack of our `itr`. We use this rather
+     *  than the outgoing `itr` itself because anything we send between `itr`
+     *  going out and `ish` landing races against the server's still-pending
+     *  move processing (autopilot crash visible as "bouge plus" / map change
+     *  bug). The frame has no payload; we just commit the in-flight
+     *  cellPath's destination to currentCellId and clear the path. */
+    private handleConfirmMoveEnd(): void {
         const path = this.state.cellPath;
         const dest = path.length > 0 ? path[path.length - 1] : this.state.targetCellId;
         // If we somehow got an itr without a preceding itv (e.g. cancelled
