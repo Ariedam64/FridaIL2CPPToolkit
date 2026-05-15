@@ -196,13 +196,8 @@ export interface ResolvedInteractiveProto {
 
 export const MOVEMENT_PROTO = {
     classes: {
-        MoveRequest:    { friendly: "MapMoveRequest",            fallback: "isa" },
-        // Client ack of a server-initiated MoveStop (itr). Required between
-        // a move ending and any follow-up packet — without it the server
-        // treats the next outgoing as out-of-order. Observed empty payload
-        // (efkb=null).
-        ConfirmMoveEnd: { friendly: "confirmMoveEnd",            fallback: "ish" },
-        Dispatcher:     { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
+        MoveRequest: { friendly: "MapMoveRequest",            fallback: "isa" },
+        Dispatcher:  { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         // First field (efim) stays at default null in observations.
@@ -210,8 +205,6 @@ export const MOVEMENT_PROTO = {
         MoveRequest_cellPath: { classKey: "MoveRequest", friendly: "cellPath", fallback: "efir" },
         MoveRequest_flag1:    { classKey: "MoveRequest", friendly: "flag1",    fallback: "efit" },
         MoveRequest_mapId:    { classKey: "MoveRequest", friendly: "mapId",    fallback: "efiv" },
-        // ConfirmMoveEnd has a single observed field `efkb: null`. Nothing
-        // to set — the default ctor produces a usable payload.
     } as Record<string, ProtoMemberSpec>,
     methods: {
         Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },
@@ -326,11 +319,10 @@ export const PLAYER_STATE_PROTO = {
         // one frame per move, even our own (filter by entityId === characterId).
         // Carries the cellPath we're about to follow → targetCellId + isMoving.
         MapEntityMovement:      { friendly: "mapEntityMovement",       fallback: "itv" },
-        // WS-update trigger: SERVER pushes `itr` when our move ends (it is
-        // INcoming, not outgoing as previously documented). The client's
-        // natural response is to emit `ish` (confirmMoveEnd) back; see
-        // MOVEMENT_PROTO.ConfirmMoveEnd. Empty payload — used as a signal
-        // to clear cellPath / isMoving.
+        // WS-update trigger: CLIENT emits `itr` when our move animation
+        // ends locally — OUTgoing. Server replies with `ish` (confirmMoveEnd,
+        // INcoming) ~30ms later. Empty payload — used as a signal to clear
+        // cellPath / isMoving in the local mirror.
         MoveStop:               { friendly: "MoveStop",                fallback: "itr" },
     } as Record<string, ProtoClassSpec>,
     fields: {

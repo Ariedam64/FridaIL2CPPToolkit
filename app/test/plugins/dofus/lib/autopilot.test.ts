@@ -44,8 +44,7 @@ function makeDeps(opts: {
             return () => { map.listeners = map.listeners.filter(l => l !== cb); };
         },
         movement:  {
-            moveTo:         vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })),
-            confirmMoveEnd: vi.fn(async () => ({ ok: true })),
+            moveTo: vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })),
             ...opts.movement,
         } as any,
         changeMap: { changeMap: vi.fn(async () => ({ ok: true, mapId: 1, mode: "clean" as const })), ...opts.changeMap } as any,
@@ -182,13 +181,10 @@ describe("TravelOrchestrator.start — edge loop", () => {
         for (let i = 0; i < 50; i++) await Promise.resolve();
     }
 
-    it("walks + acks + changes map across a 2-edge path", async () => {
+    it("walks + changes map across a 2-edge path", async () => {
         const player = new FakePlayer(); player.set(100, false);
         const map = new FakeMap(); map.set(1);
-        const movement = {
-            moveTo:         vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
-            confirmMoveEnd: vi.fn(async () => ({ ok: true })),
-        };
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
         const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
         const deps = makeDeps({
             player, map, movement: movement as any, changeMap: changeMap as any,
@@ -220,9 +216,6 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(r.ok).toBe(true);
         expect(r.totalEdges).toBe(2);
         expect(movement.moveTo).toHaveBeenCalledTimes(2);
-        // confirmMoveEnd ack must fire once per edge — between waitForArrival
-        // and changeMap. Skipping it produces the in-game desync.
-        expect(movement.confirmMoveEnd).toHaveBeenCalledTimes(2);
         expect(changeMap.changeMap).toHaveBeenCalledTimes(2);
         expect(orch.getStatus().state).toBe("done");
         expect(orch.getStatus().currentEdgeIdx).toBe(1);
@@ -233,10 +226,7 @@ describe("TravelOrchestrator.start — edge loop", () => {
         try {
             const player = new FakePlayer(); player.set(100, false);
             const map = new FakeMap(); map.set(1);
-            const movement = {
-                moveTo:         vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })),
-                confirmMoveEnd: vi.fn(async () => ({ ok: true })),
-            };
+            const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
             const sendBasicPing = vi.fn(async () => ({ ok: true }));
             const deps = makeDeps({
                 player, map, movement: movement as any, sendBasicPing,

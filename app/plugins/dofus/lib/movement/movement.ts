@@ -73,12 +73,6 @@ export class MovementActions {
         };
     }
 
-    /** Forge a confirmMoveEnd (ish) packet. Ack to the server's MoveStop
-     *  (itr) — must be sent before any follow-up packet (e.g. a moveToNewMap
-     *  for map change) once the server signals the move has ended. */
-    async confirmMoveEnd(): Promise<SendResult> {
-        return this.rpc.call<SendResult>("sendConfirmMoveEnd", [this.proto()]);
-    }
 
     private async resolveMapAndCells(mapId?: number): Promise<
         | { mapId: number; cells: ReadonlyArray<readonly [number, number, number, number, number] | undefined> }

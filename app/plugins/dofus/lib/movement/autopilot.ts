@@ -27,7 +27,7 @@ export interface TravelDeps {
     onPlayerChange:   (cb: () => void) => () => void;
     getCurrentMapId:  () => number | null;
     onMapChange:      (cb: () => void) => () => void;
-    movement:         Pick<MovementActions, "moveTo" | "confirmMoveEnd">;
+    movement:         Pick<MovementActions, "moveTo">;
     changeMap:        Pick<ChangeMapActions, "changeMap">;
     /** Best-effort BasicPing keepalive; called every BASIC_PING_INTERVAL_MS
      *  while a travel is running. Errors swallowed by the orchestrator. */
@@ -147,13 +147,6 @@ export class TravelOrchestrator {
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
 
                 await this.waitForArrival(t.cellId);
-                this.throwIfCancelled();
-
-                // Ack the server's MoveStop before sending ito. Without this
-                // the server treats the next outgoing as out-of-order and
-                // the map change goes through in a degraded state.
-                const ack = await this.deps.movement.confirmMoveEnd();
-                if (!ack.ok) throw new Error(`confirmMoveEnd: ${ack.reason ?? "send failed"}`);
                 this.throwIfCancelled();
 
                 const nextMapId = Number(plan.edges[i].to.mapId);

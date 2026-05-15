@@ -6,9 +6,8 @@ import { inVm, getLiveInstance, findClass } from "./_runtime";
 
 export interface MovementProto {
     classes: {
-        MoveRequest:    string;
-        ConfirmMoveEnd: string;
-        Dispatcher:     string;
+        MoveRequest: string;
+        Dispatcher:  string;
     };
     fields: {
         MoveRequest_mode:     string;
@@ -89,29 +88,3 @@ export function sendMapMoveRequest(
     });
 }
 
-/** Forge a confirmMoveEnd (ish) and dispatch it. Required after the server
- *  pushes a MoveStop (itr) — the client normally emits this automatically
- *  to ack the move-end, but when we drive moves via Frida the server-driven
- *  itr-then-ish flow is broken and we have to emit ish ourselves. Empty
- *  payload — the ctor default is what the wire shows. */
-export function sendConfirmMoveEnd(proto: MovementProto): Promise<SendMapMoveResult> {
-    return inVm(() => {
-        const reqK = findClass(proto.classes.ConfirmMoveEnd);
-        if (!reqK) return { ok: false, reason: `${proto.classes.ConfirmMoveEnd} class not found` };
-        const dispatcher = getLiveInstance(proto.classes.Dispatcher);
-        if (!dispatcher) return { ok: false, reason: `no live ${proto.classes.Dispatcher} instance` };
-        let req: any;
-        try {
-            req = (reqK as any).new();
-            req.method(".ctor").overload().invoke();
-        } catch (e) {
-            return { ok: false, reason: `${proto.classes.ConfirmMoveEnd} build failed: ${String(e).slice(0, 200)}` };
-        }
-        try {
-            (dispatcher as any).method(proto.methods.Dispatcher_send).invoke(req);
-            return { ok: true };
-        } catch (e) {
-            return { ok: false, reason: `dispatcher send failed: ${String(e).slice(0, 200)}` };
-        }
-    });
-}
