@@ -4,11 +4,11 @@ import type { PathEdgeOut } from "../../../../plugins/dofus/lib/movement/world-p
 
 class FakePlayer {
     cell: number | null = 100;
-    // `moving` retained on the fake for parity with the real PlayerState, even
-    // though TravelDeps no longer queries it — the v1 loop is map-change-driven.
     moving = false;
+    listeners: Array<() => void> = [];
     set(cell: number | null, moving: boolean): void {
         this.cell = cell; this.moving = moving;
+        this.listeners.forEach(l => l());
     }
 }
 
@@ -25,18 +25,25 @@ function makeDeps(opts: {
     player?: FakePlayer;
     map?: FakeMap;
     movement?: Partial<TravelDeps["movement"]>;
+    changeMap?: Partial<TravelDeps["changeMap"]>;
     computeWorldPath?: TravelDeps["computeWorldPath"];
 } = {}): TravelDeps {
     const player = opts.player ?? new FakePlayer();
     const map = opts.map ?? new FakeMap();
     return {
         getCurrentCell:  () => player.cell,
+        isMoving:        () => player.moving,
+        onPlayerChange:  (cb) => {
+            player.listeners.push(cb);
+            return () => { player.listeners = player.listeners.filter(l => l !== cb); };
+        },
         getCurrentMapId: () => map.mapId,
         onMapChange:     (cb) => {
             map.listeners.push(cb);
             return () => { map.listeners = map.listeners.filter(l => l !== cb); };
         },
         movement:  { moveTo: vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })), ...opts.movement } as any,
+        changeMap: { changeMap: vi.fn(async () => ({ ok: true, mapId: 1, mode: "clean" as const })), ...opts.changeMap } as any,
         computeWorldPath: opts.computeWorldPath ?? (() => ({ ok: true, edges: [], iterations: 0, elapsedMs: 0 })),
     };
 }
@@ -141,8 +148,9 @@ describe("TravelOrchestrator.start — guards + planning", () => {
         expect(s.finishedAt).not.toBeNull();
     });
 
+    // re-enabled in Task 5 once the edge loop actually keeps state in 'running'
     it("rejects a second start while one is running", async () => {
-        // Force the orchestrator to hang in waitForMap by never firing onMapChange.
+        // Force the orchestrator to hang in waitForArrival by never firing onPlayerChange.
         const map = new FakeMap(); map.set(1);
         const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
         const deps = makeDeps({
@@ -168,15 +176,13 @@ describe("TravelOrchestrator.start — edge loop", () => {
         for (let i = 0; i < 50; i++) await Promise.resolve();
     }
 
-    it("walks + naturally changes map across a 2-edge path", async () => {
-        // The orchestrator does NOT send a change-map packet — walk-off-edge
-        // transitions self-trigger the client's natural `ito`. We just drive
-        // `map.set(...)` to simulate that natural transition landing.
+    it("walks + changes map across a 2-edge path", async () => {
         const player = new FakePlayer(); player.set(100, false);
         const map = new FakeMap(); map.set(1);
         const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
         const deps = makeDeps({
-            player, map, movement: movement as any,
+            player, map, movement: movement as any, changeMap: changeMap as any,
             computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [
                 walkableEdge("2", 200),
                 walkableEdge("3", 300),
@@ -186,13 +192,16 @@ describe("TravelOrchestrator.start — edge loop", () => {
 
         const startP = orch.start(3);
 
-        // Edge 0: after moveTo, the natural ito lands and the map switches to 2.
+        // Edge 0: simulate arrival on map 1 at cell 200, then map switch to 2 with entry cell 50.
+        await flush();
+        player.set(200, false);  // arrived on transition cell
         await flush();
         map.set(2);
         player.set(50, false);   // entry cell on map 2
         await flush();
 
-        // Edge 1: same shape — moveTo, then natural ito to map 3.
+        // Edge 1: arrive on map 2 at cell 300, then map switch to 3 with entry cell 70.
+        player.set(300, false);
         await flush();
         map.set(3);
         player.set(70, false);
@@ -202,6 +211,7 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(r.ok).toBe(true);
         expect(r.totalEdges).toBe(2);
         expect(movement.moveTo).toHaveBeenCalledTimes(2);
+        expect(changeMap.changeMap).toHaveBeenCalledTimes(2);
         expect(orch.getStatus().state).toBe("done");
         expect(orch.getStatus().currentEdgeIdx).toBe(1);
     });
@@ -243,7 +253,29 @@ describe("TravelOrchestrator.start — edge loop", () => {
         expect(orch.getStatus().state).toBe("failed");
     });
 
-    it("fails on map-change timeout (20s)", async () => {
+    it("fails when changeMap returns ok:false", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const changeMap = { changeMap: vi.fn(async () => ({ ok: false, mapId: 2, mode: "clean" as const, reason: "kta timeout" })) };
+        const deps = makeDeps({
+            player, map, movement: movement as any, changeMap: changeMap as any,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const startP = orch.start(2);
+        await flush();
+        player.set(200, false);  // arrival
+        await flush();
+
+        const r = await startP;
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("kta timeout");
+        expect(orch.getStatus().state).toBe("failed");
+    });
+
+    it("fails on arrival timeout (15s)", async () => {
         vi.useFakeTimers();
         try {
             const player = new FakePlayer(); player.set(100, false);
@@ -256,11 +288,11 @@ describe("TravelOrchestrator.start — edge loop", () => {
             const orch = new TravelOrchestrator(deps);
 
             const startP = orch.start(2);
-            await vi.advanceTimersByTimeAsync(25_000);
+            await vi.advanceTimersByTimeAsync(20_000);
             const r = await startP;
 
             expect(r.ok).toBe(false);
-            expect(r.reason).toContain("map change timeout");
+            expect(r.reason).toContain("arrival timeout");
             expect(orch.getStatus().state).toBe("failed");
         } finally {
             vi.useRealTimers();
@@ -273,12 +305,13 @@ describe("TravelOrchestrator.cancel + dispose", () => {
         for (let i = 0; i < 50; i++) await Promise.resolve();
     }
 
-    it("cancels during waitForMap → state=cancelled", async () => {
+    it("cancels during waitForArrival → state=cancelled, changeMap not called", async () => {
         const player = new FakePlayer(); player.set(100, false);
         const map = new FakeMap(); map.set(1);
         const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
         const deps = makeDeps({
-            player, map, movement: movement as any,
+            player, map, movement: movement as any, changeMap: changeMap as any,
             computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
         });
         const orch = new TravelOrchestrator(deps);
@@ -293,6 +326,7 @@ describe("TravelOrchestrator.cancel + dispose", () => {
         await startP;
 
         expect(orch.getStatus().state).toBe("cancelled");
+        expect(changeMap.changeMap).not.toHaveBeenCalled();
     });
 
     it("cancel on an idle orchestrator returns wasRunning=false", () => {

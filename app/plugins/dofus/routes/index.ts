@@ -105,11 +105,19 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         mapStateStore = new MapStateStore(deps.session, profile.labels, deps.session.fridaClient);
 
         const movementForAutopilot = new MovementActions(profile.labels, deps.session.fridaClient, mapInteractives, store);
+        const changeMapForAutopilot = new ChangeMapActions(
+            profile.labels,
+            deps.session.fridaClient,
+            () => deps.session.frameStore(),
+        );
         autopilot = new TravelOrchestrator({
             getCurrentCell:   () => playerStore!.getState().currentCellId,
+            isMoving:         () => playerStore!.getState().isMoving,
+            onPlayerChange:   (cb) => playerStore!.onChange(() => cb()),
             getCurrentMapId:  () => mapStateStore!.getState().mapId,
             onMapChange:      (cb) => mapStateStore!.onChange(() => cb()),
             movement:         movementForAutopilot,
+            changeMap:        changeMapForAutopilot,
             computeWorldPath: (src, dest) => computeWorldPath(src, dest),
         });
 
