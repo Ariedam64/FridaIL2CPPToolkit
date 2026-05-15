@@ -228,12 +228,11 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         }
     });
 
-    /** Active path computation. Invokes `WorldPathfinder.computePath` directly
-     *  (the pure A* one level below the auto-travel wrapper) with cb=NULL so
-     *  the path lands in `WorldPathfindingWorker.resultEdges` WITHOUT triggering
-     *  movement. `srcMapId` / `currentCellId` are sourced from the backend's
-     *  live stores; clients can override either via the request body when
-     *  computing from a hypothetical start. */
+    /** Compute the shortest world path from `srcMapId` (defaults to the
+     *  player's current map) to `destMapId`. Runs entirely in JS over the
+     *  extracted world graph cache — no `bapj` invoke, no game thread, no
+     *  side effects. The first call after attach auto-extracts the graph
+     *  (~9s); subsequent calls are sub-millisecond. */
     app.post("/api/dofus/world-pathfinding/compute", async (req, res) => {
         const profile = deps.session.profile();
         if (!profile) { res.status(503).json({ error: "not attached" }); return; }
@@ -242,10 +241,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
 
         // Defaults — caller may override via body.srcMapId / body.currentCellId.
         const srcMapIdBody = req.body?.srcMapId;
-        const cellIdBody   = req.body?.currentCellId;
         const srcFromStore = mapStateStore?.getState().mapId;
-        const cellFromStore = playerStore?.getState().currentCellId;
-
         const srcMapId = srcMapIdBody != null && /^\d+$/.test(String(srcMapIdBody))
             ? String(srcMapIdBody)
             : (srcFromStore != null ? String(srcFromStore) : "");
@@ -253,20 +249,73 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             res.status(400).json({ error: "srcMapId unknown — pass it in the body, or wait for the map store to bootstrap" });
             return;
         }
-        const currentCellId = cellIdBody != null && /^\d+$/.test(String(cellIdBody))
-            ? String(cellIdBody)
-            : (cellFromStore != null ? String(cellFromStore) : "0");
 
-        const timeoutMs = Number(req.body?.timeoutMs) || 5000;
         try {
-            const result = await deps.session.fridaClient.call("computeWorldPath", [{
+            const { loadGraph, pickVertexForMap, aStar, pathToEdges } = await import("../lib/world-path-js.js");
+            let graph = loadGraph();
+            if (!graph) {
+                // Auto-extract on first compute. Requires ell.dkdy loaded (done
+                // by initWorldPathfindingHooks at attach time).
+                const result = await deps.session.fridaClient.call("extractWorldGraph", [{
+                    proto: worldPathfindingProto(profile),
+                }]) as any;
+                if (!result?.ok) { res.status(500).json({ error: `graph extraction failed: ${result?.reason ?? "unknown"}` }); return; }
+                const { saveGraph } = await import("../lib/world-path-js.js");
+                saveGraph({
+                    vertices: result.vertices,
+                    outgoing: result.outgoing,
+                    verticesByMap: result.verticesByMap,
+                    counts: result.counts,
+                });
+                graph = loadGraph();
+            }
+            if (!graph) { res.status(500).json({ error: "graph load failed after extract" }); return; }
+
+            const srcV = pickVertexForMap(graph, srcMapId);
+            const destV = pickVertexForMap(graph, destMapId);
+            if (!srcV) { res.status(404).json({ error: `srcMapId ${srcMapId} not in graph` }); return; }
+            if (!destV) { res.status(404).json({ error: `destMapId ${destMapId} not in graph` }); return; }
+
+            const t0 = Date.now();
+            const search = aStar(graph, srcV.uid, destV.uid);
+            const elapsedMs = Date.now() - t0;
+            if (!search || search.pathUids.length === 0) {
+                res.json({ ok: false, reason: search?.exhausted ? "A* exhausted iteration cap" : "no path found", elapsedMs, iterations: search?.iterations });
+                return;
+            }
+            const edges = pathToEdges(graph, search.pathUids).map((e) => ({
+                from: e.from,
+                to: e.to,
+                transitions: e.transitions,
+            }));
+            res.json({ ok: true, fresh: true, edges, iterations: search.iterations, elapsedMs });
+        } catch (err) {
+            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+        }
+    });
+
+    /** Extract the full world graph from `ell.dkdy` (PathFindingData), save it
+     *  to data/world-graph.json, and return metadata only (full payload is
+     *  ~6MB). One-shot, slow (~9s); subsequent /compute calls hit the cache.
+     *  Use this to re-extract after a Dofus update — the graph data is the
+     *  only piece that can change between game versions. */
+    app.get("/api/dofus/world-pathfinding/extract-graph", async (_req, res) => {
+        const profile = deps.session.profile();
+        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+        try {
+            const result = await deps.session.fridaClient.call("extractWorldGraph", [{
                 proto: worldPathfindingProto(profile),
-                destMapId,
-                srcMapId,
-                currentCellId,
-                timeoutMs,
-            }]);
-            res.json(result);
+            }]) as any;
+            if (result?.ok) {
+                const { saveGraph } = await import("../lib/world-path-js.js");
+                saveGraph({
+                    vertices: result.vertices,
+                    outgoing: result.outgoing,
+                    verticesByMap: result.verticesByMap,
+                    counts: result.counts,
+                });
+            }
+            res.json({ ok: result?.ok, reason: result?.reason, counts: result?.counts, elapsedMs: result?.elapsedMs });
         } catch (err) {
             res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
         }

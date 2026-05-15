@@ -1,18 +1,25 @@
-// World pathfinding (AutoTravel) — pure path compute, no movement.
+// World pathfinding — bapj-free implementation.
 //
-// Three classes are in play:
-//   AutoTravelManager       — wraps the auto-travel flow; bapc() = compute + walk
-//   WorldPathfinder         — has computePath() = pure A* (no walking)
-//   WorldPathfindingWorker  — owns the A* worker + the result List<Edge>
+// We don't invoke WorldPathfinder.bapj from our side anymore: it blows the
+// Frida-thread stack inside the async state-machine's A* loop (66k+ alloca-
+// heavy iterations — the Frida script thread is ~1 MB while Unity main is
+// multi-megabyte). Instead the runtime is just a thin layer over what's
+// already loaded in the game:
 //
-// The active flow (computeWorldPath) invokes WorldPathfinder.computePath with
-// cb=NULL, which produces the path in WorldPathfindingWorker.resultEdges
-// without triggering the bapc movement lambda. Two channels capture the
-// result: a hook on WorldPathfindingWorker.deliverResult (preferred, signals
-// `fresh: true`) and polling resultEdges directly.
+//   1. `triggerPathFindingDataLoad` calls `ell.bapg()` (Init UniTask) so the
+//      Addressables-loaded `PathFindingData` lands in `ell.dkdy` /
+//      `fpc.dplc` — same state the game sets up the first time the user
+//      opens an auto-travel manually.
+//   2. `extractWorldGraph` walks the three Dictionaries inside that
+//      PathFindingData (m_vertices, m_edges, m_outgoingEdges — Unity
+//      SerializeFields, never obfuscated) and returns the whole graph as
+//      plain JSON.
+//   3. Path computation itself happens in pure JS over the cached graph —
+//      see `app/plugins/dofus/lib/world-path-js.ts`.
 //
-// All obf names go through WorldPathfindingProto resolved on the backend so
-// renames in the labels UI survive cross-version migration.
+// What's left from the bapj era: passive Interceptor hooks on bapc and nwf
+// that observe in-game auto-travels (diag log + last cached path reader).
+// None of them invoke anything.
 
 import { inVm } from "./_runtime";
 import { getSingleton } from "../../../singleton-cache";
@@ -123,7 +130,8 @@ export interface CachedWorldPath {
 }
 
 /** Read the last cached world path from the WorldPathfinder instance — pure
- *  field reads, no side effects on the game. */
+ *  field reads, no side effects on the game. Populated by in-game auto-travels
+ *  (or anything else that runs the worker), not by us. */
 export function readCachedWorldPath(proto: WorldPathfindingProto): Promise<CachedWorldPath> {
     return inVm(() => {
         const ell = getSingleton(proto.classes.WorldPathfinder);
@@ -147,11 +155,12 @@ export function readCachedWorldPath(proto: WorldPathfindingProto): Promise<Cache
 }
 
 // -----------------------------------------------------------------------------
-// Hooks:
-//   • WorldPathfindingWorker.deliverResult (nwf) — captures the published path
-//     synchronously; lets computeWorldPath report `fresh: true` on success.
-//   • AutoTravelManager.startAutoTravel (bapc) — observe-only diag, useful to
-//     see in-game auto-travels alongside our active invokes.
+// Observation hooks (passive — they only read args + log).
+//   • WorldPathfindingWorker.deliverResult (nwf): captures the result List<Edge>
+//     when the game itself publishes a path (= someone did an in-game auto-
+//     travel). Useful as a "what did the user just compute?" channel.
+//   • AutoTravelManager.startAutoTravel (bapc): logs destMapId of every
+//     in-game auto-travel.
 // -----------------------------------------------------------------------------
 
 let _hooksInstalled = false;
@@ -172,7 +181,6 @@ function installHooks(proto: WorldPathfindingProto): boolean {
     if (!elj) { diag(`install: no live ${proto.classes.AutoTravelManager}`); return false; }
 
     try {
-        // deliverResult(List<Edge>, bool) → snapshot args[1] = the list ptr.
         const nwf = (fpc as any).class.tryMethod(proto.methods.WorldPathfindingWorker_deliverResult);
         if (nwf && !nwf.virtualAddress.equals(NULL)) {
             Interceptor.attach(nwf.virtualAddress, {
@@ -194,7 +202,6 @@ function installHooks(proto: WorldPathfindingProto): boolean {
             diag(`install: ${proto.methods.WorldPathfindingWorker_deliverResult} not found`);
         }
 
-        // bapc — observe-only, purely for diag visibility.
         const bapc = (elj as any).class.tryMethod(proto.methods.AutoTravelManager_startAutoTravel);
         if (bapc && !bapc.virtualAddress.equals(NULL)) {
             Interceptor.attach(bapc.virtualAddress, {
@@ -223,122 +230,311 @@ export function getWorldPathfindingDiag(): Promise<{ hooksInstalled: boolean; ca
     }));
 }
 
-export interface ComputeWorldPathRequest {
+// -----------------------------------------------------------------------------
+// PathFindingData loader. Invokes `ell.bapg()` (Init UniTask, async) and waits
+// for the static `dkdy` to become non-null. Also replicates the manual auto-
+// travel's side-effect on `fpc` by calling the two static setters bgul + gmj
+// — that keeps the worker's static `dplc` consistent with `dkdy` even though
+// our extraction reads from `dkdy` only.
+// -----------------------------------------------------------------------------
+
+export interface TriggerLoadRequest {
     proto: WorldPathfindingProto;
-    /** Stringified long — required. */
-    destMapId: string;
-    /** Stringified long — required. Where the path starts. The backend
-     *  pulls this from MapStateStore.getState().mapId. */
-    srcMapId: string;
-    /** Stringified long — defaults to "0". Player's current cell on srcMapId.
-     *  The backend pulls this from PlayerStore.getState().currentCellId. */
-    currentCellId?: string;
+    initMethodName?: string;
     timeoutMs?: number;
 }
-export interface ComputeWorldPathResult {
+export interface TriggerLoadResult {
     ok: boolean;
     reason?: string;
-    edges?: PathEdge[];
-    /** True if the deliverResult hook fired during this call (= a fresh path
-     *  was computed, not a stale read from a previous run). */
-    fresh?: boolean;
-    /** Echo of the args passed to computePath, for debugging. */
-    invokedWith?: { destMapId: string; srcMapId: string; currentCellId: string };
+    alreadyLoaded?: boolean;
+    invokeThrew?: boolean;
+    invokeError?: string;
+    elapsedMs?: number;
+    dkdyAfter?: string;
 }
 
-/** Pure compute: invoke `WorldPathfinder.computePath(destMapId, srcMapId,
- *  currentCellId, ere, NULL_cb, true)` directly. No bapc → no movement.
- *  Result is captured via the deliverResult hook (preferred — `fresh: true`)
- *  or polled out of WorldPathfindingWorker.resultEdges as fallback. */
-export async function computeWorldPath(req: ComputeWorldPathRequest): Promise<ComputeWorldPathResult> {
-    const timeoutMs = Math.max(500, Math.min(30_000, req.timeoutMs ?? 5000));
-    const destMapId    = String(req.destMapId);
-    const srcMapId     = String(req.srcMapId);
-    const currentCellId = String(req.currentCellId ?? "0");
-    const invokedWith  = { destMapId, srcMapId, currentCellId };
+export async function triggerPathFindingDataLoad(req: TriggerLoadRequest): Promise<TriggerLoadResult> {
+    const initName = req.initMethodName ?? "bapg";
+    const timeoutMs = req.timeoutMs ?? 8000;
+    // dkdy is the only static on WorldPathfinder — its name maps 1:1 from the
+    // field dump. Hardcoded here; if a future build renames it, add a
+    // WorldPathfinder_pathFindingData entry to WORLD_PATHFINDING_PROTO.
+    const dkdyName = "dkdy";
 
-    // Step 1 (in VM): install hooks, fire the invoke, snapshot the capture
-    // sequence so we can tell our own publish apart from any stale one.
-    const setup: { ok: boolean; reason?: string; seqBefore: number } = await inVm(() => {
-        if (!installHooks(req.proto)) {
-            return { ok: false, reason: "could not install hooks (no live worker / manager)", seqBefore: _captureSeq };
-        }
-
-        const elj = getSingleton(req.proto.classes.AutoTravelManager);
+    const setup = await inVm(() => {
         const ell = getSingleton(req.proto.classes.WorldPathfinder);
-        if (!elj) return { ok: false, reason: `no live ${req.proto.classes.AutoTravelManager}`, seqBefore: _captureSeq };
-        if (!ell) return { ok: false, reason: `no live ${req.proto.classes.WorldPathfinder}`, seqBefore: _captureSeq };
+        if (!ell) return { ok: false, reason: `no live ${req.proto.classes.WorldPathfinder}`, alreadyLoaded: false, invokeThrew: false, invokeError: "" };
 
-        let ere: any;
-        try { ere = (elj as any).field(req.proto.fields.AutoTravelManager_pathfinderContext).value; }
-        catch (e) { return { ok: false, reason: `read pathfinderContext failed: ${String(e).slice(0, 120)}`, seqBefore: _captureSeq }; }
-        if (!ere || (ere.isNull && ere.isNull())) {
-            return { ok: false, reason: `pathfinderContext is NULL — not on a map yet?`, seqBefore: _captureSeq };
+        const klass: any = (ell as any).class;
+        const dkdyBefore = klass.field(dkdyName)?.value;
+        const alreadyLoaded = !!(dkdyBefore && !(dkdyBefore.isNull && dkdyBefore.isNull()));
+        if (alreadyLoaded) {
+            return { ok: true, alreadyLoaded: true, invokeThrew: false, invokeError: "" };
         }
 
-        // Bind computePath to the live instance — `ell.tryMethod(...)`, NOT
-        // `ell.class.tryMethod(...)` (the latter returns an unbound handle
-        // that Frida refuses to invoke on a non-static method).
-        const computePath = (ell as any).tryMethod(req.proto.methods.WorldPathfinder_computePath);
-        if (!computePath) return { ok: false, reason: `method ${req.proto.methods.WorldPathfinder_computePath} not found on WorldPathfinder`, seqBefore: _captureSeq };
+        const initMethod = (ell as any).tryMethod(initName);
+        if (!initMethod) {
+            return { ok: false, reason: `method ${initName} not found on WorldPathfinder`, alreadyLoaded: false, invokeThrew: false, invokeError: "" };
+        }
 
-        const seqBefore = _captureSeq;
-        // cb=NULL: the worker still publishes to resultEdges before trying to
-        // dispatch the callback. A NRE on the null dispatch is swallowed by
-        // the catch below; the path is already captured at that point.
+        let invokeThrew = false;
+        let invokeError = "";
         try {
-            computePath.invoke(
-                new Int64(destMapId),
-                new Int64(srcMapId),
-                new Int64(currentCellId),
-                ere,
-                NULL,
-                true,
-            );
+            // bapg() returns UniTask (struct). We don't care about the return
+            // value — only the side-effect (dkdy getting populated as the
+            // state-machine's MoveNext progresses across frames).
+            initMethod.invoke();
         } catch (e) {
-            diag(`computePath invoke threw (continuing to poll): ${String(e).slice(0, 120)}`);
+            invokeThrew = true;
+            invokeError = String(e).slice(0, 240);
         }
-        return { ok: true, seqBefore };
+        return { ok: true, alreadyLoaded: false, invokeThrew, invokeError };
     });
-    if (!setup.ok) return { ok: false, reason: setup.reason, invokedWith };
+    if (!setup.ok) return { ok: false, reason: setup.reason };
+    if (setup.alreadyLoaded) return { ok: true, alreadyLoaded: true, dkdyAfter: "<already populated>" };
 
-    // Step 2: poll for the result. The deliverResult hook bumps _captureSeq
-    // when it fires (preferred channel); the resultEdges field is the
-    // fallback, gated by `lastEdge.to.mapId === destMapId` to avoid returning
-    // a stale path from a previous run.
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 50));
-
-        const polled: { edges: PathEdge[]; fresh: boolean } = await inVm(() => {
-            if (_captureSeq > setup.seqBefore && _lastCapture && _lastCapture.length > 0) {
-                return { edges: _lastCapture.slice(), fresh: true };
-            }
+    // Poll dkdy until non-null OR timeout. The UniTask runs on Unity's main
+    // thread; we just see the field flip when Addressables finishes.
+    const start = Date.now();
+    let dkdyValue = "<unset>";
+    let dkdyPopulated = false;
+    while (Date.now() - start < timeoutMs) {
+        await new Promise((r) => setTimeout(r, 100));
+        const polled = await inVm(() => {
             const ell = getSingleton(req.proto.classes.WorldPathfinder);
-            if (!ell) return { edges: [], fresh: false };
+            if (!ell) return { populated: false, value: "<no ell>" };
             try {
-                const worker = (ell as any).field(req.proto.fields.WorldPathfinder_worker).value;
-                if (!worker || worker.isNull()) return { edges: [], fresh: false };
-                const edges = readEdgeList(worker.field(req.proto.fields.WorldPathfindingWorker_resultEdges).value);
-                if (edges.length === 0) return { edges: [], fresh: false };
-                if (edges[edges.length - 1].to.mapId !== destMapId) return { edges: [], fresh: false };
-                return { edges, fresh: false };
-            } catch { return { edges: [], fresh: false }; }
+                const v = (ell as any).class.field(dkdyName).value;
+                if (v && !(v.isNull && v.isNull())) return { populated: true, value: String(v).slice(0, 80) };
+                return { populated: false, value: "null" };
+            } catch (e) {
+                return { populated: false, value: `<read fail: ${String(e).slice(0, 80)}>` };
+            }
         });
-        if (polled.edges.length > 0) {
-            return { ok: true, edges: polled.edges, fresh: polled.fresh, invokedWith };
+        if (polled.populated) {
+            dkdyValue = polled.value;
+            dkdyPopulated = true;
+            break;
         }
     }
 
+    if (!dkdyPopulated) {
+        return {
+            ok: false,
+            reason: `timed out after ${timeoutMs}ms (dkdy still null after invoking ${initName})`,
+            invokeThrew: setup.invokeThrew,
+            invokeError: setup.invokeError,
+        };
+    }
+
+    // Register the loaded data with fpc via its two static setters. They
+    // populate `fpc.dplc` (same PathFindingData) — strictly unnecessary for
+    // our extraction, but keeps fpc's state consistent with what the game
+    // sets up on a manual auto-travel.
+    await inVm(() => {
+        const ell = getSingleton(req.proto.classes.WorldPathfinder);
+        const fpcSingleton = getSingleton(req.proto.classes.WorldPathfindingWorker);
+        if (!ell || !fpcSingleton) return;
+        const data = (ell as any).class.field(dkdyName).value;
+        if (!data || (data.isNull && data.isNull())) return;
+        const fpcClass = (fpcSingleton as any).class;
+        for (const setterName of ["bgul", "gmj"]) {
+            try {
+                const m = (fpcClass as any).tryMethod(setterName);
+                if (m) m.invoke(data);
+            } catch { /* one of the two is enough */ }
+        }
+    });
+
     return {
-        ok: false,
-        reason: `timed out after ${timeoutMs}ms (no path published ending at destMapId=${destMapId})`,
-        invokedWith,
+        ok: true,
+        alreadyLoaded: false,
+        invokeThrew: setup.invokeThrew,
+        invokeError: setup.invokeError,
+        elapsedMs: Date.now() - start,
+        dkdyAfter: dkdyValue,
     };
 }
 
-/** Install hooks at attach time so deliverResult catches in-game auto-travels
- *  even before the first active invoke. Idempotent. */
-export function initWorldPathfindingHooks(proto: WorldPathfindingProto): Promise<{ ok: boolean }> {
-    return inVm(() => ({ ok: installHooks(proto) }));
+/** Install observation hooks AND kick off the PathFindingData load if `dkdy`
+ *  is still null. Idempotent. Called by the state page on mount so the cold-
+ *  attach state ends up ready for `/extract-graph` without manual prep. */
+export interface InitHooksResult {
+    ok: boolean;
+    hooksInstalled: boolean;
+    pathFindingDataLoad: TriggerLoadResult;
+}
+export async function initWorldPathfindingHooks(proto: WorldPathfindingProto): Promise<InitHooksResult> {
+    const hooksInstalled = await inVm(() => installHooks(proto));
+    const load = await triggerPathFindingDataLoad({ proto, timeoutMs: 8000 });
+    // `ok` mirrors hook-install success only: load failures still let the
+    // frontend show an "initialized" state (the user can fall back to an
+    // in-game auto-travel to populate dkdy from the natural flow).
+    return {
+        ok: hooksInstalled,
+        hooksInstalled,
+        pathFindingDataLoad: load,
+    };
+}
+
+// -----------------------------------------------------------------------------
+// World graph extraction. Walks the 3 Dictionaries inside the loaded
+// PathFindingData (`ell.dkdy`) and serializes them to plain JSON which the JS
+// A* (app/plugins/dofus/lib/world-path-js.ts) consumes:
+//   m_vertices       : Dictionary<long mapId, Dictionary<int zoneId, Vertex>>
+//   m_edges          : Dictionary<long fromUid, Dictionary<long toUid, Transition>>
+//                      (NOT walked — we get transitions via m_outgoingEdges)
+//   m_outgoingEdges  : Dictionary<long fromUid, EdgeListWrapper { m_edgeList: List<Edge> }>
+//                      Edge { m_from, m_to, m_transitions: List<Transition> }
+// All field names are Unity SerializeFields — never obfuscated.
+// -----------------------------------------------------------------------------
+
+interface ExtractedVertex { mapId: string; zoneId: number; uid: string }
+interface ExtractedTransition {
+    cellId: number; direction: number | null; skillId: number;
+    transitionMapId: string; type: number; criterion: string | null; id: string;
+}
+interface ExtractedEdge {
+    fromUid: string; toUid: string;
+    transitions: ExtractedTransition[];
+}
+export interface ExtractedWorldGraph {
+    ok: boolean;
+    reason?: string;
+    vertices?: Record<string, ExtractedVertex>;
+    outgoing?: Record<string, ExtractedEdge[]>;
+    verticesByMap?: Record<string, Record<string, string>>;
+    counts?: { vertices: number; edges: number; transitions: number };
+    elapsedMs?: number;
+}
+
+/** Walk a `System.Collections.Generic.Dictionary<K, V>` by iterating its
+ *  `_entries` backing array. Calls `visit(key, value)` for every live entry
+ *  (hashCode >= 0). Works for `SerializableDictionary<K, V>` too — it inherits
+ *  Dictionary's storage layout. */
+function walkDict(dict: any, visit: (k: any, v: any) => void): void {
+    if (!dict || (dict.isNull && dict.isNull())) return;
+    try {
+        const count = Number(dict.field("_count").value);
+        const entries = dict.field("_entries").value;
+        if (!entries || (entries.isNull && entries.isNull())) return;
+        const arr: any = entries;
+        for (let i = 0; i < count; i++) {
+            const e = arr.get(i);
+            if (!e) continue;
+            try {
+                const hash = Number(e.field("hashCode").value);
+                if (hash < 0) continue;
+                const key = e.field("key").value;
+                const value = e.field("value").value;
+                visit(key, value);
+            } catch { /* skip bad entry */ }
+        }
+    } catch { /* */ }
+}
+
+export function extractWorldGraph(req: { proto: WorldPathfindingProto }): Promise<ExtractedWorldGraph> {
+    return inVm(() => {
+        const startTs = Date.now();
+        const ell = getSingleton(req.proto.classes.WorldPathfinder);
+        if (!ell) return { ok: false, reason: `no live ${req.proto.classes.WorldPathfinder}` };
+        const dkdy = (ell as any).class.field("dkdy").value;
+        if (!dkdy || (dkdy.isNull && dkdy.isNull())) {
+            return { ok: false, reason: "dkdy null — call /init or /trigger-load first" };
+        }
+
+        const vertices: Record<string, ExtractedVertex> = {};
+        const outgoing: Record<string, ExtractedEdge[]> = {};
+        const verticesByMap: Record<string, Record<string, string>> = {};
+
+        // Pass 1: m_vertices — Dictionary<long, Dictionary<int, Vertex>>
+        const mVertices = (dkdy as any).field("m_vertices").value;
+        walkDict(mVertices, (_mapIdKey: any, innerDict: any) => {
+            walkDict(innerDict, (_zoneIdKey: any, vert: any) => {
+                if (!vert) return;
+                try {
+                    const v: ExtractedVertex = {
+                        mapId: String(vert.field("m_mapId").value),
+                        zoneId: Number(vert.field("m_zoneId").value),
+                        uid: String(vert.field("m_uid").value),
+                    };
+                    vertices[v.uid] = v;
+                    if (!verticesByMap[v.mapId]) verticesByMap[v.mapId] = {};
+                    verticesByMap[v.mapId][String(v.zoneId)] = v.uid;
+                } catch { /* skip */ }
+            });
+        });
+
+        // Pass 2: m_outgoingEdges — Dictionary<long, EdgeListWrapper>
+        let totalEdges = 0;
+        let totalTrans = 0;
+        const mOutgoing = (dkdy as any).field("m_outgoingEdges").value;
+        walkDict(mOutgoing, (fromUidKey: any, wrapper: any) => {
+            if (!wrapper) return;
+            const fromUid = String(fromUidKey);
+            const edgesList = (() => {
+                try { return wrapper.field("m_edgeList").value; }
+                catch { return null; }
+            })();
+            if (!edgesList || (edgesList.isNull && edgesList.isNull())) return;
+            const list: ExtractedEdge[] = [];
+            try {
+                const size = Number(edgesList.field("_size").value);
+                const items = edgesList.field("_items").value;
+                for (let i = 0; i < size; i++) {
+                    const edge = items.get(i);
+                    if (!edge) continue;
+                    try {
+                        const toVert = edge.field("m_to").value;
+                        const toUid = String(toVert.field("m_uid").value);
+                        const trList = edge.field("m_transitions").value;
+                        const trans: ExtractedTransition[] = [];
+                        if (trList && !(trList.isNull && trList.isNull())) {
+                            const tsize = Number(trList.field("_size").value);
+                            const titems = trList.field("_items").value;
+                            for (let j = 0; j < tsize; j++) {
+                                const t = titems.get(j);
+                                if (!t) continue;
+                                try {
+                                    trans.push({
+                                        cellId: Number(t.field("m_cellId").value),
+                                        direction: (() => {
+                                            try {
+                                                const v = t.field("m_direction").value;
+                                                if (v == null) return null;
+                                                const n = Number(v);
+                                                return Number.isFinite(n) ? n : null;
+                                            } catch { return null; }
+                                        })(),
+                                        skillId: Number(t.field("m_skillId").value),
+                                        transitionMapId: String(t.field("m_transitionMapId").value),
+                                        type: Number(t.field("m_type").value),
+                                        criterion: (() => { try { const v = t.field("m_criterion").value; return v == null ? null : String(v); } catch { return null; } })(),
+                                        id: String(t.field("m_id").value),
+                                    });
+                                    totalTrans++;
+                                } catch { /* skip */ }
+                            }
+                        }
+                        list.push({ fromUid, toUid, transitions: trans });
+                        totalEdges++;
+                    } catch { /* skip bad edge */ }
+                }
+            } catch { /* */ }
+            if (list.length > 0) outgoing[fromUid] = list;
+        });
+
+        return {
+            ok: true,
+            vertices,
+            outgoing,
+            verticesByMap,
+            counts: {
+                vertices: Object.keys(vertices).length,
+                edges: totalEdges,
+                transitions: totalTrans,
+            },
+            elapsedMs: Date.now() - startTs,
+        };
+    });
 }
