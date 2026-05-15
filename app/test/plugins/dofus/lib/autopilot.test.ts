@@ -94,3 +94,73 @@ describe("pickWalkable", () => {
         expect(pickWalkable([])).toBeNull();
     });
 });
+
+describe("TravelOrchestrator.start — guards + planning", () => {
+    it("returns done when already on destMapId (totalEdges=0, alreadyOnMap)", async () => {
+        const map = new FakeMap(); map.set(42);
+        const deps = makeDeps({ map, computeWorldPath: () => ({ ok: true, edges: [], iterations: 0, elapsedMs: 0 }) });
+        const orch = new TravelOrchestrator(deps);
+        const r = await orch.start(42);
+        expect(r.ok).toBe(true);
+        expect(r.alreadyOnMap).toBe(true);
+        expect(r.totalEdges).toBe(0);
+        expect(orch.getStatus().state).toBe("done");
+    });
+
+    it("rejects when not attached (no currentMapId)", async () => {
+        const map = new FakeMap(); map.set(null);
+        const deps = makeDeps({ map });
+        const orch = new TravelOrchestrator(deps);
+        const r = await orch.start(42);
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("no current mapId");
+        expect(orch.getStatus().state).toBe("idle"); // pre-validation: never moves out of idle
+    });
+
+    it("rejects when no currentCell", async () => {
+        const player = new FakePlayer(); player.set(null, false);
+        const deps = makeDeps({ player });
+        const orch = new TravelOrchestrator(deps);
+        const r = await orch.start(42);
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("no current cell");
+        expect(orch.getStatus().state).toBe("idle");
+    });
+
+    it("transitions to failed when computeWorldPath returns ok:false (no path)", async () => {
+        const map = new FakeMap(); map.set(1);
+        const deps = makeDeps({ map, computeWorldPath: () => ({ ok: false, reason: "no path to 42" }) });
+        const orch = new TravelOrchestrator(deps);
+        const r = await orch.start(42);
+        expect(r.ok).toBe(false);
+        expect(r.reason).toContain("no path to 42");
+        const s = orch.getStatus();
+        expect(s.state).toBe("failed");
+        expect(s.lastError).toContain("no path to 42");
+        expect(s.destMapId).toBe(42);
+        expect(s.startedAt).not.toBeNull();
+        expect(s.finishedAt).not.toBeNull();
+    });
+
+    // re-enabled in Task 5 once the edge loop actually keeps state in 'running'
+    it.skip("rejects a second start while one is running", async () => {
+        // Force the orchestrator to hang in waitForArrival by never firing onPlayerChange.
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const deps = makeDeps({
+            map, movement: movement as any,
+            computeWorldPath: () => ({ ok: true, edges: [walkableEdge("2", 200)], iterations: 0, elapsedMs: 0 }),
+        });
+        const orch = new TravelOrchestrator(deps);
+        const first = orch.start(2);
+        // Yield so the orchestrator reaches `running` state.
+        await new Promise<void>(r => setImmediate(r));
+        expect(orch.getStatus().state).toBe("running");
+        const second = await orch.start(3);
+        expect(second.ok).toBe(false);
+        expect(second.reason).toContain("already running");
+        // Cancel to allow `first` to settle without timing out the test runner.
+        orch.cancel();
+        await first;
+    });
+});
