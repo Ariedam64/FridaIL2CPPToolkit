@@ -293,3 +293,58 @@ describe("TravelOrchestrator.start — edge loop", () => {
         }
     });
 });
+
+describe("TravelOrchestrator.cancel + dispose", () => {
+    async function flush(): Promise<void> {
+        for (let i = 0; i < 50; i++) await Promise.resolve();
+    }
+
+    it("cancels during waitForArrival → state=cancelled, changeMap not called", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const changeMap = { changeMap: vi.fn(async () => ({ ok: true, mapId: 2, mode: "clean" as const })) };
+        const deps = makeDeps({
+            player, map, movement: movement as any, changeMap: changeMap as any,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const startP = orch.start(2);
+        await flush();
+        expect(orch.getStatus().state).toBe("running");
+        expect(movement.moveTo).toHaveBeenCalledOnce();
+
+        const c = orch.cancel();
+        expect(c.wasRunning).toBe(true);
+        await startP;
+
+        expect(orch.getStatus().state).toBe("cancelled");
+        expect(changeMap.changeMap).not.toHaveBeenCalled();
+    });
+
+    it("cancel on an idle orchestrator returns wasRunning=false", () => {
+        const orch = new TravelOrchestrator(makeDeps());
+        const c = orch.cancel();
+        expect(c.wasRunning).toBe(false);
+        expect(orch.getStatus().state).toBe("idle");
+    });
+
+    it("dispose cancels any in-flight travel and leaves status as cancelled", async () => {
+        const player = new FakePlayer(); player.set(100, false);
+        const map = new FakeMap(); map.set(1);
+        const movement = { moveTo: vi.fn(async () => ({ ok: true, fromCell: 100, toCell: 200, mapId: 1 })) };
+        const deps = makeDeps({
+            player, map, movement: movement as any,
+            computeWorldPath: () => ({ ok: true, iterations: 0, elapsedMs: 0, edges: [walkableEdge("2", 200)] }),
+        });
+        const orch = new TravelOrchestrator(deps);
+
+        const startP = orch.start(2);
+        await flush();
+        orch.dispose();
+        await startP;
+
+        expect(orch.getStatus().state).toBe("cancelled");
+    });
+});

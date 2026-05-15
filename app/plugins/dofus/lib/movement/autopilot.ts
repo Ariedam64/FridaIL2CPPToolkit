@@ -220,6 +220,9 @@ export class TravelOrchestrator {
     }
 
     dispose(): void {
-        // Filled in Task 6.
+        // Re-uses cancel() so any pending await rejects promptly. We don't
+        // null out deps — the orchestrator becomes single-use after dispose
+        // and the route layer drops its reference on profile-detached.
+        this.cancel();
     }
 }
