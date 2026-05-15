@@ -144,161 +144,6 @@ interface DeepMessageDump {
 const armedDumps = new Set<string>();
 const capturedDumps = new Map<string, DeepMessageDump>();
 
-// Per-iso snapshot of each actor's monster-group composition. Extracted inline
-// at iso arrival because the protobuf message object is transient (freed after
-// the receive hook completes). Key = Int64 actorId as string.
-interface GroupInfo {
-    actorId: string;
-    ermu: number;
-    ermw: number;
-    ermz: number[];
-    ernc: number[];
-    ernf: number[];
-    erni: Array<{ enuq: string; enus: number; inner: { ermu: number; ermw: number; ermz: number[]; ernc: number[]; ernf: number[] } | null }>;
-    sum_ermz: number;
-    sum_ernc: number;
-    sum_ernf: number;
-    // Additional probes into the two other payloads in khe.
-    kcpTag2: { bonesLike: number; boolFlag: boolean; longVal: string; str: string; intA: number; ri32: number[]; intB: number } | null;
-    kghEpiuClass: string;
-    kghEpiuSummary: string;
-}
-const capturedGroups = new Map<string, GroupInfo>();
-
-function readRepeatedInt32(rep: any): number[] {
-    const out: number[] = [];
-    if (!rep) return out;
-    try {
-        const n = Number(rep.method("get_Count").invoke());
-        for (let i = 0; i < n; i++) {
-            try { out.push(Number(rep.method("get_Item").invoke(i))); } catch {}
-        }
-    } catch {}
-    return out;
-}
-
-function captureIsoGroupData(cls: string, iso: any): void {
-    if (cls !== "iso") return;
-    if (!iso || !iso.class) return;
-    // Walk iso.eflv (RepeatedField<khe>), extracting each actor's knl (group info).
-    try {
-        const eflv = iso.field("eflv").value as any;
-        if (!eflv) return;
-        const n = Number(eflv.method("get_Count").invoke());
-        capturedGroups.clear();
-        for (let i = 0; i < n; i++) {
-            try {
-                const khe = eflv.method("get_Item").invoke(i) as any;
-                if (!khe) continue;
-                const actorId = String(khe.field("eppb").value);
-                const eppf = khe.field("eppf").value as any;
-                // Also probe kcp.tag2 (the inner message) and kgh.epiu (polymorphic Object).
-                const eppd = khe.field("eppd").value as any; // kcp
-                let kcpTag2: GroupInfo["kcpTag2"] = null;
-                try {
-                    // kcp has fields eoki (tag1), then the m{} inner at tag2. Field names are
-                    // obfuscated — iterate kcp fields to find the first `m{...}` non-null.
-                    if (eppd && eppd.class) {
-                        for (const f of eppd.class.fields) {
-                            if (f.isStatic) continue;
-                            const t = f.type.name;
-                            if (t === "Google.Protobuf.UnknownFieldSet") continue;
-                            // Heuristic: pick the first nested message-type field (not a scalar/enum/int).
-                            const v = eppd.field(f.name).value as any;
-                            if (!v || typeof v !== "object") continue;
-                            if (!v.class) continue;
-                            if (v.class.name === "UnknownFieldSet") continue;
-                            // Scalars wrapped by Il2Cpp.Field won't have `class`; messages will.
-                            // Walk inner fields to extract the 7-field pattern.
-                            const innerFields = v.class.fields.filter((ff: any) => !ff.isStatic && ff.type.name !== "Google.Protobuf.UnknownFieldSet");
-                            if (innerFields.length < 3) continue;
-                            kcpTag2 = { bonesLike: 0, boolFlag: false, longVal: "0", str: "", intA: 0, ri32: [], intB: 0 };
-                            for (const inf of innerFields) {
-                                try {
-                                    const iv = v.field(inf.name).value;
-                                    const tn = inf.type.name;
-                                    if (tn === "System.Int32" && kcpTag2.bonesLike === 0) kcpTag2.bonesLike = Number(iv);
-                                    else if (tn === "System.Boolean" && !kcpTag2.boolFlag) kcpTag2.boolFlag = Boolean(iv);
-                                    else if (tn === "System.Int64" && kcpTag2.longVal === "0") kcpTag2.longVal = String(iv);
-                                    else if (tn === "System.String" && !kcpTag2.str) kcpTag2.str = String(iv).replace(/^"|"$/g, "").slice(0, 60);
-                                    else if (tn.startsWith("Google.Protobuf.Collections.RepeatedField")) kcpTag2.ri32 = readRepeatedInt32(iv);
-                                    else if (tn === "System.Int32" && kcpTag2.intA === 0) kcpTag2.intA = Number(iv);
-                                    else if (tn === "System.Int32") kcpTag2.intB = Number(iv);
-                                } catch {}
-                            }
-                            break;
-                        }
-                    }
-                } catch {}
-
-                let kghEpiuClass = "", kghEpiuSummary = "";
-                try {
-                    const epow = eppf.field("epow")?.value as any; // kgh
-                    if (epow && epow.class) {
-                        const epiu = epow.field("epiu").value as any;
-                        if (epiu && epiu.class) {
-                            kghEpiuClass = String(epiu.class.name);
-                            // Try to stringify first few scalar fields of epiu for context.
-                            try {
-                                const summary = summarize(epiu, 2).slice(0, 300);
-                                kghEpiuSummary = summary;
-                            } catch {}
-                        }
-                    }
-                } catch {}
-                if (!eppf) { capturedGroups.set(actorId, { actorId, ermu: 0, ermw: 0, ermz: [], ernc: [], ernf: [], erni: [], sum_ermz: 0, sum_ernc: 0, sum_ernf: 0, kcpTag2: null, kghEpiuClass: "", kghEpiuSummary: "" }); continue; }
-                const knl = eppf.field("epop").value as any;
-                const empty: GroupInfo = { actorId, ermu: 0, ermw: 0, ermz: [], ernc: [], ernf: [], erni: [], sum_ermz: 0, sum_ernc: 0, sum_ernf: 0, kcpTag2, kghEpiuClass, kghEpiuSummary };
-                if (!knl) { capturedGroups.set(actorId, empty); continue; }
-                const ermu = Number(knl.field("ermu").value ?? 0);
-                const ermw = Number(knl.field("ermw").value ?? 0);
-                const ermz = readRepeatedInt32(knl.field("ermz").value);
-                const ernc = readRepeatedInt32(knl.field("ernc").value);
-                const ernf = readRepeatedInt32(knl.field("ernf").value);
-                const erni: GroupInfo["erni"] = [];
-                try {
-                    const katList = knl.field("erni").value as any;
-                    if (katList) {
-                        const kn = Number(katList.method("get_Count").invoke());
-                        for (let j = 0; j < kn; j++) {
-                            try {
-                                const kat = katList.method("get_Item").invoke(j) as any;
-                                let enuq = "", enus = 0;
-                                try { enuq = String(kat.field("enuq").value).replace(/^"|"$/g, ""); } catch {}
-                                try { enus = Number(kat.field("enus").value); } catch {}
-                                let inner: any = null;
-                                try {
-                                    const kknl = kat.field("enuu").value as any;
-                                    if (kknl) inner = {
-                                        ermu: Number(kknl.field("ermu").value ?? 0),
-                                        ermw: Number(kknl.field("ermw").value ?? 0),
-                                        ermz: readRepeatedInt32(kknl.field("ermz").value),
-                                        ernc: readRepeatedInt32(kknl.field("ernc").value),
-                                        ernf: readRepeatedInt32(kknl.field("ernf").value),
-                                    };
-                                } catch {}
-                                erni.push({ enuq, enus, inner });
-                            } catch {}
-                        }
-                    }
-                } catch {}
-                capturedGroups.set(actorId, {
-                    actorId, ermu, ermw, ermz, ernc, ernf, erni,
-                    sum_ermz: ermz.reduce((a, b) => a + b, 0),
-                    sum_ernc: ernc.reduce((a, b) => a + b, 0),
-                    sum_ernf: ernf.reduce((a, b) => a + b, 0),
-                    kcpTag2, kghEpiuClass, kghEpiuSummary,
-                });
-            } catch {}
-        }
-        console.log(`[net] captured iso group data for ${capturedGroups.size} actors`);
-    } catch {}
-}
-
-/** Return the per-actor group composition extracted from the last iso. */
-export function getCapturedIsoGroups(): Promise<GroupInfo[]> {
-    return inVm(() => [...capturedGroups.values()]);
-}
 
 // -----------------------------------------------------------------------------
 // Full recursive dump — snapshot an entire protobuf message tree so we can
@@ -424,111 +269,6 @@ export function getLastFullDump(): Promise<{ cls: string; ts: number; tree: Walk
     });
 }
 
-// Per-map cache of fully-resolved monster groups. Populated at iso arrival
-// by walking khe → eppf.epow.epiu (kgb) → epgt.eovd/eovl and resolving each
-// klb's monster name via MonstersDataRoot. Lives across panel refreshes —
-// cleared on the next map's iso so it only holds the current map state.
-interface MonsterEntry {
-    level: number;
-    monsterId: number;
-    monsterName: string;
-    grade: number;
-}
-interface MonsterGroupInfo {
-    actorId: string;
-    cellId: number;
-    leader: MonsterEntry | null;
-    underlings: MonsterEntry[];
-    totalLevel: number;
-    totalCount: number;
-    alignmentSide: number;
-}
-const monsterGroupsByActor = new Map<string, MonsterGroupInfo>();
-
-// Cached MonstersDataRoot instance + getter method — lazy-initialized.
-let _mdRoot: Il2Cpp.Object | null = null;
-let _mdGet: Il2Cpp.Method<any> | null = null;
-function getMonsterName(id: number): string {
-    if (!_mdRoot) {
-        try {
-            const klass = findClass("MonstersDataRoot");
-            if (klass) {
-                _mdRoot = getSingleton(klass);
-                _mdGet = klass.methods.find(m => m.name === "GetMonsterById" && m.parameters.length === 1) ?? null;
-            }
-        } catch {}
-    }
-    if (!_mdRoot || !_mdGet) return "";
-    try {
-        const md = (_mdRoot as any).method("GetMonsterById").invoke(id) as any;
-        if (!md) return "";
-        const name = md.field("m_name").value;
-        return name ? String(name).replace(/^"|"$/g, "") : "";
-    } catch { return ""; }
-}
-
-function readKlb(klb: any): MonsterEntry | null {
-    if (!klb) return null;
-    try {
-        const level = Number(klb.field("equu").value);
-        const monsterId = Number(klb.field("equw").value);
-        const grade = Number(klb.field("eqva").value);
-        const monsterName = getMonsterName(monsterId);
-        return { level, monsterId, monsterName, grade };
-    } catch { return null; }
-}
-
-function captureMonsterGroupsFromIso(iso: any): void {
-    if (!iso || !iso.class) return;
-    try {
-        const eflv = iso.field("eflv").value as any;
-        if (!eflv) return;
-        const n = Number(eflv.method("get_Count").invoke());
-        monsterGroupsByActor.clear();
-        for (let i = 0; i < n; i++) {
-            try {
-                const khe = eflv.method("get_Item").invoke(i) as any;
-                if (!khe) continue;
-                const actorId = String(khe.field("eppb").value);
-                const eppd = khe.field("eppd").value as any;
-                const cellId = eppd ? Number(eppd.field("eoks").value) : -1;
-
-                const eppf = khe.field("eppf").value as any;
-                if (!eppf) continue;
-                const epow = eppf.field("epow").value as any;
-                if (!epow) continue;
-                const epiu = epow.field("epiu").value as any;
-                if (!epiu || !epiu.class) continue;
-                if (epiu.class.name !== "kgb") continue;   // only monster groups
-
-                const epgt = epiu.field("epgt").value as any;
-                if (!epgt) continue;
-                const leader = readKlb(epgt.field("eovd").value);
-                const underlings: MonsterEntry[] = [];
-                try {
-                    const list = epgt.field("eovl").value as any;
-                    const un = Number(list.method("get_Count").invoke());
-                    for (let j = 0; j < un; j++) {
-                        const u = readKlb(list.method("get_Item").invoke(j));
-                        if (u) underlings.push(u);
-                    }
-                } catch {}
-                let alignmentSide = 0;
-                try { alignmentSide = Number(epiu.field("epgx").value); } catch {}
-                const totalLevel = (leader?.level ?? 0) + underlings.reduce((s, u) => s + u.level, 0);
-                const totalCount = (leader ? 1 : 0) + underlings.length;
-                monsterGroupsByActor.set(actorId, { actorId, cellId, leader, underlings, totalLevel, totalCount, alignmentSide });
-            } catch {}
-        }
-        console.log(`[net] cached ${monsterGroupsByActor.size} monster groups from iso`);
-    } catch {}
-}
-
-/** Return the monster-group compositions cached from the last iso, for every
- *  actorId on the current map. */
-export function getMonsterGroupsOnMap(): Promise<MonsterGroupInfo[]> {
-    return inVm(() => [...monsterGroupsByActor.values()]);
-}
 
 function maybeFullCapture(cls: string, msg: any): void {
     if (fullCaptureTarget !== cls) return;
@@ -717,12 +457,8 @@ function installSocketHook(
             if (msg) {
                 const info = extractMessageInfo(msg);
                 send({ type: "socket", direction, ...info, ts: Date.now() });
-                // Always cache monster groups from iso so the map panel gets fresh data
-                // without requiring any arming.
-                if (info.cls === "iso") { try { captureMonsterGroupsFromIso(msg); } catch {} }
                 if (armedDumps.has(info.cls) && !capturedDumps.has(info.cls)) {
                     try { capturedDumps.set(info.cls, deepDumpMessage(msg)); } catch {}
-                    try { captureIsoGroupData(info.cls, msg); } catch {}
                     try { maybeFullCapture(info.cls, msg); } catch {}
                 }
             }
@@ -802,11 +538,8 @@ function installSocketOutputHook(
                         send({ type: "socket", direction: "in", ...info, ts: Date.now() });
                         if (armedDumps.has(info.cls) && !capturedDumps.has(info.cls)) {
                             try { capturedDumps.set(info.cls, deepDumpMessage(elem)); } catch {}
-                            try { captureIsoGroupData(info.cls, elem); } catch {}
                             try { maybeFullCapture(info.cls, elem); } catch {}
                         }
-                        // Always cache monster groups from iso (irrespective of armed state).
-                        if (info.cls === "iso") { try { captureMonsterGroupsFromIso(elem); } catch {} }
                     } catch {}
                 }
             }
