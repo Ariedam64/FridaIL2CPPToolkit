@@ -12,8 +12,9 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const GRAPH_FILE = path.resolve(_MODULE_DIR, "..", "data", "world-graph.json");
-const MAPS_INFO_FILE = path.resolve(_MODULE_DIR, "..", "data", "maps-information.json");
+// _MODULE_DIR is .../app/plugins/dofus/lib/movement/ — data/ lives two levels up.
+const GRAPH_FILE = path.resolve(_MODULE_DIR, "..", "..", "data", "world-graph.json");
+const MAPS_INFO_FILE = path.resolve(_MODULE_DIR, "..", "..", "data", "maps-information.json");
 
 export interface Vertex { mapId: string; zoneId: number; uid: string }
 export interface Transition {
