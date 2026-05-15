@@ -23,10 +23,23 @@ export interface MoveResult {
     keyMovements?: number[];
     /** Decoded keyMovements for human consumption. */
     pivots?: { cellId: number; direction: number }[];
+    /** Diagnostic timings, populated for moveTo/stopMoving. */
+    timings?: {
+        /** Host → agent RPC roundtrip (= total wall-clock seen by the autopilot). */
+        rpcTotalMs: number;
+        /** Inside the agent perform: build the IL2CPP message. */
+        agentBuildMs?: number;
+        /** Inside the agent perform: dispatcher.send call. */
+        agentSendMs?: number;
+        /** Inside the agent perform: total time in Il2Cpp.perform. */
+        agentTotalMs?: number;
+    };
     reason?: string;
 }
 
-interface SendResult { ok: boolean; reason?: string }
+interface AgentTimings { buildMs: number; sendMs: number; totalMs: number }
+
+interface SendResult { ok: boolean; reason?: string; timings?: AgentTimings }
 
 export class MovementActions {
     constructor(
@@ -59,7 +72,11 @@ export class MovementActions {
      *  when the client's local walker stalls. Server replies with `ish`,
      *  which flips PlayerStore.isMoving=false and unblocks waitForArrival. */
     async stopMoving(): Promise<SendResult> {
-        return this.rpc.call<SendResult>("sendMoveStop", [this.proto()]);
+        const tStart = Date.now();
+        const r = await this.rpc.call<SendResult>("sendMoveStop", [this.proto()]);
+        const rpcTotalMs = Date.now() - tStart;
+        console.log(`[movement] stopMoving rpc=${rpcTotalMs}ms agent_build=${r.timings?.buildMs ?? "?"}ms agent_send=${r.timings?.sendMs ?? "?"}ms agent_total=${r.timings?.totalMs ?? "?"}ms`);
+        return r;
     }
 
     /** Compute the path + send the isa frame. */
@@ -70,12 +87,21 @@ export class MovementActions {
         if (!result.ok) return { ok: false, fromCell, toCell, mapId: ctx.mapId, reason: result.reason };
 
         const proto = this.proto();
+        const tStart = Date.now();
         const send = await this.rpc.call<SendResult>("sendMapMoveRequest", [proto, result.keyMovements, ctx.mapId]);
+        const rpcTotalMs = Date.now() - tStart;
+        console.log(`[movement] moveTo isa rpc=${rpcTotalMs}ms agent_build=${send.timings?.buildMs ?? "?"}ms agent_send=${send.timings?.sendMs ?? "?"}ms agent_total=${send.timings?.totalMs ?? "?"}ms (km=${result.keyMovements.length})`);
         return {
             ok: send.ok, fromCell, toCell, mapId: ctx.mapId,
             path: result.path,
             keyMovements: result.keyMovements,
             pivots: result.keyMovements.map(decodeKeyMovement),
+            timings: {
+                rpcTotalMs,
+                agentBuildMs: send.timings?.buildMs,
+                agentSendMs:  send.timings?.sendMs,
+                agentTotalMs: send.timings?.totalMs,
+            },
             reason: send.reason,
         };
     }

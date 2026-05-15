@@ -32,7 +32,19 @@ export interface ChangeMapProto {
     };
 }
 
-export interface ChangeMapSendResult { ok: boolean; reason?: string }
+export interface ChangeMapSendResult {
+    ok: boolean;
+    reason?: string;
+    /** Diagnostic timings (ms). All start from perform-block entry. */
+    timings?: {
+        /** perform entry → message fully built (just before dispatcher.send) */
+        buildMs: number;
+        /** built → dispatcher.send returned */
+        sendMs: number;
+        /** perform entry → exit */
+        totalMs: number;
+    };
+}
 
 // =============================================================================
 // Intercept hook state.
@@ -99,6 +111,7 @@ function buildAndSend(
     classKey: keyof ChangeMapProto["classes"],
     populate: (req: any) => void,
 ): ChangeMapSendResult {
+    const tEnter = Date.now();
     const reqK = findClass(proto.classes[classKey]);
     if (!reqK) return { ok: false, reason: `${proto.classes[classKey]} class not found` };
     const dispatcher = getLiveInstance(proto.classes.Dispatcher);
@@ -112,6 +125,7 @@ function buildAndSend(
     } catch (e) {
         return { ok: false, reason: `${proto.classes[classKey]} build failed: ${String(e).slice(0, 200)}` };
     }
+    const tBuilt = Date.now();
     manualSendDepth++;
     try {
         (dispatcher as any).method(proto.methods.Dispatcher_send).invoke(req);
@@ -120,7 +134,11 @@ function buildAndSend(
     } finally {
         manualSendDepth--;
     }
-    return { ok: true };
+    const tSent = Date.now();
+    return {
+        ok: true,
+        timings: { buildMs: tBuilt - tEnter, sendMs: tSent - tBuilt, totalMs: tSent - tEnter },
+    };
 }
 
 /** Forge a moveToNewMap (ito) packet and dispatch it. */

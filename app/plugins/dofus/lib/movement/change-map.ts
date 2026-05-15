@@ -36,7 +36,11 @@ export interface ChangeMapResult {
     reason?: string;
 }
 
-interface SendResult { ok: boolean; reason?: string }
+interface SendResult {
+    ok: boolean;
+    reason?: string;
+    timings?: { buildMs: number; sendMs: number; totalMs: number };
+}
 
 const DEFAULT_COMPLETE_TIMEOUT_MS = 15_000;
 /** Fast mode: how long after kta we keep the intercept armed, so the game's
@@ -85,8 +89,11 @@ export class ChangeMapActions {
             sinceId,
         );
 
+        const tRpcStart = Date.now();
         const sentIto = await this.rpc.call<SendResult>("sendMoveToNewMap", [proto, mapId]);
+        const rpcTotalMs = Date.now() - tRpcStart;
         timeline.sentAt = Date.now();
+        console.log(`[change-map] ito rpc=${rpcTotalMs}ms agent_build=${sentIto.timings?.buildMs ?? "?"}ms agent_send=${sentIto.timings?.sendMs ?? "?"}ms agent_total=${sentIto.timings?.totalMs ?? "?"}ms`);
         if (!sentIto.ok) return { ok: false, mapId, mode: "clean", timeline, reason: `ito send failed: ${sentIto.reason}` };
 
         const ack = await ackP;

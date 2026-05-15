@@ -24,6 +24,15 @@ export interface MovementProto {
 export interface SendMapMoveResult {
     ok: boolean;
     reason?: string;
+    /** Diagnostic timings (ms). All start from perform-block entry. */
+    timings?: {
+        /** perform entry → message fully built (just before dispatcher.send) */
+        buildMs: number;
+        /** built → dispatcher.send returned */
+        sendMs: number;
+        /** perform entry → exit */
+        totalMs: number;
+    };
 }
 
 /** Forge a MapMoveRequest (isa) and dispatch it. `keyMovements` is the
@@ -37,6 +46,7 @@ export function sendMapMoveRequest(
     flag: boolean = false,
 ): Promise<SendMapMoveResult> {
     return inVm(() => {
+        const tEnter = Date.now();
         const reqK = findClass(proto.classes.MoveRequest);
         if (!reqK) return { ok: false, reason: `${proto.classes.MoveRequest} class not found` };
         const dispatcher = getLiveInstance(proto.classes.Dispatcher);
@@ -80,9 +90,14 @@ export function sendMapMoveRequest(
         } catch (e) {
             return { ok: false, reason: `isa build failed at "${stage}": ${String(e).slice(0, 200)}` };
         }
+        const tBuilt = Date.now();
         try {
             (dispatcher as any).method(proto.methods.Dispatcher_send).invoke(req);
-            return { ok: true } as SendMapMoveResult;
+            const tSent = Date.now();
+            return {
+                ok: true,
+                timings: { buildMs: tBuilt - tEnter, sendMs: tSent - tBuilt, totalMs: tSent - tEnter },
+            } as SendMapMoveResult;
         } catch (e) {
             return { ok: false, reason: `dispatcher send failed: ${String(e).slice(0, 200)}` };
         }
@@ -96,6 +111,7 @@ export function sendMapMoveRequest(
  *  PlayerStore can flip isMoving=false and the travel proceeds. */
 export function sendMoveStop(proto: MovementProto): Promise<SendMapMoveResult> {
     return inVm(() => {
+        const tEnter = Date.now();
         const reqK = findClass(proto.classes.MoveStop);
         if (!reqK) return { ok: false, reason: `${proto.classes.MoveStop} class not found` };
         const dispatcher = getLiveInstance(proto.classes.Dispatcher);
@@ -107,9 +123,14 @@ export function sendMoveStop(proto: MovementProto): Promise<SendMapMoveResult> {
         } catch (e) {
             return { ok: false, reason: `${proto.classes.MoveStop} build failed: ${String(e).slice(0, 200)}` };
         }
+        const tBuilt = Date.now();
         try {
             (dispatcher as any).method(proto.methods.Dispatcher_send).invoke(req);
-            return { ok: true };
+            const tSent = Date.now();
+            return {
+                ok: true,
+                timings: { buildMs: tBuilt - tEnter, sendMs: tSent - tBuilt, totalMs: tSent - tEnter },
+            };
         } catch (e) {
             return { ok: false, reason: `dispatcher send failed: ${String(e).slice(0, 200)}` };
         }

@@ -13,7 +13,7 @@ import { isGhostInteractive } from "../lib/stores/ghost-filter";
 import { LabelStore } from "../../../backend/core/labels";
 import { PlayerStore } from "../lib/stores/player";
 import { MapStateStore } from "../lib/stores/map-state";
-import { WORLD_PATHFINDING_PROTO } from "../lib/protocol/schema";
+import { WORLD_PATHFINDING_PROTO, MOVEMENT_PROTO } from "../lib/protocol/schema";
 import { resolveProto } from "../lib/protocol/resolver";
 import { TravelOrchestrator } from "../lib/movement/autopilot";
 import { BasicPingActions } from "../lib/movement/basic-ping";
@@ -150,6 +150,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         rewireInteractives();
         rewireStores();
         void autoArmNetworkCapture();
+        void prewarmRuntimeCache();
     });
     deps.session.on("profile-detached", () => {
         if (detachInteractives) { detachInteractives(); detachInteractives = null; }
@@ -179,9 +180,30 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             console.warn("[dofus] auto-arm failed:", e);
         }
     }
+    /** Pre-cache the live IL2CPP singletons our send paths reach for, so the
+     *  first autopilot/move/changeMap RPC doesn't pay the ~350ms `gc.choose`
+     *  heap scan. Idempotent — agent-side cache short-circuits if already warm. */
+    async function prewarmRuntimeCache(): Promise<void> {
+        if (!deps.session.fridaClient.isAttached()) return;
+        const profile = deps.session.profile();
+        if (!profile?.labels) return;
+        try {
+            const proto = resolveProto(profile.labels, MOVEMENT_PROTO) as { classes: { Dispatcher: string } };
+            const result = await deps.session.fridaClient.call<{ ok: boolean; warmed: string[]; failed: string[]; timings: Record<string, number> }>(
+                "warmupLiveInstance",
+                [[proto.classes.Dispatcher]],
+            );
+            const summary = Object.entries(result.timings).map(([k, v]) => `${k}=${v}ms`).join(" ");
+            console.log(`[dofus] prewarmed live-instance cache: ${summary} (warmed=${result.warmed.length} failed=${result.failed.length})`);
+        } catch (e) {
+            console.warn("[dofus] prewarm failed:", e);
+        }
+    }
+
     // Trigger once at mount — covers the case where the profile is already
     // attached when the plugin loads (warm reload, tsx watch).
     void autoArmNetworkCapture();
+    void prewarmRuntimeCache();
 
     /** Snapshot of the player's live state (mapId, target cell, isMoving).
      *  Read off the in-memory PlayerStore — no agent round-trip per request.

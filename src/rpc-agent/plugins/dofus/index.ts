@@ -2,6 +2,13 @@
 // the backend via the Frida agent. Imported as a single module by the core
 // rpc-methods.ts so the cross-tree coupling is contained to one line there.
 
+import * as _runtimeRpc from "./actions/_runtime";
+export function warmupLiveInstance(classNames: string[]) {
+    return _runtimeRpc.warmupLiveInstance(classNames);
+}
+export function clearLiveInstanceCache() {
+    return _runtimeRpc.clearLiveInstanceCache();
+}
 export * from "./data-scrape";
 export * from "./actions/trade-center";
 export * from "./actions/interactive";

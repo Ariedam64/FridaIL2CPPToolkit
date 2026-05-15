@@ -33,9 +33,9 @@ export interface TravelDeps {
      *  while a travel is running. Errors swallowed by the orchestrator. */
     sendBasicPing:    () => Promise<{ ok: boolean; reason?: string }>;
     computeWorldPath: (srcMapId: number, destMapId: number) => ComputeWorldPathResult;
-    /** Override for the post-arrival settle delay. Tests pass 0; prod
-     *  omits it and inherits POST_ARRIVAL_SETTLE_MS. */
-    postArrivalSettleMs?: number;
+    /** Override for the post-map-change settle delay. Tests pass 0; prod
+     *  omits it and inherits POST_MAP_CHANGE_SETTLE_MS. */
+    postMapChangeSettleMs?: number;
 }
 
 /** Interval at which the orchestrator emits a BasicPing while a travel is
@@ -43,13 +43,14 @@ export interface TravelDeps {
  *  app/plugins/dofus/lib/basic-ping.md). */
 const BASIC_PING_INTERVAL_MS = 5_000;
 
-/** Small breathing room between the server's `ish` (move ended, isMoving
- *  flipped false) and our forged `ito`. The official client takes ~50ms
- *  between receiving ish and emitting ito; firing ito immediately races
- *  the client's own post-move processing and occasionally crashes the
- *  session right at the map change. 150ms is comfortably above the
- *  client's natural delay. */
-const POST_ARRIVAL_SETTLE_MS = 150;
+/** Breathing room between `itx` (server confirmed new map = our `waitForMap`
+ *  resolves) and the next leg's forged `isa`. Default 0 — once the agent-side
+ *  `getLiveInstance` cache is prewarmed, every forged send completes in <2ms
+ *  and there's no contention with Unity's scene-load anymore. The knob is kept
+ *  for tests and as an escape hatch if a future game update reintroduces some
+ *  post-itx fragility; bump it back to ~200ms if the client visually desyncs
+ *  on consecutive map changes. */
+const POST_MAP_CHANGE_SETTLE_MS = 0;
 
 /** How long we wait for the natural `ish` before forging our own `itr`.
  *  Walk durations observed in the wire: 15 cells ≈ 2.3s, 19 cells ≈ 2.1s
@@ -168,7 +169,9 @@ export class TravelOrchestrator {
                 if (fromCell == null) throw new Error("current cell unknown mid-travel");
                 const mapNow = this.deps.getCurrentMapId() ?? undefined;
                 console.log(`[autopilot] edge ${i}/${plan.edges.length - 1}: map=${mapNow} from=${fromCell} → cell=${t.cellId} (next map=${plan.edges[i].to.mapId})`);
+                const tTrigIsa = Date.now();
                 const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
+                console.log(`[autopilot] edge ${i} isa trigger→sent=${Date.now() - tTrigIsa}ms`);
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
                 console.log(`[autopilot] edge ${i}: moveTo dispatched (cellPath ${move.keyMovements?.length ?? 0} keymovements), awaiting arrival…`);
 
@@ -194,12 +197,23 @@ export class TravelOrchestrator {
 
                 const nextMapId = Number(plan.edges[i].to.mapId);
                 console.log(`[autopilot] edge ${i}: sending ito → ${nextMapId}`);
+                const tTrigIto = Date.now();
                 const cm = await this.deps.changeMap.changeMap(nextMapId);
+                console.log(`[autopilot] edge ${i} ito trigger→kta=${Date.now() - tTrigIto}ms`);
                 if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
 
                 await this.waitForMap(nextMapId);
                 console.log(`[autopilot] edge ${i}: map confirmed=${this.deps.getCurrentMapId()}, cell after itx=${this.deps.getCurrentCell()}`);
                 this.status.currentTransitionCell = null;
+
+                // Let Unity finish its post-itx scene init + GC before our
+                // next forged `isa` re-enters Il2Cpp.perform on the agent
+                // thread. Skipped on the last edge (no next leg to protect)
+                // and on cancel (next loop iter will throw immediately anyway).
+                if (i < plan.edges.length - 1 && !this.cancelled) {
+                    const settleMs = this.deps.postMapChangeSettleMs ?? POST_MAP_CHANGE_SETTLE_MS;
+                    if (settleMs > 0) await new Promise(r => setTimeout(r, settleMs));
+                }
             }
             return this.finish("done");
         } catch (err) {
