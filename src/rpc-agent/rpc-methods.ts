@@ -10,15 +10,8 @@ import * as scannerRpc from "./scanner";
 import * as inspectorRpc from "./inspector";
 import * as diffRpc from "./diff";
 import * as stacktraceRpc from "./stacktrace";
-import * as mapstateRpc from "./mapstate";
-import * as senderRpc from "./sender";
-import * as catalogRpc from "./catalog";
-import * as sentryRpc from "./sentry";
-import * as gbeRouterRpc from "./gbe-router";
-import * as gbeProbeRpc from "./gbe-probe";
 import * as attributesRpc from "./attributes";
 import * as dataCenterRpc from "./datacenter";
-import * as protoDescriptorCaptureRpc from "./proto-descriptor-capture";
 import * as networkMonitorRpc from "./network-monitor";
 import * as filesystemRpc from "./filesystem";
 import * as fingerprintsRpc from "./fingerprints";
@@ -26,7 +19,7 @@ import * as fingerprintsRpc from "./fingerprints";
 // build picks them up, but logically belong to the matching app/plugins/<id>/.
 import * as dofusRpc from "./plugins/dofus";
 
-type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof mapstateRpc & typeof senderRpc & typeof catalogRpc & typeof sentryRpc & typeof gbeRouterRpc & typeof gbeProbeRpc & typeof attributesRpc & typeof dataCenterRpc & typeof protoDescriptorCaptureRpc & typeof networkMonitorRpc & typeof filesystemRpc & typeof fingerprintsRpc & typeof dofusRpc;
+type AllRpc = typeof searchRpc & typeof explorerRpc & typeof hooksRpc & typeof instanceOpsRpc & typeof networkRpc & typeof watchlistRpc & typeof scannerRpc & typeof inspectorRpc & typeof diffRpc & typeof stacktraceRpc & typeof attributesRpc & typeof dataCenterRpc & typeof networkMonitorRpc & typeof filesystemRpc & typeof fingerprintsRpc & typeof dofusRpc;
 
 export function getRpcMethods(): AllRpc {
     return {
@@ -40,15 +33,8 @@ export function getRpcMethods(): AllRpc {
         ...inspectorRpc,
         ...diffRpc,
         ...stacktraceRpc,
-        ...mapstateRpc,
-        ...senderRpc,
-        ...catalogRpc,
-        ...sentryRpc,
-        ...gbeRouterRpc,
-        ...gbeProbeRpc,
         ...attributesRpc,
         ...dataCenterRpc,
-        ...protoDescriptorCaptureRpc,
         ...networkMonitorRpc,
         ...filesystemRpc,
         ...fingerprintsRpc,
