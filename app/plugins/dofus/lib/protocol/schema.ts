@@ -223,6 +223,85 @@ export interface ResolvedMovementProto {
 }
 
 // =============================================================================
+// NPC dialog (hwd/hwh/hwy/hwp/jms) — the protocol for transit NPCs ("travel by
+// boat", "use the elevator", etc.). Distinct from `iev` (static interactives
+// like doors/ladders): NPCs live in entities (`eftd`), not interactives
+// (`eftt`), and the click opens a server-side dialog that requires a reply.
+//
+// Wire trace for a typical 1-option transit NPC:
+//   OUT  hwd (TalkToNpcRequest)            ← we click the NPC
+//        ← IN  hwh (NpcDialogCreationMessage)   server confirms dialog opened
+//        ← IN  hwy (NpcDialogQuestionMessage)   question text + reply options
+//   OUT  hwp (NpcDialogReplyMessage)       ← we choose a reply
+//        ← IN  jms (NpcDialogLeaveMessage)      dialog closed
+//        ← IN  knw + itx + kta                  natural map change kicks in
+//
+// hwy reply IDs (easx) appear to be text/dialog-tree-specific catalogue IDs
+// (e.g. 239 and 2 in our sample). The reply we send (hwp.eaqy=0) appears to
+// be the *index* into the reply list, not the easx value. So for transit NPCs
+// with a single option we always send eaqy=0 — that mirrors what the client
+// does when there's no real choice to make.
+// =============================================================================
+
+export const NPC_DIALOG_PROTO = {
+    classes: {
+        // OUT — sent BEFORE every hwd so the server clears any residual
+        // dialog state. Empty payload (single null field ekwf), ctor default
+        // is enough. The server acks with a jms.
+        LeaveRequest:    { friendly: "NpcDialogLeaveRequest",     fallback: "jmr" },
+        TalkRequest:     { friendly: "TalkToNpcRequest",          fallback: "hwd" },
+        Reply:           { friendly: "NpcDialogReplyMessage",     fallback: "hwp" },
+        // IN — server ack of TalkRequest. We don't parse its fields (the
+        // useful payload comes in DialogQuestion right after), but the class
+        // name is observed in the wire stream and we label it so the panel
+        // and any future migration sees a friendly handle.
+        DialogCreation:  { friendly: "NpcDialogCreationMessage",  fallback: "hwh" },
+        DialogQuestion:  { friendly: "NpcDialogQuestionMessage",  fallback: "hwy" },
+        // Inner protobuf message inside DialogQuestion.content: holds the
+        // textId, the reply options, and the per-dialog questionId. We need
+        // QuestionContent.questionId (eatj) at runtime to forge hwp.
+        QuestionContent: { friendly: "NpcDialogQuestionContent",  fallback: "hww" },
+        // One reply option inside QuestionContent.replies. We don't currently
+        // read individual replies (we always reply with index 0 for transit
+        // NPCs), but the class is labelled so future multi-choice NPC support
+        // can name the field without another schema patch.
+        ReplyOption:     { friendly: "NpcDialogReplyOption",      fallback: "hwu" },
+        DialogLeave:     { friendly: "NpcDialogLeaveMessage",     fallback: "jms" },
+        Dispatcher:      { friendly: "Network.OutgoingDispatcher", fallback: "ecx" },
+    } as Record<string, ProtoClassSpec>,
+    fields: {
+        // hwd — TalkToNpcRequest (OUT)
+        TalkRequest_npcEntityId: { classKey: "TalkRequest", friendly: "npcEntityId", fallback: "eaod" },
+        TalkRequest_actionId:    { classKey: "TalkRequest", friendly: "actionId",    fallback: "eaof" },
+        TalkRequest_mapId:       { classKey: "TalkRequest", friendly: "mapId",       fallback: "eaoh" },
+        // hwp — NpcDialogReplyMessage (OUT)
+        Reply_replyIndex:        { classKey: "Reply",       friendly: "replyIndex",  fallback: "eaqy" },
+        Reply_questionId:        { classKey: "Reply",       friendly: "questionId",  fallback: "eara" },
+        // hwy — NpcDialogQuestionMessage (IN, parsed via frame-store)
+        DialogQuestion_textId:   { classKey: "DialogQuestion",  friendly: "textId",     fallback: "eatt" },
+        DialogQuestion_content:  { classKey: "DialogQuestion",  friendly: "content",    fallback: "eatw" },
+        // hww — NpcDialogQuestionContent (nested inside hwy.content)
+        // The host parser walks the captured hwy frame to extract this
+        // questionId before forging hwp.questionId.
+        QuestionContent_replies:    { classKey: "QuestionContent", friendly: "replies",    fallback: "eate" },
+        QuestionContent_questionId: { classKey: "QuestionContent", friendly: "questionId", fallback: "eatj" },
+        // hwu — NpcDialogReplyOption (each entry of hww.replies)
+        ReplyOption_replyId:        { classKey: "ReplyOption",     friendly: "replyId",    fallback: "easx" },
+        // jms — NpcDialogLeaveMessage (IN, status field used by the panel only)
+        DialogLeave_status:         { classKey: "DialogLeave",     friendly: "status",     fallback: "ekwj" },
+    } as Record<string, ProtoMemberSpec>,
+    methods: {
+        Dispatcher_send: { classKey: "Dispatcher", friendly: "sendOutgoing", fallback: "xby" },
+    } as Record<string, ProtoMemberSpec>,
+} as const;
+
+export interface ResolvedNpcDialogProto {
+    classes: Record<keyof typeof NPC_DIALOG_PROTO["classes"], string>;
+    fields:  Record<keyof typeof NPC_DIALOG_PROTO["fields"],  string>;
+    methods: Record<keyof typeof NPC_DIALOG_PROTO["methods"], string>;
+}
+
+// =============================================================================
 // BasicPing (jsa) — keepalive heartbeat the client emits every 5s while there
 // is in-flight WS activity. When we bypass the client (forge moves/changemaps
 // via Frida), the client's activity counter doesn't tick so we must emit our

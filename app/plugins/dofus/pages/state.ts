@@ -303,6 +303,9 @@ function renderAutopilotPanel(host: HTMLElement): void {
             <span style="color:#888;font-size:11px">Aller à map</span>
             <input data-input="travel-dest" type="number" placeholder="mapId" style="width:140px;background:#1a1a1a;border:1px solid #333;color:#ddd;padding:4px 6px;font:11px monospace" />
             <button data-action="travel-go">Go</button>
+            <label style="color:#888;font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="Skip client loading coroutine (~5x faster, UI sprite broken until next clean transition)">
+                <input data-input="travel-fast" type="checkbox" style="margin:0" />fast
+            </label>
         </div>` : "";
 
     slot.innerHTML = `
@@ -681,11 +684,13 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
             const input = host.querySelector<HTMLInputElement>("[data-input='travel-dest']");
             const destMapId = Number(input?.value ?? "");
             if (!Number.isFinite(destMapId)) return;
+            const fastEl = host.querySelector<HTMLInputElement>("[data-input='travel-fast']");
+            const fast = !!fastEl?.checked;
             try {
                 const r = await fetch("/api/dofus/travel/start", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ destMapId }),
+                    body: JSON.stringify({ destMapId, fast }),
                 });
                 const body = await r.json();
                 if (r.ok && body?.ok) {

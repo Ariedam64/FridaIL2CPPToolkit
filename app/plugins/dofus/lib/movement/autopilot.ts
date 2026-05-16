@@ -8,6 +8,11 @@ import type { ChangeMapActions } from "./change-map";
 import type { ComputeWorldPathResult, PathEdgeOut } from "./world-path";
 import type { Transition } from "./world-path";
 
+/** Result of an `iev` (InteractiveUseRequest) — what the deps must return so the
+ *  orchestrator can either proceed (map change will follow naturally) or fail
+ *  with a clear reason. */
+export interface UseInteractiveAtResult { ok: boolean; reason?: string; elementId?: number; skillInstanceUid?: number }
+
 export type TravelState = "idle" | "running" | "done" | "failed" | "cancelled";
 
 export interface TravelStatus {
@@ -27,8 +32,13 @@ export interface TravelDeps {
     onPlayerChange:   (cb: () => void) => () => void;
     getCurrentMapId:  () => number | null;
     onMapChange:      (cb: () => void) => () => void;
-    movement:         Pick<MovementActions, "moveTo" | "stopMoving">;
+    movement:         Pick<MovementActions, "moveTo" | "stopMoving" | "findApproach">;
     changeMap:        Pick<ChangeMapActions, "changeMap">;
+    /** Resolve `(cellId, skillId)` on the current map to an `(elementId,
+     *  skillInstanceUid)` from the live MapStateStore and forge `iev`. Used
+     *  for type-32 transitions (doors, ladders, holes) that map-change in
+     *  place when activated. Omit for tests that only exercise walk-off-edge. */
+    useInteractiveAt?: (cellId: number, skillId: number) => Promise<UseInteractiveAtResult>;
     /** Best-effort BasicPing keepalive; called every BASIC_PING_INTERVAL_MS
      *  while a travel is running. Errors swallowed by the orchestrator. */
     sendBasicPing:    () => Promise<{ ok: boolean; reason?: string }>;
@@ -50,7 +60,7 @@ const BASIC_PING_INTERVAL_MS = 5_000;
  *  for tests and as an escape hatch if a future game update reintroduces some
  *  post-itx fragility; bump it back to ~200ms if the client visually desyncs
  *  on consecutive map changes. */
-const POST_MAP_CHANGE_SETTLE_MS = 0;
+const POST_MAP_CHANGE_SETTLE_MS = 50;
 
 /** How long we wait for the natural `ish` before forging our own `itr`.
  *  Walk durations observed in the wire: 15 cells ≈ 2.3s, 19 cells ≈ 2.1s
@@ -60,7 +70,7 @@ const POST_MAP_CHANGE_SETTLE_MS = 0;
  *  visually desynced (server done, client never emits itr). A previous
  *  attempt at 3s was too aggressive and cut legitimate walks mid-flight,
  *  producing a server desync that crashed the session. */
-const CLIENT_DESYNC_WATCHDOG_MS = 6_000;
+const CLIENT_DESYNC_WATCHDOG_MS = 4_000;
 
 /** Backstop after we force `itr`. ish typically lands within ~30ms; 5s is
  *  comfortably generous. */
@@ -73,19 +83,50 @@ export interface StartResult {
     reason?: string;
 }
 
+export interface StartOptions {
+    /** Use changeMap fast mode (ito+jnr+isp in burst, skip the client's 1.2s
+     *  loading coroutine). Each map change drops from ~1.5s to ~300ms but the
+     *  in-game UI is left half-wired (no character sprite, can't move via the
+     *  client). Headless automation only. */
+    fast?: boolean;
+}
+
 /** Returns the first walk-off-edge transition. The `type` field is the
  *  discriminator (empirically derived from the cached world-graph):
  *    type 1  — basic walk-off-edge (~67% of all transitions, skillId=-1,
  *              direction=null);
  *    type 2  — alternate walk-off-edge variant (~12%, same shape);
- *    type 8  — skill-less teleport (boats, mounts?) — out of scope v1;
- *    type 32 — zaaps / scrolls (skillId>0) — out of scope v1.
+ *    type 8  — skill-less teleport (boats, mounts?) — out of scope;
+ *    type 32 — in-place interactives (doors, ladders, holes — handled via
+ *              `pickReachable`, NOT via this function).
  *  Returns null if no type-1/2 transition exists. The `direction` field
  *  in this build is `null` or `255` (sentinel) and never a cardinal 0-7,
  *  so it is NOT a usable discriminator on its own. */
 export function pickWalkable(transitions: readonly Transition[]): Transition | null {
     for (const t of transitions) {
         if (t.type === 1 || t.type === 2) return t;
+    }
+    return null;
+}
+
+/** Result of resolving a path edge to a concrete action.
+ *  - `walk`        : walk off the cell, then forge `ito` for the map change
+ *  - `interactive` : walk to the cell, then forge `iev` (skillInstanceUid
+ *                    resolved at use time via `useInteractiveAt`); the server
+ *                    handles the map transition as a side effect of the iev. */
+export type TransitionAction =
+    | { kind: "walk"; transition: Transition }
+    | { kind: "interactive"; transition: Transition };
+
+/** Pick the cheapest action that resolves an edge. Walks are preferred when
+ *  available because they're a single round-trip (no server-side interactive
+ *  lookup); in-place interactives are the fallback. Type 8 (boat/mount) is
+ *  out of scope. */
+export function pickReachable(transitions: readonly Transition[]): TransitionAction | null {
+    const walk = pickWalkable(transitions);
+    if (walk) return { kind: "walk", transition: walk };
+    for (const t of transitions) {
+        if (t.type === 32) return { kind: "interactive", transition: t };
     }
     return null;
 }
@@ -110,7 +151,7 @@ export class TravelOrchestrator {
         return { ...this.status };
     }
 
-    async start(destMapId: number): Promise<StartResult> {
+    async start(destMapId: number, options: StartOptions = {}): Promise<StartResult> {
         if (this.status.state === "running") {
             return { ok: false, reason: "travel already running" };
         }
@@ -161,16 +202,33 @@ export class TravelOrchestrator {
                 this.status.currentEdgeIdx = i;
                 this.throwIfCancelled();
 
-                const t = pickWalkable(plan.edges[i].transitions);
-                if (!t) throw new Error(`edge ${i}: no walkable transition (zaaps/portals only)`);
+                const action = pickReachable(plan.edges[i].transitions);
+                if (!action) throw new Error(`edge ${i}: no reachable transition (boat/mount required)`);
+                const t = action.transition;
+                if (action.kind === "interactive" && !this.deps.useInteractiveAt) {
+                    throw new Error(`edge ${i}: type-32 transition but useInteractiveAt not wired`);
+                }
                 this.status.currentTransitionCell = t.cellId;
 
                 const fromCell = this.deps.getCurrentCell();
                 if (fromCell == null) throw new Error("current cell unknown mid-travel");
                 const mapNow = this.deps.getCurrentMapId() ?? undefined;
-                console.log(`[autopilot] edge ${i}/${plan.edges.length - 1}: map=${mapNow} from=${fromCell} → cell=${t.cellId} (next map=${plan.edges[i].to.mapId})`);
+                // Interactives on non-walkable cells (doors, ladders, holes)
+                // can't be walked TO — they're activated from an adjacent
+                // walkable cell within 1-cell interaction range. Walk-off-edge
+                // targets always sit on walkable cells, so `findApproach` is a
+                // no-op for them.
+                let walkTo = t.cellId;
+                if (action.kind === "interactive") {
+                    const approach = await this.deps.movement.findApproach(t.cellId, mapNow);
+                    if (!approach.ok || approach.cell == null) {
+                        throw new Error(`findApproach: ${approach.reason ?? "no walkable neighbour"} for cell ${t.cellId}`);
+                    }
+                    walkTo = approach.cell;
+                }
+                console.log(`[autopilot] edge ${i}/${plan.edges.length - 1}: map=${mapNow} from=${fromCell} → cell=${walkTo}${walkTo !== t.cellId ? ` (approach to ${t.cellId})` : ""} via ${action.kind} (next map=${plan.edges[i].to.mapId})`);
                 const tTrigIsa = Date.now();
-                const move = await this.deps.movement.moveTo(fromCell, t.cellId, mapNow);
+                const move = await this.deps.movement.moveTo(fromCell, walkTo, mapNow);
                 console.log(`[autopilot] edge ${i} isa trigger→sent=${Date.now() - tTrigIsa}ms`);
                 if (!move.ok) throw new Error(`movement: ${move.reason ?? "send failed"}`);
                 console.log(`[autopilot] edge ${i}: moveTo dispatched (cellPath ${move.keyMovements?.length ?? 0} keymovements), awaiting arrival…`);
@@ -183,24 +241,34 @@ export class TravelOrchestrator {
                 // walk is CERTAINLY done — forging our own itr makes the
                 // server reply with ish and unblocks us.
                 try {
-                    await this.waitForArrival(t.cellId, CLIENT_DESYNC_WATCHDOG_MS);
+                    await this.waitForArrival(walkTo, CLIENT_DESYNC_WATCHDOG_MS);
                 } catch (e) {
                     if (this.cancelled) throw e;
                     console.warn(`[autopilot] edge ${i}: no ish after ${CLIENT_DESYNC_WATCHDOG_MS}ms → client desync, forging itr (cell=${this.deps.getCurrentCell()}, isMoving=${this.deps.isMoving()})`);
                     const stop = await this.deps.movement.stopMoving();
                     if (!stop.ok) throw new Error(`stopMoving: ${stop.reason ?? "send failed"}`);
-                    await this.waitForArrival(t.cellId, STOP_ACK_TIMEOUT_MS);
+                    await this.waitForArrival(walkTo, STOP_ACK_TIMEOUT_MS);
                     console.warn(`[autopilot] edge ${i}: recovered via forged itr, resuming`);
                 }
                 this.throwIfCancelled();
                 console.log(`[autopilot] edge ${i}: arrived (cell=${this.deps.getCurrentCell()})`);
 
                 const nextMapId = Number(plan.edges[i].to.mapId);
-                console.log(`[autopilot] edge ${i}: sending ito → ${nextMapId}`);
-                const tTrigIto = Date.now();
-                const cm = await this.deps.changeMap.changeMap(nextMapId);
-                console.log(`[autopilot] edge ${i} ito trigger→kta=${Date.now() - tTrigIto}ms`);
-                if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
+                const tTrigTransition = Date.now();
+                if (action.kind === "walk") {
+                    console.log(`[autopilot] edge ${i}: sending ito → ${nextMapId}${options.fast ? " (fast)" : ""}`);
+                    const cm = await this.deps.changeMap.changeMap(nextMapId, { fast: options.fast });
+                    console.log(`[autopilot] edge ${i} ito trigger→kta=${Date.now() - tTrigTransition}ms`);
+                    if (!cm.ok) throw new Error(`changeMap: ${cm.reason ?? "send failed"}`);
+                } else {
+                    console.log(`[autopilot] edge ${i}: sending iev (skillId=${t.skillId} at cell=${t.cellId}) → ${nextMapId}`);
+                    const r = await this.deps.useInteractiveAt!(t.cellId, t.skillId);
+                    if (!r.ok) throw new Error(`useInteractive: ${r.reason ?? "send failed"}`);
+                    console.log(`[autopilot] edge ${i} iev sent (elementId=${r.elementId}, skillInstanceUid=${r.skillInstanceUid}), awaiting map change…`);
+                    // No native ack from `iev` — the map change comes through
+                    // the natural mapInfo (itx) when the server processes the
+                    // interaction. waitForMap below handles that.
+                }
 
                 await this.waitForMap(nextMapId);
                 console.log(`[autopilot] edge ${i}: map confirmed=${this.deps.getCurrentMapId()}, cell after itx=${this.deps.getCurrentCell()}`);

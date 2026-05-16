@@ -46,6 +46,7 @@ function makeDeps(opts: {
         movement:  {
             moveTo:     vi.fn(async () => ({ ok: true, fromCell: 0, toCell: 0, mapId: 1 })),
             stopMoving: vi.fn(async () => ({ ok: true })),
+            findApproach: vi.fn(async (cell: number) => ({ ok: true, cell })),
             ...opts.movement,
         } as any,
         changeMap: { changeMap: vi.fn(async () => ({ ok: true, mapId: 1, mode: "clean" as const })), ...opts.changeMap } as any,
@@ -279,7 +280,7 @@ describe("TravelOrchestrator.start — edge loop", () => {
 
         const r = await orch.start(2);
         expect(r.ok).toBe(false);
-        expect(r.reason).toContain("no walkable transition");
+        expect(r.reason).toContain("no reachable transition");
         expect(orch.getStatus().state).toBe("failed");
         expect(orch.getStatus().currentEdgeIdx).toBe(0);
     });

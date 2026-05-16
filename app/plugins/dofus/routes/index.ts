@@ -6,6 +6,7 @@ import { DofusDataStore } from "../lib/stores/data";
 import { CraftRankingStore } from "../lib/stores/craft";
 import { TradeCenterActions } from "../lib/trade/trade-center";
 import { InteractiveActions } from "../lib/interactives/interactive";
+import { NpcDialogActions } from "../lib/interactives/npc-dialog";
 import { MovementActions } from "../lib/movement/movement";
 import { ChangeMapActions } from "../lib/movement/change-map";
 import { MapInteractivesStore } from "../lib/stores/map-interactives";
@@ -112,6 +113,8 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             () => deps.session.frameStore(),
         );
         const basicPingForAutopilot = new BasicPingActions(profile.labels, deps.session.fridaClient);
+        const interactiveForAutopilot = new InteractiveActions(profile.labels, deps.session.fridaClient, mapInteractives, mapStateStore);
+        const npcDialogForAutopilot   = new NpcDialogActions(profile.labels, deps.session.fridaClient, () => deps.session.frameStore());
         autopilot = new TravelOrchestrator({
             getCurrentCell:   () => playerStore!.getState().currentCellId,
             isMoving:         () => playerStore!.getState().isMoving,
@@ -122,6 +125,55 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             changeMap:        changeMapForAutopilot,
             sendBasicPing:    () => basicPingForAutopilot.sendPing(),
             computeWorldPath: (src, dest) => computeWorldPath(src, dest),
+            useInteractiveAt: async (cellId, skillId) => {
+                if (!mapStateStore) return { ok: false, reason: "map state not initialised" };
+                const mapId = mapStateStore.getState().mapId;
+                if (mapId === null) return { ok: false, reason: "no current mapId" };
+                // -----------------------------------------------------------
+                // 1) Static interactives (doors / ladders / holes) — iev
+                //
+                // Cell lookup goes through MapInteractivesStore (static `ie`
+                // layout joined with runtime), NOT MapStateStore — non-stateful
+                // interactives (doors/ladders/holes) have `cellId: null` in
+                // MapStateStore because they have no statedElement entry in itx.
+                // -----------------------------------------------------------
+                const entry = mapInteractives.getMap(mapId);
+                const ievCandidates = entry?.interactives.filter(
+                    (i) => i.cell === cellId && i.skillIds.includes(skillId),
+                ) ?? [];
+                let lastIevError: string | undefined;
+                for (const c of ievCandidates) {
+                    const r = await interactiveForAutopilot.useInteractive(c.elementId, skillId);
+                    if (r.ok) return { ok: true, elementId: r.elementId, skillInstanceUid: r.skillInstanceUid };
+                    lastIevError = r.reason;
+                }
+                // -----------------------------------------------------------
+                // 2) Transit NPC fallback — hwd → hwy → hwp dialog flow
+                //
+                // The world-graph doesn't distinguish a door (interactive) from
+                // a travel NPC (entity) — both surface as `type 32, skill 184`
+                // edges. When no static interactive matches, try resolving
+                // the cell as an NPC entity from the live MapStateStore.
+                // -----------------------------------------------------------
+                const npc = mapStateStore.getState().entities.find(
+                    (e) => e.kind === "npc" && e.cellId === cellId,
+                );
+                if (npc) {
+                    const r = await npcDialogForAutopilot.talkAndAutoReply(Number(npc.entityId), mapId);
+                    if (r.ok) return { ok: true, elementId: Number(npc.entityId), skillInstanceUid: r.questionId };
+                    return { ok: false, reason: `NPC dialog (entity=${npc.entityId}): ${r.reason}` };
+                }
+                // -----------------------------------------------------------
+                // 3) Neither — fail with focused diagnostic
+                // -----------------------------------------------------------
+                const sameCellIev = entry?.interactives.filter((i) => i.cell === cellId)
+                    .map((i) => `eid=${i.elementId} skills=[${i.skillIds.join(",")}]`).join(" ; ") || "<none>";
+                const sameCellNpcs = mapStateStore.getState().entities
+                    .filter((e) => e.cellId === cellId)
+                    .map((e) => `${e.kind}:${e.entityId}`).join(", ") || "<none>";
+                const why = lastIevError ? ` (iev rejected: ${lastIevError})` : "";
+                return { ok: false, reason: `no interactive or NPC at cell ${cellId} on map ${mapId} — iev candidates: ${sameCellIev}, entities@cell: ${sameCellNpcs}${why}` };
+            },
         });
 
         detachPlayerListener = playerStore.onChange((state) => {
@@ -719,6 +771,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             res.status(400).json({ error: "destMapId required" });
             return;
         }
+        const fast = Boolean(req.body?.fast);
         // Pre-check 'already running' so we can return a clean 409 (the
         // orchestrator's own guard returns 200 ok:false, which the UI would
         // misclassify as a planning failure).
@@ -730,7 +783,7 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         // when the WHOLE travel ends, not when planning settles. The HTTP
         // response should only reflect planning outcome — kick start() in
         // the background, then peek getStatus() after one tick.
-        const startP = autopilot.start(destMapId);
+        const startP = autopilot.start(destMapId, { fast });
         // Yield once so synchronous-failure paths ("no path", "destMapId
         // not in graph", "already on destination") have flushed into status.
         await new Promise<void>(r => setImmediate(r));

@@ -15,6 +15,7 @@ export * from "./actions/interactive";
 export * from "./actions/movement";
 export * from "./actions/change-map";
 export * from "./actions/basic-ping";
+export * from "./actions/npc-dialog";
 export * from "./actions/player-state";
 export * from "./actions/entity-probe";
 export * from "./actions/map-state";

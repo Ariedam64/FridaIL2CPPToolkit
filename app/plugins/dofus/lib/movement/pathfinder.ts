@@ -40,6 +40,21 @@ function directionDelta(direction: number, oddRow: boolean): { dCol: number; dRo
     }
 }
 
+/** Return the first walkable cell among `cellId`'s 8 neighbours, or null if
+ *  none. Used to "approach" interactives placed on non-walkable cells (doors,
+ *  ladders, holes): you can't stand ON those cells but you can activate them
+ *  from any adjacent walkable cell. */
+export function findWalkableNeighbour(
+    cellId: number,
+    cells: ReadonlyArray<CellTuple | undefined>,
+): number | null {
+    for (let d = 0; d < 8; d++) {
+        const n = neighbour(cellId, d);
+        if (n !== null && isWalkable(n, cells)) return n;
+    }
+    return null;
+}
+
 function neighbour(cellId: number, direction: number): number | null {
     const row = Math.floor(cellId / MAP_WIDTH);
     const col = cellId % MAP_WIDTH;

@@ -9,7 +9,7 @@ import type { DofusDataStore } from "../stores/data";
 import type { MapInteractivesStore } from "../stores/map-interactives";
 import { MOVEMENT_PROTO, type ResolvedMovementProto } from "../protocol/schema";
 import { resolveProto } from "../protocol/resolver";
-import { computeCellPath, decodeKeyMovement } from "./pathfinder";
+import { computeCellPath, decodeKeyMovement, findWalkableNeighbour } from "./pathfinder";
 
 export interface MoveResult {
     ok: boolean;
@@ -66,6 +66,21 @@ export class MovementActions {
             keyMovements: result.keyMovements,
             pivots: result.keyMovements.map(decodeKeyMovement),
         };
+    }
+
+    /** Return a cell from which `targetCell` is reachable by a 1-cell
+     *  interaction range. If `targetCell` is walkable we just return it; if
+     *  not (door, ladder, hole on a non-walkable cell), we return its first
+     *  walkable neighbour. Null = no approach found (target isolated). */
+    async findApproach(targetCell: number, mapId?: number): Promise<{ ok: boolean; cell?: number; reason?: string }> {
+        const ctx = await this.resolveMapAndCells(mapId);
+        if ("reason" in ctx) return { ok: false, reason: ctx.reason };
+        if (ctx.cells[targetCell] && (ctx.cells[targetCell]![0] & 1) !== 0 && (ctx.cells[targetCell]![0] & 8) === 0) {
+            return { ok: true, cell: targetCell };
+        }
+        const neighbour = findWalkableNeighbour(targetCell, ctx.cells);
+        if (neighbour === null) return { ok: false, reason: `no walkable cell adjacent to ${targetCell} on map ${ctx.mapId}` };
+        return { ok: true, cell: neighbour };
     }
 
     /** Forge a MoveStop (itr) packet — used by the autopilot as a watchdog
