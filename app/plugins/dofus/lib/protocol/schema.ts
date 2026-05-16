@@ -391,14 +391,16 @@ export interface ResolvedChangeMapProto {
 export const PLAYER_STATE_PROTO = {
     classes: {
         MovementController:     { friendly: "MovementController",      fallback: "dve" },
-        // ghg is the local player's pending-spell-cast context (SpellData +
-        // SpellLevelData + cast-state booleans + List<MapPoint>). We only
-        // care about its Int64 `drqv` caster — which is the local
-        // characterId — but the singleton itself is a spell action, not a
-        // character class. The proto key stays `LocalCharacter` because the
-        // agent references it by that name; only the friendly + obf reflect
-        // what the class actually is.
-        LocalCharacter:         { friendly: "LocalSpellCast",          fallback: "ghg" },
+        // Clear-named Dofus wrapper that holds the player's identity
+        // (Int64 id, name, level, breed, etc.). Stable across game updates
+        // because the namespace `Core.UILogic.Connection.*` is not
+        // obfuscated. Replaced an earlier `ghg` (LocalSpellCast) read which
+        // worked only as a side-effect (the spell context happened to carry
+        // the caster id) and would have broken any time the player wasn't
+        // mid-cast. The proto key stays `LocalCharacter` so the agent's
+        // PlayerStateProto interface keeps the same shape — only the obf
+        // target changes.
+        LocalCharacter:         { friendly: "BasicCharacterWrapper",   fallback: "Core.UILogic.Connection.BasicCharacterWrapper" },
         // WS-update trigger: server broadcasts every entity's movement —
         // one frame per move, even our own (filter by entityId === characterId).
         // Carries the cellPath we're about to follow → targetCellId + isMoving.
@@ -413,7 +415,9 @@ export const PLAYER_STATE_PROTO = {
     } as Record<string, ProtoClassSpec>,
     fields: {
         MovementController_targetCellId: { classKey: "MovementController", friendly: "targetCellId", fallback: "dezz" },
-        LocalCharacter_characterId:      { classKey: "LocalCharacter",     friendly: "characterId",  fallback: "drqv" },
+        // BasicCharacterWrapper.id — Int64 character id. Field name is in
+        // clear so the fallback IS the resolved name (no obf to look up).
+        LocalCharacter_characterId:      { classKey: "LocalCharacter",     friendly: "id",           fallback: "id" },
         MapEntityMovement_entityId:      { classKey: "MapEntityMovement",  friendly: "entityId",     fallback: "efss" },
         MapEntityMovement_cellPath:      { classKey: "MapEntityMovement",  friendly: "cellPath",     fallback: "efsq" },
     } as Record<string, ProtoMemberSpec>,
