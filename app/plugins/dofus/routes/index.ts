@@ -772,11 +772,39 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
             return;
         }
         const fast = Boolean(req.body?.fast);
+        const native = Boolean(req.body?.native);
         // Pre-check 'already running' so we can return a clean 409 (the
         // orchestrator's own guard returns 200 ok:false, which the UI would
         // misclassify as a planning failure).
         if (autopilot.getStatus().state === "running") {
             res.status(409).json({ error: "travel already running" });
+            return;
+        }
+        // -----------------------------------------------------------------
+        // Native mode: skip our orchestrator entirely and let the game's own
+        // AutoTravelManager.bapc handle path + walking + transitions. We
+        // still run the world-path generator first to verify reachability
+        // (and to give the user a clean "no path" error instead of having
+        // the game silently no-op), then fire the single invoke.
+        // -----------------------------------------------------------------
+        if (native) {
+            const profile = deps.session.profile();
+            if (!profile) { res.status(503).json({ error: "not attached" }); return; }
+            const currentMapId = mapStateStore?.getState().mapId;
+            if (currentMapId == null) { res.json({ ok: false, reason: "no current mapId (map not yet known)" }); return; }
+            const plan = computeWorldPath(currentMapId, destMapId);
+            if (!plan.ok) { res.json({ ok: false, reason: `world-path: ${plan.reason}` }); return; }
+            if (plan.edges.length === 0) { res.json({ ok: true, totalEdges: 0, alreadyOnMap: true, native: true }); return; }
+            const proto = resolveProto(profile.labels, WORLD_PATHFINDING_PROTO);
+            try {
+                const r = await deps.session.fridaClient.call<{ ok: boolean; reason?: string }>(
+                    "startNativeAutoTravel", [proto, destMapId],
+                );
+                console.log(`[autopilot:native] startAutoTravel(${destMapId}) → ${r.ok ? "ok" : r.reason}`);
+                res.json({ ok: r.ok, totalEdges: plan.edges.length, native: true, reason: r.reason });
+            } catch (err) {
+                res.status(500).json({ ok: false, reason: err instanceof Error ? err.message : String(err) });
+            }
             return;
         }
         // Fire-and-forget the orchestrator: the start() promise resolves

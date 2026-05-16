@@ -610,6 +610,18 @@ export const WORLD_PATHFINDING_PROTO = {
         AutoTravelManager:        { friendly: "AutoTravelManager",         fallback: "elj" },
         WorldPathfinder:          { friendly: "WorldPathfinder",           fallback: "ell" },
         WorldPathfindingWorker:   { friendly: "WorldPathfindingWorker",    fallback: "fpc" },
+        // High-level UI controller — the one the worldmap double-click goes
+        // through. Its tkw(dck) is the cleanest entry point for forging
+        // auto-travel (vs invoking elj.bapc directly which needs a typed
+        // Action delegate we can't easily construct). dtw is a MonoBehaviour
+        // — its UniTask continuations only run on Unity main thread.
+        AutoTravelUiController:   { friendly: "AutoTravelUiController",    fallback: "dtw" },
+        // Tiny request struct passed to tkw — { destMapId, skipConfirmation }.
+        AutoTravelRequest:        { friendly: "AutoTravelRequest",        fallback: "dck" },
+        // Unity-native, name never obfuscated — listed for symmetry. Its
+        // Update() is our main-thread dispatch anchor: hooked, drains a
+        // queue of forged invokes that need Unity main-thread scheduler.
+        MapRenderer:              { friendly: "Core.Rendering.MapRenderer", fallback: "Core.Rendering.MapRenderer" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         // AutoTravelManager.dkds : ere (the pathfinder runtime context — passed
@@ -629,6 +641,9 @@ export const WORLD_PATHFINDING_PROTO = {
         // Read by extractWorldGraph; populated lazily by `init` (bapg) the first
         // time anything triggers the auto-travel pipeline.
         WorldPathfinder_pathFindingData:     { classKey: "WorldPathfinder",        friendly: "pathFindingData", fallback: "dkdy" },
+        // AutoTravelRequest (dck) — passed by value to tkw.
+        AutoTravelRequest_destMapId:         { classKey: "AutoTravelRequest",      friendly: "destMapId",        fallback: "dbpf" },
+        AutoTravelRequest_skipConfirmation:  { classKey: "AutoTravelRequest",      friendly: "skipConfirmation", fallback: "dbpg" },
     } as Record<string, ProtoMemberSpec>,
     methods: {
         /** AutoTravelManager.bapc(long destMapId, Action<List<Edge>,bool> cb, bool flag) → void.
@@ -657,6 +672,15 @@ export const WORLD_PATHFINDING_PROTO = {
         /** WorldPathfindingWorker.gmj(PathFindingData) → void.
          *  Sibling of bgul — same purpose, same target field. */
         WorldPathfindingWorker_registerData2: { classKey: "WorldPathfindingWorker", friendly: "registerData2",   fallback: "gmj" },
+        /** dtw.tkw(dck) — UI-level entry point invoked when the user double-
+         *  clicks a destination on the worldmap. Builds the internal cb +
+         *  schedules the path compute + walking on UniTask. We dispatch this
+         *  through a MapRenderer.Update hook so the continuations land on
+         *  Unity main thread (where their scheduler context exists). */
+        AutoTravelUiController_start:         { classKey: "AutoTravelUiController", friendly: "startTravelFromRequest", fallback: "tkw" },
+        /** Unity main-thread anchor — never obfuscated. We hook this and use
+         *  its onLeave to drain pending forge tasks in main-thread context. */
+        MapRenderer_Update:                   { classKey: "MapRenderer",            friendly: "Update",          fallback: "Update" },
     } as Record<string, ProtoMemberSpec>,
 } as const;
 

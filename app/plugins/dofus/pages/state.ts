@@ -306,6 +306,9 @@ function renderAutopilotPanel(host: HTMLElement): void {
             <label style="color:#888;font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="Skip client loading coroutine (~5x faster, UI sprite broken until next clean transition)">
                 <input data-input="travel-fast" type="checkbox" style="margin:0" />fast
             </label>
+            <label style="color:#888;font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="Invoke game's native AutoTravelManager.startAutoTravel instead of our custom orchestrator (path computed locally first for reachability check)">
+                <input data-input="travel-native" type="checkbox" style="margin:0" />native
+            </label>
         </div>` : "";
 
     slot.innerHTML = `
@@ -686,11 +689,13 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
             if (!Number.isFinite(destMapId)) return;
             const fastEl = host.querySelector<HTMLInputElement>("[data-input='travel-fast']");
             const fast = !!fastEl?.checked;
+            const nativeEl = host.querySelector<HTMLInputElement>("[data-input='travel-native']");
+            const native = !!nativeEl?.checked;
             try {
                 const r = await fetch("/api/dofus/travel/start", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ destMapId, fast }),
+                    body: JSON.stringify({ destMapId, fast, native }),
                 });
                 const body = await r.json();
                 if (r.ok && body?.ok) {

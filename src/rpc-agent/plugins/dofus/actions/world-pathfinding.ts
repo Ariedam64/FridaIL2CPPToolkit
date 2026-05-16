@@ -21,14 +21,18 @@
 // that observe in-game auto-travels (diag log + last cached path reader).
 // None of them invoke anything.
 
-import { inVm } from "./_runtime";
+import { inVm, findClass } from "./_runtime";
 import { getSingleton } from "../../../singleton-cache";
+import { getStackFrames } from "../../../../lib/stack-trace";
 
 export interface WorldPathfindingProto {
     classes: {
         AutoTravelManager:      string;
         WorldPathfinder:        string;
         WorldPathfindingWorker: string;
+        AutoTravelUiController: string;
+        AutoTravelRequest:      string;
+        MapRenderer:            string;
     };
     fields: {
         AutoTravelManager_pathfinderContext: string;
@@ -38,6 +42,8 @@ export interface WorldPathfindingProto {
         WorldPathfinder_state:               string;
         WorldPathfindingWorker_resultEdges:  string;
         WorldPathfinder_pathFindingData:     string;
+        AutoTravelRequest_destMapId:          string;
+        AutoTravelRequest_skipConfirmation:   string;
     };
     methods: {
         AutoTravelManager_startAutoTravel:    string;
@@ -46,6 +52,8 @@ export interface WorldPathfindingProto {
         WorldPathfinder_init:                 string;
         WorldPathfindingWorker_registerData1: string;
         WorldPathfindingWorker_registerData2: string;
+        AutoTravelUiController_start:         string;
+        MapRenderer_Update:                   string;
     };
 }
 
@@ -171,10 +179,89 @@ let _hooksInstalled = false;
 let _lastCapture: PathEdge[] | null = null;
 let _captureSeq = 0;
 let _diagLog: string[] = [];
+
+// -----------------------------------------------------------------------------
+// Unity main-thread dispatcher.
+// Some IL2CPP methods (UniTask coroutines, MonoBehaviour callbacks) only run
+// correctly when invoked from Unity's main thread. Frida's `Il2Cpp.perform`
+// attaches a worker thread to the runtime but it's NOT Unity main, so async
+// continuations registered from there never fire. We work around it by
+// hooking a MonoBehaviour.Update (Core.Rendering.MapRenderer.Update is
+// always alive when the player is in-world) and draining a queue of pending
+// tasks from inside that hook — which IS on Unity main thread.
+// -----------------------------------------------------------------------------
+
+interface MainThreadTask { run: () => unknown; resolve: (v: unknown) => void; reject: (e: Error) => void; }
+const _mainThreadQueue: MainThreadTask[] = [];
+let _mainDispatchInstalled = false;
+const MAIN_DISPATCH_TIMEOUT_MS = 2_000;
+
+/** Hook `MapRenderer.Update` once per session; idempotent. Resolves the
+ *  obfuscated class+method via the caller-supplied proto so a future rename
+ *  is auto-handled by the LabelStore. Tasks queued via `dispatchOnMainThread`
+ *  drain inside the hook's onLeave — guaranteed Unity main thread context. */
+function ensureMainThreadDispatcher(proto: WorldPathfindingProto): boolean {
+    if (_mainDispatchInstalled) return true;
+    const className = proto.classes.MapRenderer;
+    const methodName = proto.methods.MapRenderer_Update;
+    let target: Il2Cpp.Class | null = null;
+    try {
+        for (const asm of (Il2Cpp.domain as any).assemblies) {
+            const k = asm.image.tryClass?.(className);
+            if (k) { target = k; break; }
+        }
+    } catch { /* fall through */ }
+    if (!target) { diag(`main-dispatch: class ${className} not found`); return false; }
+    const m = (target as any).tryMethod(methodName);
+    if (!m || m.virtualAddress.isNull()) { diag(`main-dispatch: ${methodName} not found on ${className}`); return false; }
+    Interceptor.attach(m.virtualAddress, {
+        onLeave() {
+            if (_mainThreadQueue.length === 0) return;
+            const batch = _mainThreadQueue.splice(0, _mainThreadQueue.length);
+            for (const task of batch) {
+                try { task.resolve(task.run()); }
+                catch (e) { task.reject(e instanceof Error ? e : new Error(String(e))); }
+            }
+        },
+    });
+    _mainDispatchInstalled = true;
+    diag(`main-dispatch installed @ ${m.virtualAddress} (${className}.${methodName})`);
+    return true;
+}
+
+function dispatchOnMainThread<T>(proto: WorldPathfindingProto, fn: () => T): Promise<T> {
+    if (!ensureMainThreadDispatcher(proto)) {
+        return Promise.reject(new Error("main-thread dispatcher not installable"));
+    }
+    return new Promise<T>((resolve, reject) => {
+        const task: MainThreadTask = {
+            run: fn as () => unknown,
+            resolve: resolve as (v: unknown) => void,
+            reject,
+        };
+        _mainThreadQueue.push(task);
+        // Safety net: if Update doesn't fire in time (loading screen, paused
+        // tab, scene swap) the task would hang forever otherwise.
+        setTimeout(() => {
+            const idx = _mainThreadQueue.indexOf(task);
+            if (idx >= 0) {
+                _mainThreadQueue.splice(idx, 1);
+                reject(new Error(`main-thread dispatch timeout (no Update in ${MAIN_DISPATCH_TIMEOUT_MS}ms)`));
+            }
+        }, MAIN_DISPATCH_TIMEOUT_MS);
+    });
+}
+/** Set true while `startNativeAutoTravel` is invoking dtw.tlb so the bapc
+ *  Interceptor's onEnter handler bails out — re-entering Frida's trampoline
+ *  + Thread.backtrace + Il2Cpp method-table lookup from inside our own RPC
+ *  call corrupts the perform context ("breakpoint triggered"). The hook is
+ *  passive diag only; skipping it during self-invocation is harmless. */
+let _selfInvokingNative = false;
 function diag(msg: string): void {
     _diagLog.push(`[${Date.now() % 100000}] ${msg}`);
-    if (_diagLog.length > 100) _diagLog.shift();
+    if (_diagLog.length > 200) _diagLog.shift();
 }
+
 
 function installHooks(proto: WorldPathfindingProto): boolean {
     if (_hooksInstalled) return true;
@@ -189,6 +276,12 @@ function installHooks(proto: WorldPathfindingProto): boolean {
         if (nwf && !nwf.virtualAddress.equals(NULL)) {
             Interceptor.attach(nwf.virtualAddress, {
                 onEnter(args) {
+                    // Same re-entrancy guard as the bapc hook — wrapping an
+                    // Il2Cpp.Object + walking the List<Edge> during our own
+                    // perform-block invocation of dtw.tlb corrupts the JIT
+                    // state ("breakpoint triggered") and tlb's path-compute
+                    // continuation never runs.
+                    if (_selfInvokingNative) return;
                     try {
                         const listPtr = args[1];
                         if (listPtr.equals(NULL)) { diag("deliverResult: NULL list"); return; }
@@ -210,8 +303,24 @@ function installHooks(proto: WorldPathfindingProto): boolean {
         if (bapc && !bapc.virtualAddress.equals(NULL)) {
             Interceptor.attach(bapc.virtualAddress, {
                 onEnter(args) {
-                    try { diag(`bapc: destMapId=${args[1].toString()}`); }
-                    catch (e) { diag(`bapc hook err: ${String(e).slice(0, 80)}`); }
+                    // Skip the entire handler if we're the ones invoking
+                    // (via startNativeAutoTravel → dtw.tlb → bapc). Frida
+                    // re-entrancy from inside our own RPC corrupts state.
+                    if (_selfInvokingNative) return;
+                    try {
+                        diag(`bapc: destMapId=${args[1].toString()}`);
+                        // Capture caller chain — resolved to "Class.method+
+                        // 0xoff" via the shared IL2CPP method-address table
+                        // (src/lib/stack-trace.ts). The frame immediately
+                        // above bapc is the higher-level wrapper that builds
+                        // the cb and calls us — that's the entry we want.
+                        const frames = getStackFrames(this.context, 8);
+                        for (let i = 0; i < frames.length; i++) {
+                            diag(`  bt[${i}] ${frames[i]}`);
+                        }
+                    } catch (e) {
+                        diag(`bapc hook err: ${String(e).slice(0, 120)}`);
+                    }
                 },
             });
             diag(`bapc hook installed @ ${bapc.virtualAddress}`);
@@ -223,6 +332,66 @@ function installHooks(proto: WorldPathfindingProto): boolean {
         diag(`install threw: ${String(e).slice(0, 100)}`);
         return false;
     }
+}
+
+/** Diagnostic helper: install lightweight Interceptor hooks on EVERY method
+ *  of the `dtw` class (the world-map auto-travel controller). Each call logs
+ *  "dtw.<method>(args)" to the diag log so we can observe the natural call
+ *  sequence during a user-triggered auto-travel. Use to identify the
+ *  pre/post steps that wrap dtw.tlb in the real flow. Safe to call multiple
+ *  times — idempotent. */
+
+/** Invoke `AutoTravelManager.startAutoTravel(destMapId, null, false)` — the
+ *  public entry point the game uses when the user double-clicks a worldmap
+ *  destination. The client handles path compute + walking + transitions
+ *  (iev / NPC dialogs / zaaps / boats) on its own, exactly as if the user
+ *  had triggered it manually. No callback, no flag — minimal invocation. */
+/** Forge a native auto-travel — equivalent to a double-click on the worldmap.
+ *
+ *  Flow:
+ *    1. Build `AutoTravelRequest(destMapId, skipConfirmation=true)` (dck)
+ *    2. Dispatch `AutoTravelUiController.startTravelFromRequest(req)` (dtw.tkw)
+ *       through a Unity-main-thread queue so UniTask continuations land in
+ *       the right scheduler context. Without this the path is computed but
+ *       the walking executor never picks up (registered on the wrong sched).
+ *
+ *  All class/method/field names go through `proto.*` — resilient to obf
+ *  rotations as long as the LabelStore is seeded (we POST friendly names on
+ *  attach so the resolver hits even before a manual rename). */
+export function startNativeAutoTravel(
+    proto: WorldPathfindingProto,
+    destMapId: number,
+): Promise<{ ok: boolean; reason?: string }> {
+    return inVm(() => {
+        const dckK = findClass(proto.classes.AutoTravelRequest);
+        if (!dckK) return Promise.resolve({ ok: false, reason: `${proto.classes.AutoTravelRequest} class not found` });
+        const controller = getSingleton(proto.classes.AutoTravelUiController);
+        if (!controller) return Promise.resolve({ ok: false, reason: `no live ${proto.classes.AutoTravelUiController} instance` });
+
+        let req: any;
+        try {
+            req = (dckK as any).new();
+            // dck has a single 2-arg ctor(Int64 destMapId, Boolean skipConfirmation).
+            req.method(".ctor").invoke(new Int64(destMapId.toString()), true);
+        } catch (e) {
+            return Promise.resolve({ ok: false, reason: `${proto.classes.AutoTravelRequest} build failed: ${String(e).slice(0, 200)}` });
+        }
+
+        return dispatchOnMainThread(proto, () => {
+            _selfInvokingNative = true;
+            try {
+                (controller as any).method(proto.methods.AutoTravelUiController_start).invoke(req);
+                diag(`autoTravel(${destMapId}) dispatched on main-thread`);
+                return { ok: true } as { ok: boolean; reason?: string };
+            } catch (e) {
+                const msg = String(e).slice(0, 200);
+                diag(`autoTravel(${destMapId}) threw: ${msg}`);
+                return { ok: false, reason: msg };
+            } finally {
+                _selfInvokingNative = false;
+            }
+        }).catch((e: Error) => ({ ok: false, reason: `dispatch failed: ${e.message}` }));
+    });
 }
 
 /** Drain diagnostic log — used by /api/dofus/world-pathfinding/diag. */
