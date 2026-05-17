@@ -114,54 +114,9 @@ const staticByType = new Map<number, ResolvedType>();
 // Autopilot panel state
 // =============================================================================
 
-interface TravelStatus {
-    state: "idle" | "running" | "done" | "failed" | "cancelled";
-    destMapId: number | null;
-    currentEdgeIdx: number | null;
-    totalEdges: number | null;
-    currentTransitionCell: number | null;
-    lastError: string | null;
-    startedAt: number | null;
-    finishedAt: number | null;
-}
-
-const travelStatus: TravelStatus = {
-    state: "idle",
-    destMapId: null,
-    currentEdgeIdx: null,
-    totalEdges: null,
-    currentTransitionCell: null,
-    lastError: null,
-    startedAt: null,
-    finishedAt: null,
-};
-
-let travelPollTimer: ReturnType<typeof setInterval> | null = null;
-const TRAVEL_POLL_MS = 500;
-
-async function fetchTravelStatus(): Promise<void> {
-    try {
-        const r = await fetch("/api/dofus/travel/status");
-        if (!r.ok) return;
-        const s = await r.json() as TravelStatus;
-        Object.assign(travelStatus, s);
-    } catch { /* leave previous */ }
-}
-
-function startTravelPoll(host: HTMLElement): void {
-    if (travelPollTimer) return;
-    travelPollTimer = setInterval(async () => {
-        await fetchTravelStatus();
-        renderAutopilotPanel(host);
-        if (travelStatus.state !== "running") {
-            if (travelPollTimer) { clearInterval(travelPollTimer); travelPollTimer = null; }
-        }
-    }, TRAVEL_POLL_MS);
-}
-
-function stopTravelPoll(): void {
-    if (travelPollTimer) { clearInterval(travelPollTimer); travelPollTimer = null; }
-}
+/** Last response from /api/dofus/travel/start — displayed inline under the
+ *  Go button. We don't poll status; the user observes the walk in-game. */
+let lastTravelMessage: { kind: "ok" | "err"; text: string } | null = null;
 
 // Cell grid layout matches the in-game iso projection used by cell-grid.ts:
 // north top, east right, south bottom, west left.
@@ -274,48 +229,19 @@ function renderHeader(host: HTMLElement): void {
 function renderAutopilotPanel(host: HTMLElement): void {
     const slot = host.querySelector<HTMLElement>("[data-region='autopilot']");
     if (!slot) return;
-
-    const s = travelStatus;
-    const showInput = s.state !== "running";
-
-    let body = "";
-    if (s.state === "running") {
-        const step = (s.currentEdgeIdx ?? 0) + 1;
-        body = `
-            <div style="display:flex;align-items:center;gap:12px;color:#a78bfa">
-                <span>→ Map ${s.destMapId}</span>
-                <span style="color:#666">·</span>
-                <span>step ${step}/${s.totalEdges ?? "?"}</span>
-                ${s.currentTransitionCell != null ? `<span style="color:#666">·</span><span>cell ${s.currentTransitionCell}</span>` : ""}
-                <button data-action="travel-cancel" style="margin-left:auto">Cancel</button>
-            </div>`;
-    } else if (s.state === "done") {
-        const elapsed = s.startedAt && s.finishedAt ? Math.round((s.finishedAt - s.startedAt) / 1000) : null;
-        body = `<div style="color:#86efac">✓ Arrivé à ${s.destMapId}${s.totalEdges != null ? `  (${s.totalEdges} steps${elapsed != null ? `, ${elapsed}s` : ""})` : ""}</div>`;
-    } else if (s.state === "failed") {
-        body = `<div style="color:#fca5a5">✗ failed: ${escapeHtml(s.lastError ?? "unknown")}</div>`;
-    } else if (s.state === "cancelled") {
-        body = `<div style="color:#fcd34d">⊘ cancelled</div>`;
-    }
-
-    const inputRow = showInput ? `
-        <div style="display:flex;align-items:center;gap:8px;margin-top:${body ? "6px" : "0"}">
-            <span style="color:#888;font-size:11px">Aller à map</span>
-            <input data-input="travel-dest" type="number" placeholder="mapId" style="width:140px;background:#1a1a1a;border:1px solid #333;color:#ddd;padding:4px 6px;font:11px monospace" />
-            <button data-action="travel-go">Go</button>
-            <label style="color:#888;font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="Skip client loading coroutine (~5x faster, UI sprite broken until next clean transition)">
-                <input data-input="travel-fast" type="checkbox" style="margin:0" />fast
-            </label>
-            <label style="color:#888;font-size:11px;display:inline-flex;align-items:center;gap:4px;cursor:pointer" title="Invoke game's native AutoTravelManager.startAutoTravel instead of our custom orchestrator (path computed locally first for reachability check)">
-                <input data-input="travel-native" type="checkbox" style="margin:0" />native
-            </label>
-        </div>` : "";
-
+    const msg = lastTravelMessage;
+    const msgHtml = msg
+        ? `<div style="margin-top:6px;color:${msg.kind === "ok" ? "#86efac" : "#fca5a5"}">${msg.kind === "ok" ? "✓" : "✗"} ${escapeHtml(msg.text)}</div>`
+        : "";
     slot.innerHTML = `
         <div style="border:1px solid #2a2a2a;padding:8px 10px;border-radius:4px;background:#181818;margin-top:8px">
             <div style="color:#888;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Autopilot</div>
-            ${body}
-            ${inputRow}
+            <div style="display:flex;align-items:center;gap:8px">
+                <span style="color:#888;font-size:11px">Aller à map</span>
+                <input data-input="travel-dest" type="number" placeholder="mapId" style="width:140px;background:#1a1a1a;border:1px solid #333;color:#ddd;padding:4px 6px;font:11px monospace" />
+                <button data-action="travel-go">Go</button>
+            </div>
+            ${msgHtml}
         </div>`;
 }
 
@@ -672,51 +598,38 @@ export async function mountState(host: HTMLElement, _ctx: PluginPageContext): Pr
     }
     renderAll(host);
 
-    // Initial autopilot fetch + render.
-    void fetchTravelStatus().then(() => {
-        if (!host.isConnected) return;
-        renderAutopilotPanel(host);
-        if (travelStatus.state === "running") startTravelPoll(host);
-    });
+    // Initial autopilot panel paint.
+    renderAutopilotPanel(host);
 
-    // Delegated click handler for autopilot buttons.
+    // Delegated click handler for the Go button.
     host.addEventListener("click", async (ev) => {
         const t = ev.target as HTMLElement;
-        const action = t.getAttribute?.("data-action");
-        if (action === "travel-go") {
-            const input = host.querySelector<HTMLInputElement>("[data-input='travel-dest']");
-            const destMapId = Number(input?.value ?? "");
-            if (!Number.isFinite(destMapId)) return;
-            const fastEl = host.querySelector<HTMLInputElement>("[data-input='travel-fast']");
-            const fast = !!fastEl?.checked;
-            const nativeEl = host.querySelector<HTMLInputElement>("[data-input='travel-native']");
-            const native = !!nativeEl?.checked;
-            try {
-                const r = await fetch("/api/dofus/travel/start", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ destMapId, fast, native }),
-                });
-                const body = await r.json();
-                if (r.ok && body?.ok) {
-                    await fetchTravelStatus();
-                    renderAutopilotPanel(host);
-                    if (travelStatus.state === "running") startTravelPoll(host);
+        if (t.getAttribute?.("data-action") !== "travel-go") return;
+        const input = host.querySelector<HTMLInputElement>("[data-input='travel-dest']");
+        const destMapId = Number(input?.value ?? "");
+        if (!Number.isFinite(destMapId)) return;
+        lastTravelMessage = { kind: "ok", text: `Calcul du chemin vers ${destMapId}…` };
+        renderAutopilotPanel(host);
+        try {
+            const r = await fetch("/api/dofus/travel/start", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ destMapId }),
+            });
+            const body = await r.json();
+            if (r.ok && body?.ok) {
+                if (body.alreadyOnMap) {
+                    lastTravelMessage = { kind: "ok", text: `Déjà sur la map ${destMapId}` };
                 } else {
-                    travelStatus.state = "failed";
-                    travelStatus.lastError = body?.reason ?? body?.error ?? `HTTP ${r.status}`;
-                    renderAutopilotPanel(host);
+                    lastTravelMessage = { kind: "ok", text: `Travel lancé vers ${destMapId} (${body.totalEdges} edges)` };
                 }
-            } catch (e) {
-                travelStatus.state = "failed";
-                travelStatus.lastError = String((e as Error).message);
-                renderAutopilotPanel(host);
+            } else {
+                lastTravelMessage = { kind: "err", text: body?.reason ?? body?.error ?? `HTTP ${r.status}` };
             }
-        } else if (action === "travel-cancel") {
-            try { await fetch("/api/dofus/travel/cancel", { method: "POST" }); } catch {}
-            await fetchTravelStatus();
-            renderAutopilotPanel(host);
+        } catch (e) {
+            lastTravelMessage = { kind: "err", text: String((e as Error).message) };
         }
+        renderAutopilotPanel(host);
     });
 
     // --- Player updates: cell/move only. Header + raw + minimap marker. ---

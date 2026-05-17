@@ -6,7 +6,6 @@ import { DofusDataStore } from "../lib/stores/data";
 import { CraftRankingStore } from "../lib/stores/craft";
 import { TradeCenterActions } from "../lib/trade/trade-center";
 import { InteractiveActions } from "../lib/interactives/interactive";
-import { NpcDialogActions } from "../lib/interactives/npc-dialog";
 import { MovementActions } from "../lib/movement/movement";
 import { ChangeMapActions } from "../lib/movement/change-map";
 import { MapInteractivesStore } from "../lib/stores/map-interactives";
@@ -16,8 +15,6 @@ import { PlayerStore } from "../lib/stores/player";
 import { MapStateStore } from "../lib/stores/map-state";
 import { WORLD_PATHFINDING_PROTO, MOVEMENT_PROTO } from "../lib/protocol/schema";
 import { resolveProto } from "../lib/protocol/resolver";
-import { TravelOrchestrator } from "../lib/movement/autopilot";
-import { BasicPingActions } from "../lib/movement/basic-ping";
 import { computeWorldPath } from "../lib/movement/world-path";
 
 const _MODULE_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -90,12 +87,10 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
     // -------------------------------------------------------------------------
     let playerStore: PlayerStore | null = null;
     let mapStateStore: MapStateStore | null = null;
-    let autopilot: TravelOrchestrator | null = null;
     let detachPlayerListener: (() => void) | null = null;
     let detachMapStateListener: (() => void) | null = null;
 
     function rewireStores(): void {
-        if (autopilot) { autopilot.dispose(); autopilot = null; }
         if (detachPlayerListener)   { detachPlayerListener();   detachPlayerListener = null; }
         if (detachMapStateListener) { detachMapStateListener(); detachMapStateListener = null; }
         if (playerStore)   { playerStore.dispose();   playerStore = null; }
@@ -105,76 +100,6 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
 
         playerStore   = new PlayerStore(deps.session, profile.labels, deps.session.fridaClient);
         mapStateStore = new MapStateStore(deps.session, profile.labels, deps.session.fridaClient);
-
-        const movementForAutopilot = new MovementActions(profile.labels, deps.session.fridaClient, mapInteractives, store);
-        const changeMapForAutopilot = new ChangeMapActions(
-            profile.labels,
-            deps.session.fridaClient,
-            () => deps.session.frameStore(),
-        );
-        const basicPingForAutopilot = new BasicPingActions(profile.labels, deps.session.fridaClient);
-        const interactiveForAutopilot = new InteractiveActions(profile.labels, deps.session.fridaClient, mapInteractives, mapStateStore);
-        const npcDialogForAutopilot   = new NpcDialogActions(profile.labels, deps.session.fridaClient, () => deps.session.frameStore());
-        autopilot = new TravelOrchestrator({
-            getCurrentCell:   () => playerStore!.getState().currentCellId,
-            isMoving:         () => playerStore!.getState().isMoving,
-            onPlayerChange:   (cb) => playerStore!.onChange(() => cb()),
-            getCurrentMapId:  () => mapStateStore!.getState().mapId,
-            onMapChange:      (cb) => mapStateStore!.onChange(() => cb()),
-            movement:         movementForAutopilot,
-            changeMap:        changeMapForAutopilot,
-            sendBasicPing:    () => basicPingForAutopilot.sendPing(),
-            computeWorldPath: (src, dest) => computeWorldPath(src, dest),
-            useInteractiveAt: async (cellId, skillId) => {
-                if (!mapStateStore) return { ok: false, reason: "map state not initialised" };
-                const mapId = mapStateStore.getState().mapId;
-                if (mapId === null) return { ok: false, reason: "no current mapId" };
-                // -----------------------------------------------------------
-                // 1) Static interactives (doors / ladders / holes) — iev
-                //
-                // Cell lookup goes through MapInteractivesStore (static `ie`
-                // layout joined with runtime), NOT MapStateStore — non-stateful
-                // interactives (doors/ladders/holes) have `cellId: null` in
-                // MapStateStore because they have no statedElement entry in itx.
-                // -----------------------------------------------------------
-                const entry = mapInteractives.getMap(mapId);
-                const ievCandidates = entry?.interactives.filter(
-                    (i) => i.cell === cellId && i.skillIds.includes(skillId),
-                ) ?? [];
-                let lastIevError: string | undefined;
-                for (const c of ievCandidates) {
-                    const r = await interactiveForAutopilot.useInteractive(c.elementId, skillId);
-                    if (r.ok) return { ok: true, elementId: r.elementId, skillInstanceUid: r.skillInstanceUid };
-                    lastIevError = r.reason;
-                }
-                // -----------------------------------------------------------
-                // 2) Transit NPC fallback — hwd → hwy → hwp dialog flow
-                //
-                // The world-graph doesn't distinguish a door (interactive) from
-                // a travel NPC (entity) — both surface as `type 32, skill 184`
-                // edges. When no static interactive matches, try resolving
-                // the cell as an NPC entity from the live MapStateStore.
-                // -----------------------------------------------------------
-                const npc = mapStateStore.getState().entities.find(
-                    (e) => e.kind === "npc" && e.cellId === cellId,
-                );
-                if (npc) {
-                    const r = await npcDialogForAutopilot.talkAndAutoReply(Number(npc.entityId), mapId);
-                    if (r.ok) return { ok: true, elementId: Number(npc.entityId), skillInstanceUid: r.questionId };
-                    return { ok: false, reason: `NPC dialog (entity=${npc.entityId}): ${r.reason}` };
-                }
-                // -----------------------------------------------------------
-                // 3) Neither — fail with focused diagnostic
-                // -----------------------------------------------------------
-                const sameCellIev = entry?.interactives.filter((i) => i.cell === cellId)
-                    .map((i) => `eid=${i.elementId} skills=[${i.skillIds.join(",")}]`).join(" ; ") || "<none>";
-                const sameCellNpcs = mapStateStore.getState().entities
-                    .filter((e) => e.cellId === cellId)
-                    .map((e) => `${e.kind}:${e.entityId}`).join(", ") || "<none>";
-                const why = lastIevError ? ` (iev rejected: ${lastIevError})` : "";
-                return { ok: false, reason: `no interactive or NPC at cell ${cellId} on map ${mapId} — iev candidates: ${sameCellIev}, entities@cell: ${sameCellNpcs}${why}` };
-            },
-        });
 
         detachPlayerListener = playerStore.onChange((state) => {
             deps.session.emit("dofus-player-state-changed", state);
@@ -210,7 +135,6 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         if (detachMapStateListener) { detachMapStateListener(); detachMapStateListener = null; }
         if (playerStore)   { playerStore.dispose();   playerStore = null; }
         if (mapStateStore) { mapStateStore.dispose(); mapStateStore = null; }
-        if (autopilot) { autopilot.dispose(); autopilot = null; }
         // Recreate map interactives with a stub LabelStore so disk reads keep working.
         rewireInteractives();
     });
@@ -287,40 +211,13 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         return resolveProto(profile.labels, WORLD_PATHFINDING_PROTO);
     }
 
-    /** Drain the agent's world-pathfinding diagnostic log. */
-    app.get("/api/dofus/world-pathfinding/diag", async (_req, res) => {
-        const profile = deps.session.profile();
-        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
-        try {
-            const result = await deps.session.fridaClient.call("getWorldPathfindingDiag", []);
-            res.json(result);
-        } catch (err) {
-            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-        }
-    });
-
-    /** Install the deliverResult capture hook (and the bapc diag hook).
-     *  Idempotent. Called by the state page on mount so any in-game
-     *  auto-travel published before the user's first active invoke still
-     *  ends up in the diag log. */
+    /** Trigger the PathFindingData load on the agent. Idempotent — pre-warms
+     *  the static `dkdy` so `/extract-graph` can read it without delay. */
     app.post("/api/dofus/world-pathfinding/init", async (_req, res) => {
         const profile = deps.session.profile();
         if (!profile) { res.status(503).json({ error: "not attached" }); return; }
         try {
-            const result = await deps.session.fridaClient.call("initWorldPathfindingHooks", [worldPathfindingProto(profile)]);
-            res.json(result);
-        } catch (err) {
-            res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-        }
-    });
-
-    /** Read the last cached world path off the WorldPathfinder instance.
-     *  Pure field reads — no method invocation, no side effects on travel. */
-    app.get("/api/dofus/world-pathfinding/cached", async (_req, res) => {
-        const profile = deps.session.profile();
-        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
-        try {
-            const result = await deps.session.fridaClient.call("readCachedWorldPath", [worldPathfindingProto(profile)]);
+            const result = await deps.session.fridaClient.call("initWorldPathfinding", [worldPathfindingProto(profile)]);
             res.json(result);
         } catch (err) {
             res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
@@ -758,90 +655,32 @@ export function mount(app: Express, deps: PluginBackendDeps, opts: DofusMountOpt
         catch (err) { res.status(500).json({ error: err instanceof Error ? err.message : String(err) }); }
     });
 
-    // ---- Autopilot (movement + change-map chain) ----
+    // ---- Autopilot ----
     //
-    // Single instance per session (`autopilot` above). Endpoints are inert
-    // when no profile is attached. `start` returns synchronously once
-    // planning settles; the loop runs in the background. Caller polls
-    // `/status` to observe progression.
+    // Single endpoint, fire-and-walk. Path is computed host-side over the
+    // cached world graph and injected directly into the game's worker — the
+    // walker handles every step (move + transitions) natively. No status
+    // polling, no cancel — interrupt by manually moving the character.
     app.post("/api/dofus/travel/start", async (req, res) => {
-        if (!autopilot) { res.status(503).json({ error: "not attached" }); return; }
+        const profile = deps.session.profile();
+        if (!profile) { res.status(503).json({ error: "not attached" }); return; }
         const destMapId = Number(req.body?.destMapId);
-        if (!Number.isFinite(destMapId)) {
-            res.status(400).json({ error: "destMapId required" });
-            return;
+        if (!Number.isFinite(destMapId)) { res.status(400).json({ error: "destMapId required" }); return; }
+        const currentMapId = mapStateStore?.getState().mapId;
+        if (currentMapId == null) { res.json({ ok: false, reason: "no current mapId (map not yet known)" }); return; }
+        const plan = computeWorldPath(currentMapId, destMapId);
+        if (!plan.ok) { res.json({ ok: false, reason: `world-path: ${plan.reason}` }); return; }
+        if (plan.edges.length === 0) { res.json({ ok: true, totalEdges: 0, alreadyOnMap: true }); return; }
+        const proto = resolveProto(profile.labels, WORLD_PATHFINDING_PROTO);
+        try {
+            const r = await deps.session.fridaClient.call<{ ok: boolean; reason?: string; edgeCount?: number }>(
+                "startAutoTravel", [proto, destMapId, plan.edges],
+            );
+            console.log(`[autopilot] start(${destMapId}, ${plan.edges.length} edges) → ${r.ok ? "ok" : r.reason}`);
+            res.json({ ok: r.ok, totalEdges: plan.edges.length, reason: r.reason });
+        } catch (err) {
+            res.status(500).json({ ok: false, reason: err instanceof Error ? err.message : String(err) });
         }
-        const fast = Boolean(req.body?.fast);
-        const native = Boolean(req.body?.native);
-        // Pre-check 'already running' so we can return a clean 409 (the
-        // orchestrator's own guard returns 200 ok:false, which the UI would
-        // misclassify as a planning failure).
-        if (autopilot.getStatus().state === "running") {
-            res.status(409).json({ error: "travel already running" });
-            return;
-        }
-        // -----------------------------------------------------------------
-        // Native mode: skip our orchestrator entirely and let the game's own
-        // AutoTravelManager.bapc handle path + walking + transitions. We
-        // still run the world-path generator first to verify reachability
-        // (and to give the user a clean "no path" error instead of having
-        // the game silently no-op), then fire the single invoke.
-        // -----------------------------------------------------------------
-        if (native) {
-            const profile = deps.session.profile();
-            if (!profile) { res.status(503).json({ error: "not attached" }); return; }
-            const currentMapId = mapStateStore?.getState().mapId;
-            if (currentMapId == null) { res.json({ ok: false, reason: "no current mapId (map not yet known)" }); return; }
-            const plan = computeWorldPath(currentMapId, destMapId);
-            if (!plan.ok) { res.json({ ok: false, reason: `world-path: ${plan.reason}` }); return; }
-            if (plan.edges.length === 0) { res.json({ ok: true, totalEdges: 0, alreadyOnMap: true, native: true }); return; }
-            const proto = resolveProto(profile.labels, WORLD_PATHFINDING_PROTO);
-            try {
-                const r = await deps.session.fridaClient.call<{ ok: boolean; reason?: string }>(
-                    "startNativeAutoTravel", [proto, destMapId],
-                );
-                console.log(`[autopilot:native] startAutoTravel(${destMapId}) → ${r.ok ? "ok" : r.reason}`);
-                res.json({ ok: r.ok, totalEdges: plan.edges.length, native: true, reason: r.reason });
-            } catch (err) {
-                res.status(500).json({ ok: false, reason: err instanceof Error ? err.message : String(err) });
-            }
-            return;
-        }
-        // Fire-and-forget the orchestrator: the start() promise resolves
-        // when the WHOLE travel ends, not when planning settles. The HTTP
-        // response should only reflect planning outcome — kick start() in
-        // the background, then peek getStatus() after one tick.
-        const startP = autopilot.start(destMapId, { fast });
-        // Yield once so synchronous-failure paths ("no path", "destMapId
-        // not in graph", "already on destination") have flushed into status.
-        await new Promise<void>(r => setImmediate(r));
-        const s = autopilot.getStatus();
-        if (s.state === "failed") {
-            // Planning failure (also "no current cell/mapId" guards).
-            // Surface synchronously, swallow startP (already settled).
-            void startP;
-            res.json({ ok: false, reason: s.lastError });
-            return;
-        }
-        if (s.state === "done") {
-            void startP;
-            res.json({ ok: true, totalEdges: 0, alreadyOnMap: true });
-            return;
-        }
-        // state === "running" — travel kicked off, loop runs in background.
-        // Don't await startP (would block until the whole journey ends).
-        void startP;
-        res.json({ ok: true, totalEdges: s.totalEdges });
-    });
-
-    app.post("/api/dofus/travel/cancel", (_req, res) => {
-        if (!autopilot) { res.status(503).json({ error: "not attached" }); return; }
-        res.json(autopilot.cancel());
-    });
-
-    app.get("/api/dofus/travel/status", (_req, res) => {
-        if (!autopilot) { res.status(503).json({ error: "not attached" }); return; }
-        res.json(autopilot.getStatus());
     });
 
     // ---- Interactive use (harvest, talk to NPC, use zaap, ...) ----

@@ -238,3 +238,263 @@ behind so a future investigation can pick up where this one stopped.
    UI once. If we can detect that signal (e.g., a static field flipping, or
    a specific service becoming non-null) and gate our forge on it, we delay
    automatically.
+
+---
+
+## Update 2026-05-17 (afternoon) — region-scoped warm-up, not binary
+
+After more empirical testing, the "1 manual click warms the whole session"
+model is wrong. The warm-up is **region-scoped**: a manual travel only
+unlocks native forges to destinations within the radius (or pre-loaded
+worldmap chunk?) of that manual travel.
+
+### Observed sequence
+
+1. Cold-fresh Dofus.
+2. Manual travel to a **nearby** map (e.g., 1-2 hops).
+3. Native forge to a **far** map → fails with the in-game chat error:
+   > Impossible de lancer un voyage automatique : il n'existe aucune carte
+   > accessible à la position souhaitée.
+4. Manual travel to a **farther** destination than step 2.
+5. Native forge to the same far map as step 3 → **works**.
+
+So the warmth a manual travel provides scales with the manual travel's
+distance — or more precisely, with the worldmap region the manual travel
+forced the client to load.
+
+### Hypothesis
+
+The wbi fallback's viewport validation rejects Vector2(0,0) for maps that
+aren't in the currently-loaded worldmap region. Manual travels expand this
+loaded region. The chat message above is empirically the wbi rejection
+path (matches the "aucune carte accessible à la position souhaitée"
+fingerprint noted earlier in this doc).
+
+But there's likely a similar region constraint on tkw: even after a manual
+travel, our tkw forge to a far map still fails warm (we'd otherwise never
+hit the wbi fallback and never see this error). So both paths share some
+"loaded-region" gate that's keyed on the manual travel's scope.
+
+### Where the chat message comes from — not yet traced
+
+The string "Impossible de lancer un voyage automatique : il n'existe aucune
+carte accessible à la position souhaitée." is in Dofus's localization
+bundle (Unity-side, not in any of our static data). To find the exact
+emission site, three tractable approaches:
+
+- **Hook the chat dispatch.** The message goes through the in-game chat —
+  hook whichever method writes a system message to the chat scrollback and
+  log the stack frames whenever the string matches. The frame just above
+  the dispatch will be the rejection site.
+- **Hook the i18n lookup.** Find the localization function (look for
+  methods on a class like `LocalizationService` / `Translator` / `I18n` in
+  the dump — single arg `string key`, returns `string`) and log calls
+  whose result contains "voyage automatique". The key string identifies
+  the call site.
+- **Stack-trace tkw / wbi return paths.** Both paths return without
+  invoking the path-compute when the region check fails. Adding an `onLeave`
+  hook on tkw and wbi that captures the return value + a backtrace whenever
+  the result is the rejection branch should isolate the validator.
+
+The chat-dispatch approach is the cheapest (single hook, no need to
+identify the i18n function or guess the validator method).
+
+### Implications for the autopilot
+
+The previous workaround ("1 manual click warms the session") is incomplete.
+A more honest workaround until the validator is bypassed:
+- Do a manual travel **at least as far** as your intended native destination
+  before launching the native forge.
+- Or fall back to our custom orchestrator (non-native) for any travel
+  beyond the manual warm-up's reach.
+
+### Runtime instrumentation attempt (chat-dispatch hunt)
+
+Tried to trace where the chat message originates by hooking every string-arg
+method on every candidate class. Added TEMP RPC functions
+`installStringSubstringTrace` and `installChatDispatchTrace` to the agent
+(`src/rpc-agent/plugins/dofus/actions/world-pathfinding.ts`) + 2 routes
+in the plugin (`/install-string-trace`, `/install-chat-dispatch-trace`).
+
+**Classes hooked, none caught the message:**
+- `ChatMessageHistory.Add` / `ResetIndexIfNeeded`
+- `ChatView.AddNewMessage` + 6 other string-arg methods
+- `ChatTab` (no string-arg methods)
+- `ChatMessage.bkwi` (content setter) — fires hundreds of times but with
+  bogus arg pointers (`0x11716`, `0x1174e`, `0x11792`) → "access violation
+  accessing 0x11716". `bkwi` is likely virtual/interface-dispatched and
+  Frida's `Interceptor` catches a trampoline stub, not the real impl.
+- `ChatMessage..ctor` — never fires (chat messages are pooled, not freshly
+  built per emission)
+- `gqz.bkvv(ChatMessage)` — the chat-service interface dispatch (discovered
+  via `ChatChannelCounter.m_chatService` field type). Doesn't fire either.
+  Confirmed `gqz` is an interface (0 fields). `listSubclasses("gqz")`
+  returned empty — couldn't find the concrete impl class. The
+  `Core.Services.ChatService.AnkamaChatService.Protocol.*` classes in the
+  namespace are gRPC server-protocol commands, not the client-side service.
+- `grs.{dvf, Add, kqq}(string)` and `grt.{gyx, hrh, bkzh, jxw}(string, string)`
+  — providers returned by `gqz.bkvk()` / `gqz.bkvm()`. Take string messages,
+  but never fire for the wbi rejection either.
+
+Filters tried (case-sensitive substring match on string args): `voyage`,
+`Impossible`, `carte`, `automatique`, `auto`, `ui.`, `autoTravel`. None hit.
+
+**Conclusion:** the rejection message is dispatched through a path we
+didn't reach with substring-on-string-arg tracing. Possibilities:
+1. **UI-direct write.** Maybe the chat scrollback receives the message via
+   a direct `Label.text = "..."` or `VisualElement` text set. Hooking
+   `UnityEngine.UIElements.TextField` or `TMP_Text.text` would catch it,
+   but those fire constantly across the whole UI and tracing them is
+   prohibitive without a tight filter.
+2. **StringBuilder/concat dispatch.** The text is assembled piecewise via
+   `StringBuilder.Append` chains, so no single string-arg call ever contains
+   the full substring. The fully-assembled string only exists transiently
+   inside the formatter.
+3. **Notification/popup system separate from chat.** Dofus may have a
+   "toast"/"info-popup" pipeline that mirrors into the chat scrollback as a
+   side effect. The primary dispatch wouldn't be a chat method.
+
+### What to try next, if anyone picks this up
+
+- **Decompile offline.** The strings won't be in the .cs files (the
+  AssetRipper export's TextAssets are binary). But running `dnSpy` / `ilSpy`
+  on the assembly DLLs in `dofus-app/data/external/assetripper-export/
+  Assemblies/Core.dll` (etc.) might reveal the validator call site if the
+  binary still embeds the i18n key. Pattern to grep: any method on the
+  AutoTravel namespace that calls a `Translate(...)`/`I18n.get(...)` with a
+  key like `ui.autoTravel.error.*` or similar.
+- **Skip the dispatch hunt, patch the validator instead.** The viewport
+  validation in `wbi` is likely a single `if (viewport.contains(pos))`
+  check. If we identify the validating predicate (early-return path in
+  `eaw.wbi`) and either patch it to always return true or pass a Vector2
+  that always passes, we bypass the rejection without needing to know what
+  chat method emits the error. Approach: hook `wbi` with `onLeave`, observe
+  return value, then walk it back to its predecessor branches via
+  `Stalker.follow`. Heavy but conclusive.
+- **Live-set the worldmap viewport.** `eaw` has 111 fields; some hold the
+  loaded-region state (likely `dgkv` Dictionary<eba,bool> or one of the
+  Vector2 / Double fields named `dgkw/dgkx/dgky/dgkz`). Identifying which
+  one represents the "loaded region" and force-expanding it would let wbi
+  accept any (0,0) for any map. Investigation requires field-shadowing
+  during a manual travel sequence to spot which field changes scope.
+
+### Files left in place
+
+- `src/rpc-agent/plugins/dofus/actions/world-pathfinding.ts` — keeps
+  `installStringSubstringTrace` and `installChatDispatchTrace` for any
+  future investigator. Both are inert until called via the routes below.
+- `app/plugins/dofus/routes/index.ts` — `/install-string-trace` and
+  `/install-chat-dispatch-trace` POST routes.
+
+### Offline decompilation attempt — also a wall
+
+Scanned all 143 DLLs in `dofus-app/data/external/assetripper-export/Assemblies/`
+(Core.dll = 6 MB, Core.Localization.dll = 660 KB, etc.) for:
+- The literal French message ("voyage automatique", "Impossible de lancer",
+  "aucune carte accessible") — UTF-8 and UTF-16 encodings.
+- Common i18n key patterns (`ui.X.Y.Z`, `ui.*.error.*`).
+- File path debug strings referring to `*Travel*.cs`.
+
+**All scans returned zero hits.** The Dofus 3 localization system likely
+uses:
+- Numeric hash IDs (Unity Localization package style) instead of string
+  keys in the code. The code reads `Localize(0x1234abcd)` rather than
+  `Localize("ui.autoTravel.error.noAccessible")`.
+- Binary tables stored in the unreadable Unity TextAssets in
+  `Assets/TextAsset/UnreadableTextAsset_*.json` (which are stub wrappers —
+  the real data is in the corresponding `.bundle` files in
+  `dofus-app/data/external/dofus-app` outside the assetripper export).
+
+Without decoding those binary tables, the literal French string cannot be
+mapped back to a code site through static analysis.
+
+### Final state — accepting the limit
+
+We've exhausted reasonable investigation budget. The cold-fresh + region-
+scoped limitation is documented; the autopilot remains usable with the
+workaround (manual travel ≥ intended native destination distance).
+
+If a future maintainer wants to take this up again, the most promising
+remaining angle is **bypass via viewport patching, not dispatch tracing**:
+identify which `eaw` field holds the worldmap-loaded-region state (via
+field-shadowing during a manual travel sequence), then force-set it from
+the agent before invoking wbi. This sidesteps the question of where the
+chat error comes from entirely.
+
+---
+
+## Resolution (later that afternoon) — path injection
+
+A different bypass turned out to work: we don't fix the validator and don't
+trace the chat dispatch. We just **skip the compute step entirely**.
+
+### The insight
+
+The auto-travel pipeline is `tkw → bapj → walker`. The viewport rejection
+lives in **bapj** (the path-compute). The **walker** that follows is happy
+to consume any `List<Edge>` you hand it — it doesn't re-validate.
+
+So:
+
+1. Host computes the path via its own JS A* over the cached world graph
+   (`app/plugins/dofus/lib/movement/world-path.ts`). Pure topology, no
+   viewport check.
+2. Agent allocates IL2CPP `Edge`/`Vertex` objects from the JSON path
+   (`Vertex.ctor(long mapId, int zoneId, ulong uid)` +
+   `Edge.ctor(Vertex, Vertex)` + `Edge.bgux(...)` per transition, into a
+   freshly-allocated `List<Edge>`).
+3. Agent writes the list into `worker.resultEdges`, calls `tkw(dck)` for
+   the side-effect of subscribing the walker to the result event (its
+   later bapj throw is caught and ignored), then fires
+   `WorldPathfindingWorker.deliverResult(list, true)`.
+4. The walker receives the forged list and walks. All transitions (isa per
+   cell, ito for map changes, iev for doors/zaaps, client-desync recovery)
+   are handled natively by the game — we don't need to forge any of them.
+
+This works **cold-fresh, any distance, no warm-up required**. The viewport
+check never runs against our destination.
+
+### Implementation
+
+Single agent function `startAutoTravel(proto, destMapId, edgesJson)` in
+`src/rpc-agent/plugins/dofus/actions/world-pathfinding.ts`. The path types
+(`Edge`, `Vertex`) are clear-named in
+`Core.PathFinding.WorldPathfinding.*`. The transition-builder
+`Edge.bgux(pn dir, int type, int skillId, string criterion, long transMapId,
+int cellId, long id)` saves us from resolving the generic
+`List<Transition>` concrete class — it constructs and appends a Transition
+in one call.
+
+The only obfuscated bits that needed labelling (now all in
+`WORLD_PATHFINDING_PROTO`, so the migration engine re-keys them after obf
+rotations): `fpc/dpln/nwf` (worker + result list + deliver method),
+`dtw/tkw/dck` (UI controller + start + request struct), `bgux` (Edge add-
+transition), `bapg/bgul/gmj` (PathFindingData loader + setters), plus the
+clear-named `Edge`, `Vertex`, `WorldPathfinder`, `MapRenderer`.
+
+### Refactor — the autopilot is now just this
+
+Once path injection worked reliably, the entire previous autopilot stack
+got removed:
+
+- `app/plugins/dofus/lib/movement/autopilot.ts` (TravelOrchestrator) —
+  deleted. Was forging `isa` per-edge + `ito` per-map-change manually.
+- `app/plugins/dofus/lib/movement/basic-ping.ts` — deleted. Was only used
+  for orchestrator keepalive.
+- `app/plugins/dofus/lib/interactives/npc-dialog.ts` — deleted. Was only
+  used for the orchestrator's transit-NPC fallback (the native walker
+  handles NPCs internally).
+- Old `startNativeAutoTravel` (tkw + wbi fallback) — deleted from the agent.
+- TEMP dispatch tracers (`installStringSubstringTrace`,
+  `installChatDispatchTrace`) and bapc/nwf observation hooks — deleted.
+- `/api/dofus/travel/cancel` + `/api/dofus/travel/status` endpoints —
+  deleted. No status polling: the user observes the walk in-game; to
+  interrupt, manually move the character.
+- UI: dropped `fast`/`native`/`custom` checkboxes. The autopilot panel is
+  now just `mapId input + Go button + last-response message`.
+
+Slimmed `WORLD_PATHFINDING_PROTO`: dropped `AutoTravelManager`,
+`WorldmapController`, `Transition`, all `AutoTravelManager_*` /
+`AutoTravelRequest_*` field entries, `WorldPathfinder` field accessors
+(worker/startVertex/destMapId/state), `bapc`/`bapj`/`wbi` methods. What
+remains is exactly what the path injection touches.

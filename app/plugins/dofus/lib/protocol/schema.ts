@@ -611,91 +611,60 @@ export interface ResolvedHouseProto {
 
 export const WORLD_PATHFINDING_PROTO = {
     classes: {
-        AutoTravelManager:        { friendly: "AutoTravelManager",         fallback: "elj" },
+        /** Holds the static PathFindingData (`dkdy`) — the world-graph asset
+         *  bundle. Source-of-truth for `extractWorldGraph`. */
         WorldPathfinder:          { friendly: "WorldPathfinder",           fallback: "ell" },
+        /** Owns `resultEdges` — the List<Edge> the walker consumes. We write
+         *  our host-computed path here and fire `deliverResult` on it. */
         WorldPathfindingWorker:   { friendly: "WorldPathfindingWorker",    fallback: "fpc" },
-        // High-level UI controller — the one the worldmap double-click goes
-        // through. Its tkw(dck) is the cleanest entry point for forging
-        // auto-travel (vs invoking elj.bapc directly which needs a typed
-        // Action delegate we can't easily construct). dtw is a MonoBehaviour
-        // — its UniTask continuations only run on Unity main thread.
+        /** dtw — its tkw(dck) wakes the auto-travel state machine. We call
+         *  it for the side-effect (subscribe the walker) even if its async
+         *  bapj later throws on the viewport check. */
         AutoTravelUiController:   { friendly: "AutoTravelUiController",    fallback: "dtw" },
-        // Tiny request struct passed to tkw — { destMapId, skipConfirmation }.
-        // Parameterless ctor; we set the two fields directly after `new()`.
+        /** dck — request struct passed to tkw. Allocated with
+         *  `(long destMapId, bool skipConfirmation)` ctor. */
         AutoTravelRequest:        { friendly: "AutoTravelRequest",        fallback: "dck" },
-        // Unity-native, name never obfuscated — listed for symmetry. Its
-        // Update() is our main-thread dispatch anchor: hooked, drains a
-        // queue of forged invokes that need Unity main-thread scheduler.
+        /** Unity-native, name never obfuscated. Its `Update()` is our
+         *  main-thread dispatch anchor. */
         MapRenderer:              { friendly: "Core.Rendering.MapRenderer", fallback: "Core.Rendering.MapRenderer" },
-        // Worldmap / minimap UI controller — its wbi() is the cold-fresh
-        // fallback when dtw.tkw raises "system error" before warm-up. wbi
-        // performs upstream init tkw skips, but its viewport validation
-        // limits forge-with-(0,0) to near maps. See investigation doc.
-        WorldmapController:       { friendly: "WorldmapController",        fallback: "eaw" },
+        /** Path types — clear-named (`Core.PathFinding.WorldPathfinding.*`).
+         *  We allocate Edge/Vertex ourselves to fill the worker's resultEdges
+         *  list. Transition is built implicitly via `Edge.bgux(...)`, so it
+         *  doesn't need its own entry. */
+        Edge:                     { friendly: "Edge",                     fallback: "Edge" },
+        Vertex:                   { friendly: "Vertex",                   fallback: "Vertex" },
     } as Record<string, ProtoClassSpec>,
     fields: {
-        // AutoTravelManager.dkds : ere (the pathfinder runtime context — passed
-        // as the 4th argument to WorldPathfinder.computePath)
-        AutoTravelManager_pathfinderContext: { classKey: "AutoTravelManager",      friendly: "pathfinderContext",  fallback: "dkds" },
-        // WorldPathfinder.dked : fpc (the live A* worker)
-        WorldPathfinder_worker:              { classKey: "WorldPathfinder",        friendly: "worker",      fallback: "dked" },
-        // WorldPathfinder.dkea : Vertex (start)
-        WorldPathfinder_startVertex:         { classKey: "WorldPathfinder",        friendly: "startVertex", fallback: "dkea" },
-        // WorldPathfinder.dkeb : long (destination mapId)
-        WorldPathfinder_destMapId:           { classKey: "WorldPathfinder",        friendly: "destMapId",   fallback: "dkeb" },
-        // WorldPathfinder.dkec : int (state/phase)
-        WorldPathfinder_state:               { classKey: "WorldPathfinder",        friendly: "state",       fallback: "dkec" },
-        // WorldPathfindingWorker.dpln : List<Edge> (the result path)
+        /** dpln : List<Edge> — the worker's result path. We write our
+         *  host-computed list here before firing deliverResult. */
         WorldPathfindingWorker_resultEdges:  { classKey: "WorldPathfindingWorker", friendly: "resultEdges", fallback: "dpln" },
-        // WorldPathfinder.dkdy : static PathFindingData (the world graph asset).
-        // Read by extractWorldGraph; populated lazily by `init` (bapg) the first
-        // time anything triggers the auto-travel pipeline.
+        /** dkdy : static PathFindingData. Read by extractWorldGraph;
+         *  populated lazily by `init` (bapg) on first auto-travel trigger. */
         WorldPathfinder_pathFindingData:     { classKey: "WorldPathfinder",        friendly: "pathFindingData", fallback: "dkdy" },
-        // AutoTravelRequest (dck) — passed by value to tkw.
-        AutoTravelRequest_destMapId:         { classKey: "AutoTravelRequest",      friendly: "destMapId",        fallback: "dbpf" },
-        AutoTravelRequest_skipConfirmation:  { classKey: "AutoTravelRequest",      friendly: "skipConfirmation", fallback: "dbpg" },
     } as Record<string, ProtoMemberSpec>,
     methods: {
-        /** AutoTravelManager.bapc(long destMapId, Action<List<Edge>,bool> cb, bool flag) → void.
-         *  Public entry: computes path AND kicks off movement via its own lambda
-         *  (which calls computePath internally then triggers walking). Hooked
-         *  observe-only for diag — we don't invoke it. */
-        AutoTravelManager_startAutoTravel:    { classKey: "AutoTravelManager",      friendly: "startAutoTravel", fallback: "bapc" },
-        /** WorldPathfinder.bapj(long destMapId, long srcMapId, long currentCellId,
-         *  ere, Action<List<Edge>,bool> cb, bool flag) → void.
-         *  PURE pathfinder — the method `bapc` calls internally. Publishes the
-         *  result to fpc.resultEdges before invoking cb. Invoking with cb=NULL
-         *  gives us the path without triggering movement. */
-        WorldPathfinder_computePath:          { classKey: "WorldPathfinder",        friendly: "computePath",     fallback: "bapj" },
-        /** WorldPathfindingWorker.nwf(List<Edge>, bool) → void.
-         *  Internal "publish result" — fires once per completed computation.
-         *  Hooked to detect "fresh" path captures during active invokes. */
+        /** nwf(List<Edge>, bool) — publish result. We invoke it ourselves on
+         *  our forged list so the walker picks it up. */
         WorldPathfindingWorker_deliverResult: { classKey: "WorldPathfindingWorker", friendly: "deliverResult",   fallback: "nwf" },
-        /** WorldPathfinder.bapg() → UniTask. Async Init that loads the
-         *  PathFindingData ScriptableObject via Addressables and stores it in
-         *  the static `dkdy`. Called by triggerPathFindingDataLoad. */
+        /** bapg() → UniTask. Async Init that loads PathFindingData via
+         *  Addressables and stores it in static dkdy. */
         WorldPathfinder_init:                 { classKey: "WorldPathfinder",        friendly: "init",            fallback: "bapg" },
-        /** WorldPathfindingWorker.bgul(PathFindingData) → void.
-         *  Static setter — registers the loaded PathFindingData with fpc's
-         *  static `dplc`. One of two redundant setters; call both for safety. */
+        /** bgul(PathFindingData) — static setter that registers data with
+         *  the worker's static `dplc`. One of two redundant setters. */
         WorldPathfindingWorker_registerData1: { classKey: "WorldPathfindingWorker", friendly: "registerData1",   fallback: "bgul" },
-        /** WorldPathfindingWorker.gmj(PathFindingData) → void.
-         *  Sibling of bgul — same purpose, same target field. */
+        /** Sibling of bgul. */
         WorldPathfindingWorker_registerData2: { classKey: "WorldPathfindingWorker", friendly: "registerData2",   fallback: "gmj" },
-        /** dtw.tkw(dck) — UI-level entry point invoked when the user double-
-         *  clicks a destination on the worldmap. Builds the internal cb +
-         *  schedules the path compute + walking on UniTask. We dispatch this
-         *  through a MapRenderer.Update hook so the continuations land on
-         *  Unity main thread (where their scheduler context exists). */
+        /** dtw.tkw(dck) — UI entry for worldmap double-click. We invoke it
+         *  for the side-effect (subscribe walker), tolerating the throw when
+         *  its bapj rejects cold-fresh. */
         AutoTravelUiController_start:         { classKey: "AutoTravelUiController", friendly: "startTravelFromRequest", fallback: "tkw" },
-        /** Unity main-thread anchor — never obfuscated. We hook this and use
-         *  its onLeave to drain pending forge tasks in main-thread context. */
+        /** MapRenderer.Update — main-thread dispatch anchor (clear name). */
         MapRenderer_Update:                   { classKey: "MapRenderer",            friendly: "Update",          fallback: "Update" },
-        /** eaw.wbi(UnityEngine.Vector2, long destMapId, bool skipConfirmation).
-         *  The "click-to-travel" entry the minimap's double-click handler
-         *  invokes. Used as cold-fresh fallback when dtw.tkw crashes — wbi
-         *  performs the same upstream init the natural click does. */
-        WorldmapController_startTravelFromClick: { classKey: "WorldmapController",   friendly: "startTravelFromClick", fallback: "wbi" },
+        /** Edge.bgux(pn dir, int type, int skillId, string criterion,
+         *  long transMapId, int cellId, long id) — constructs+appends a
+         *  Transition into the Edge's m_transitions. Bypasses the need to
+         *  resolve the generic `List<Transition>` for Add(). */
+        Edge_addTransition:                   { classKey: "Edge",                   friendly: "addTransition",   fallback: "bgux" },
     } as Record<string, ProtoMemberSpec>,
 } as const;
 
