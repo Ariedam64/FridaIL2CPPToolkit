@@ -43,19 +43,19 @@ export interface WorldPathfindingProto {
         WorldPathfinder_state:               string;
         WorldPathfindingWorker_resultEdges:  string;
         WorldPathfinder_pathFindingData:     string;
-        AutoTravelRequest_destMapId:          string;
-        AutoTravelRequest_skipConfirmation:   string;
+        AutoTravelRequest_destMapId:         string;
+        AutoTravelRequest_skipConfirmation:  string;
     };
     methods: {
-        AutoTravelManager_startAutoTravel:        string;
-        WorldPathfinder_computePath:              string;
-        WorldPathfindingWorker_deliverResult:     string;
-        WorldPathfinder_init:                     string;
-        WorldPathfindingWorker_registerData1:     string;
-        WorldPathfindingWorker_registerData2:     string;
-        AutoTravelUiController_start:             string;
-        MapRenderer_Update:                       string;
-        WorldmapController_startTravelFromClick:  string;
+        AutoTravelManager_startAutoTravel:       string;
+        WorldPathfinder_computePath:             string;
+        WorldPathfindingWorker_deliverResult:    string;
+        WorldPathfinder_init:                    string;
+        WorldPathfindingWorker_registerData1:    string;
+        WorldPathfindingWorker_registerData2:    string;
+        AutoTravelUiController_start:            string;
+        MapRenderer_Update:                      string;
+        WorldmapController_startTravelFromClick: string;
     };
 }
 
@@ -336,35 +336,38 @@ function installHooks(proto: WorldPathfindingProto): boolean {
     }
 }
 
-/** Forge a native auto-travel — equivalent to a double-click on the worldmap.
+/** Forge a native auto-travel — equivalent to the user double-clicking a
+ *  destination on the worldmap. Two paths, tried in order:
  *
- *  Two paths, tried in order:
+ *    1. Primary — `AutoTravelUiController.startTravelFromRequest` (dtw.tkw)
+ *       with an `AutoTravelRequest` (dck) carrying destMapId +
+ *       skipConfirmation. dck has a parameterless ctor — fields are set
+ *       directly (the manual click path does the same; calling
+ *       `.method(".ctor").invoke(Int64, true)` silently does nothing because
+ *       that signature doesn't exist on the class, leaves fields at 0/false →
+ *       tkw later derefs a null mapId).
  *
- *    1. Primary — `AutoTravelUiController.startTravelFromRequest(dck)` (tkw).
- *       Build dck { destMapId, skipConfirmation=true } INSIDE the main-thread
- *       dispatcher so the GC can't free it between alloc and invoke (Frida's
- *       JS handle is invisible to IL2CPP's GC; allocating on the Frida worker
- *       thread and invoking one Unity frame later leaves a window where the
- *       boxed dck dies → tkw reads freed memory → access violation surfaces
- *       as Frida "system error"). Allocating + invoking in the same Unity
- *       tick closes that window.
+ *    2. Fallback — `WorldmapController.startTravelFromClick(Vector2(0,0),
+ *       destMapId, true)` (eaw.wbi). The "click-to-travel" entry the
+ *       minimap's double-click handler invokes. Used when tkw throws
+ *       cold-fresh — wbi performs additional upstream init that warm tkw
+ *       skips. Vector2 is decorative for the chosen mapId: wbi validates
+ *       (x,y) against the worldmap viewport, so (0,0) only matches maps near
+ *       worldmap origin — in practice covers maps within ~1 hop of the
+ *       player.
  *
- *    2. Fallback — `WorldmapController.startTravelFromClick(Vector2, destMapId,
- *       skipConfirmation)` (eaw.wbi). The natural entry the minimap's double-
- *       click handler (wbw) invokes after resolving click position → mapId.
- *       Used when tkw throws — wbi performs additional upstream init.
+ *  Known cold-fresh limitation: a truly cold session (Dofus just launched, no
+ *  manual auto-travel since) crashes tkw with "system error" and wbi only
+ *  reaches the player's neighbor maps. One manual minimap double-click as a
+ *  session warm-up primes the state; subsequent forges work normally for the
+ *  rest of the session. Full investigation:
+ *  `docs/2026-05-17-cold-autopilot-investigation.md`.
  *
- *  Known limitation: in a truly cold session (Dofus just launched, worldmap
- *  never opened, minimap never clicked) tkw and wbi both surface the in-chat
- *  message "Impossible de lancer un voyage automatique : il n'existe aucune
- *  carte accessible à la position souhaitée" — they share an internal
- *  position-validation step that rejects Vector2(0,0) because no worldmap
- *  viewport has been initialized yet. One manual minimap double-click as a
- *  session warmup primes the state; subsequent forges then work for the
- *  entire session.
- *
- *  Both paths go through `dispatchOnMainThread` so UniTask continuations
- *  land on Unity's main-thread scheduler context. */
+ *  Everything runs inside `dispatchOnMainThread` so:
+ *    - the boxed dck stays GC-rooted between alloc and invoke (Frida's JS
+ *      handle is invisible to IL2CPP's GC);
+ *    - UniTask continuations land on Unity's main-thread scheduler context
+ *      (otherwise they silently never fire). */
 export function startNativeAutoTravel(
     proto: WorldPathfindingProto,
     destMapId: number,
@@ -381,7 +384,8 @@ export function startNativeAutoTravel(
                 // Primary: tkw(dck).
                 try {
                     const req: any = (dckK as any).new();
-                    req.method(".ctor").invoke(new Int64(destMapId.toString()), true);
+                    req.field(proto.fields.AutoTravelRequest_destMapId).value = new Int64(destMapId.toString());
+                    req.field(proto.fields.AutoTravelRequest_skipConfirmation).value = true;
                     (controller as any).method(proto.methods.AutoTravelUiController_start).invoke(req);
                     diag(`forge tkw(${destMapId}): ok`);
                     return { ok: true } as { ok: boolean; reason?: string };
@@ -389,7 +393,10 @@ export function startNativeAutoTravel(
                     diag(`forge tkw(${destMapId}): threw — ${String((e as any)?.message ?? e).slice(0, 120)} ; trying wbi fallback`);
                 }
 
-                // Fallback: wbi(Vector2(0,0), destMapId, true).
+                // Fallback: wbi(Vector2(0,0), destMapId, true). Covers cold-fresh
+                // near-map travel — wbi performs upstream init tkw skips, but
+                // its viewport-validation only accepts (0,0) for maps near the
+                // worldmap origin (~1 hop from player).
                 const eawInst = getSingleton(proto.classes.WorldmapController);
                 if (!eawInst) return { ok: false, reason: `no live ${proto.classes.WorldmapController}` };
                 const vec2K = findClass("UnityEngine.Vector2");

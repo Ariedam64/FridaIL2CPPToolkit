@@ -621,18 +621,16 @@ export const WORLD_PATHFINDING_PROTO = {
         // — its UniTask continuations only run on Unity main thread.
         AutoTravelUiController:   { friendly: "AutoTravelUiController",    fallback: "dtw" },
         // Tiny request struct passed to tkw — { destMapId, skipConfirmation }.
+        // Parameterless ctor; we set the two fields directly after `new()`.
         AutoTravelRequest:        { friendly: "AutoTravelRequest",        fallback: "dck" },
         // Unity-native, name never obfuscated — listed for symmetry. Its
         // Update() is our main-thread dispatch anchor: hooked, drains a
         // queue of forged invokes that need Unity main-thread scheduler.
         MapRenderer:              { friendly: "Core.Rendering.MapRenderer", fallback: "Core.Rendering.MapRenderer" },
-        // Worldmap / minimap UI controller — owns the mouse handlers
-        // (wbw / iju / odk / fiq) that translate a double-click on the
-        // worldmap or minimap into a travel call. Its wbi() is the proven
-        // cold-start fallback entry: when dtw.tkw fails cold (rare since
-        // moving dck construction into the main-thread dispatcher fixed
-        // most cases), wbi performs the same pre-init the natural click
-        // does and reaches dtw.tkw with everything in place.
+        // Worldmap / minimap UI controller — its wbi() is the cold-fresh
+        // fallback when dtw.tkw raises "system error" before warm-up. wbi
+        // performs upstream init tkw skips, but its viewport validation
+        // limits forge-with-(0,0) to near maps. See investigation doc.
         WorldmapController:       { friendly: "WorldmapController",        fallback: "eaw" },
     } as Record<string, ProtoClassSpec>,
     fields: {
@@ -695,12 +693,8 @@ export const WORLD_PATHFINDING_PROTO = {
         MapRenderer_Update:                   { classKey: "MapRenderer",            friendly: "Update",          fallback: "Update" },
         /** eaw.wbi(UnityEngine.Vector2, long destMapId, bool skipConfirmation).
          *  The "click-to-travel" entry the minimap's double-click handler
-         *  (wbw) invokes after resolving the click position to a mapId.
-         *  Used as cold-start fallback: it performs the same upstream
-         *  initialization the natural click does — so when our direct
-         *  dtw.tkw forge hits a not-yet-warmed runtime state, this path
-         *  succeeds. Vector2 is decorative (passed (0,0)); only the mapId
-         *  and skip flag matter for the actual travel. */
+         *  invokes. Used as cold-fresh fallback when dtw.tkw crashes — wbi
+         *  performs the same upstream init the natural click does. */
         WorldmapController_startTravelFromClick: { classKey: "WorldmapController",   friendly: "startTravelFromClick", fallback: "wbi" },
     } as Record<string, ProtoMemberSpec>,
 } as const;
