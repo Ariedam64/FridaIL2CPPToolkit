@@ -33,6 +33,7 @@ export interface WorldPathfindingProto {
         AutoTravelUiController: string;
         AutoTravelRequest:      string;
         MapRenderer:            string;
+        WorldmapController:     string;
     };
     fields: {
         AutoTravelManager_pathfinderContext: string;
@@ -46,14 +47,15 @@ export interface WorldPathfindingProto {
         AutoTravelRequest_skipConfirmation:   string;
     };
     methods: {
-        AutoTravelManager_startAutoTravel:    string;
-        WorldPathfinder_computePath:          string;
-        WorldPathfindingWorker_deliverResult: string;
-        WorldPathfinder_init:                 string;
-        WorldPathfindingWorker_registerData1: string;
-        WorldPathfindingWorker_registerData2: string;
-        AutoTravelUiController_start:         string;
-        MapRenderer_Update:                   string;
+        AutoTravelManager_startAutoTravel:        string;
+        WorldPathfinder_computePath:              string;
+        WorldPathfindingWorker_deliverResult:     string;
+        WorldPathfinder_init:                     string;
+        WorldPathfindingWorker_registerData1:     string;
+        WorldPathfindingWorker_registerData2:     string;
+        AutoTravelUiController_start:             string;
+        MapRenderer_Update:                       string;
+        WorldmapController_startTravelFromClick:  string;
     };
 }
 
@@ -259,7 +261,7 @@ function dispatchOnMainThread<T>(proto: WorldPathfindingProto, fn: () => T): Pro
 let _selfInvokingNative = false;
 function diag(msg: string): void {
     _diagLog.push(`[${Date.now() % 100000}] ${msg}`);
-    if (_diagLog.length > 200) _diagLog.shift();
+    if (_diagLog.length > 1000) _diagLog.shift();
 }
 
 
@@ -334,30 +336,35 @@ function installHooks(proto: WorldPathfindingProto): boolean {
     }
 }
 
-/** Diagnostic helper: install lightweight Interceptor hooks on EVERY method
- *  of the `dtw` class (the world-map auto-travel controller). Each call logs
- *  "dtw.<method>(args)" to the diag log so we can observe the natural call
- *  sequence during a user-triggered auto-travel. Use to identify the
- *  pre/post steps that wrap dtw.tlb in the real flow. Safe to call multiple
- *  times — idempotent. */
-
-/** Invoke `AutoTravelManager.startAutoTravel(destMapId, null, false)` — the
- *  public entry point the game uses when the user double-clicks a worldmap
- *  destination. The client handles path compute + walking + transitions
- *  (iev / NPC dialogs / zaaps / boats) on its own, exactly as if the user
- *  had triggered it manually. No callback, no flag — minimal invocation. */
 /** Forge a native auto-travel — equivalent to a double-click on the worldmap.
  *
- *  Flow:
- *    1. Build `AutoTravelRequest(destMapId, skipConfirmation=true)` (dck)
- *    2. Dispatch `AutoTravelUiController.startTravelFromRequest(req)` (dtw.tkw)
- *       through a Unity-main-thread queue so UniTask continuations land in
- *       the right scheduler context. Without this the path is computed but
- *       the walking executor never picks up (registered on the wrong sched).
+ *  Two paths, tried in order:
  *
- *  All class/method/field names go through `proto.*` — resilient to obf
- *  rotations as long as the LabelStore is seeded (we POST friendly names on
- *  attach so the resolver hits even before a manual rename). */
+ *    1. Primary — `AutoTravelUiController.startTravelFromRequest(dck)` (tkw).
+ *       Build dck { destMapId, skipConfirmation=true } INSIDE the main-thread
+ *       dispatcher so the GC can't free it between alloc and invoke (Frida's
+ *       JS handle is invisible to IL2CPP's GC; allocating on the Frida worker
+ *       thread and invoking one Unity frame later leaves a window where the
+ *       boxed dck dies → tkw reads freed memory → access violation surfaces
+ *       as Frida "system error"). Allocating + invoking in the same Unity
+ *       tick closes that window.
+ *
+ *    2. Fallback — `WorldmapController.startTravelFromClick(Vector2, destMapId,
+ *       skipConfirmation)` (eaw.wbi). The natural entry the minimap's double-
+ *       click handler (wbw) invokes after resolving click position → mapId.
+ *       Used when tkw throws — wbi performs additional upstream init.
+ *
+ *  Known limitation: in a truly cold session (Dofus just launched, worldmap
+ *  never opened, minimap never clicked) tkw and wbi both surface the in-chat
+ *  message "Impossible de lancer un voyage automatique : il n'existe aucune
+ *  carte accessible à la position souhaitée" — they share an internal
+ *  position-validation step that rejects Vector2(0,0) because no worldmap
+ *  viewport has been initialized yet. One manual minimap double-click as a
+ *  session warmup primes the state; subsequent forges then work for the
+ *  entire session.
+ *
+ *  Both paths go through `dispatchOnMainThread` so UniTask continuations
+ *  land on Unity's main-thread scheduler context. */
 export function startNativeAutoTravel(
     proto: WorldPathfindingProto,
     destMapId: number,
@@ -368,25 +375,39 @@ export function startNativeAutoTravel(
         const controller = getSingleton(proto.classes.AutoTravelUiController);
         if (!controller) return Promise.resolve({ ok: false, reason: `no live ${proto.classes.AutoTravelUiController} instance` });
 
-        let req: any;
-        try {
-            req = (dckK as any).new();
-            // dck has a single 2-arg ctor(Int64 destMapId, Boolean skipConfirmation).
-            req.method(".ctor").invoke(new Int64(destMapId.toString()), true);
-        } catch (e) {
-            return Promise.resolve({ ok: false, reason: `${proto.classes.AutoTravelRequest} build failed: ${String(e).slice(0, 200)}` });
-        }
-
         return dispatchOnMainThread(proto, () => {
             _selfInvokingNative = true;
             try {
-                (controller as any).method(proto.methods.AutoTravelUiController_start).invoke(req);
-                diag(`autoTravel(${destMapId}) dispatched on main-thread`);
-                return { ok: true } as { ok: boolean; reason?: string };
-            } catch (e) {
-                const msg = String(e).slice(0, 200);
-                diag(`autoTravel(${destMapId}) threw: ${msg}`);
-                return { ok: false, reason: msg };
+                // Primary: tkw(dck).
+                try {
+                    const req: any = (dckK as any).new();
+                    req.method(".ctor").invoke(new Int64(destMapId.toString()), true);
+                    (controller as any).method(proto.methods.AutoTravelUiController_start).invoke(req);
+                    diag(`forge tkw(${destMapId}): ok`);
+                    return { ok: true } as { ok: boolean; reason?: string };
+                } catch (e) {
+                    diag(`forge tkw(${destMapId}): threw — ${String((e as any)?.message ?? e).slice(0, 120)} ; trying wbi fallback`);
+                }
+
+                // Fallback: wbi(Vector2(0,0), destMapId, true).
+                const eawInst = getSingleton(proto.classes.WorldmapController);
+                if (!eawInst) return { ok: false, reason: `no live ${proto.classes.WorldmapController}` };
+                const vec2K = findClass("UnityEngine.Vector2");
+                if (!vec2K) return { ok: false, reason: "UnityEngine.Vector2 class not found" };
+
+                const v2mem = Memory.alloc(8);
+                v2mem.writeFloat(0); v2mem.add(4).writeFloat(0);
+                const vec2 = new (Il2Cpp as any).ValueType(v2mem, (vec2K as any).type);
+
+                try {
+                    (eawInst as any).method(proto.methods.WorldmapController_startTravelFromClick).invoke(vec2, destMapId, true);
+                    diag(`forge wbi(${destMapId}): ok`);
+                    return { ok: true };
+                } catch (e2) {
+                    const msg = `wbi: ${String((e2 as any)?.message ?? e2).slice(0, 200)}`;
+                    diag(`forge wbi(${destMapId}): threw — ${msg}`);
+                    return { ok: false, reason: msg };
+                }
             } finally {
                 _selfInvokingNative = false;
             }

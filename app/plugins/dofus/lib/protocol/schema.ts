@@ -626,6 +626,14 @@ export const WORLD_PATHFINDING_PROTO = {
         // Update() is our main-thread dispatch anchor: hooked, drains a
         // queue of forged invokes that need Unity main-thread scheduler.
         MapRenderer:              { friendly: "Core.Rendering.MapRenderer", fallback: "Core.Rendering.MapRenderer" },
+        // Worldmap / minimap UI controller — owns the mouse handlers
+        // (wbw / iju / odk / fiq) that translate a double-click on the
+        // worldmap or minimap into a travel call. Its wbi() is the proven
+        // cold-start fallback entry: when dtw.tkw fails cold (rare since
+        // moving dck construction into the main-thread dispatcher fixed
+        // most cases), wbi performs the same pre-init the natural click
+        // does and reaches dtw.tkw with everything in place.
+        WorldmapController:       { friendly: "WorldmapController",        fallback: "eaw" },
     } as Record<string, ProtoClassSpec>,
     fields: {
         // AutoTravelManager.dkds : ere (the pathfinder runtime context — passed
@@ -685,6 +693,15 @@ export const WORLD_PATHFINDING_PROTO = {
         /** Unity main-thread anchor — never obfuscated. We hook this and use
          *  its onLeave to drain pending forge tasks in main-thread context. */
         MapRenderer_Update:                   { classKey: "MapRenderer",            friendly: "Update",          fallback: "Update" },
+        /** eaw.wbi(UnityEngine.Vector2, long destMapId, bool skipConfirmation).
+         *  The "click-to-travel" entry the minimap's double-click handler
+         *  (wbw) invokes after resolving the click position to a mapId.
+         *  Used as cold-start fallback: it performs the same upstream
+         *  initialization the natural click does — so when our direct
+         *  dtw.tkw forge hits a not-yet-warmed runtime state, this path
+         *  succeeds. Vector2 is decorative (passed (0,0)); only the mapId
+         *  and skip flag matter for the actual travel. */
+        WorldmapController_startTravelFromClick: { classKey: "WorldmapController",   friendly: "startTravelFromClick", fallback: "wbi" },
     } as Record<string, ProtoMemberSpec>,
 } as const;
 
